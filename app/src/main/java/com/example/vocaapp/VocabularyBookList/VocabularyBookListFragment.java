@@ -1,5 +1,8 @@
 package com.example.vocaapp.VocabularyBookList;
 
+import static com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.deleteVocabularyBook;
+
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -32,7 +35,6 @@ public class VocabularyBookListFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private VocabularyBookListAdapter adapter;
-    // String을 Object로 변경 (숫자 데이터를 받기 위함)
     private final ArrayList<Map<String, Object>> dataList = new ArrayList<>();
     private String uid;
 
@@ -181,6 +183,29 @@ public class VocabularyBookListFragment extends Fragment {
 
         VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, null);
         Toast.makeText(getContext(), "학습 모드가 시작되었습니다. 단어 추가가 제한됩니다.", Toast.LENGTH_SHORT).show();
+    }
+
+    // 단어장 삭제를 위한 팝업
+    public void showDeleteConfirmDialog(int position) {
+        // 1. 다이얼로그를 띄우기 직전에 미리 docId를 추출합니다.
+        if (dataList == null || position < 0 || position >= dataList.size()) {
+            return; // 데이터가 없으면 다이얼로그 자체를 띄우지 않음
+        }
+
+        // 미리 꺼내두기 (final 상수로 선언하여 리스너 내부에서 사용 가능하게 함)
+        final String targetDocId = (String) dataList.get(position).get("docId");
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle("삭제 확인");
+        builder.setMessage("삭제를 진행하면 단어장을 복구할 수 없습니다.\n정말 삭제하시겠습니까?");
+
+        builder.setPositiveButton("삭제", (dialog, id) -> {
+            // 2. 리스너 내부에서는 리스트를 다시 참조하지 않고, 미리 꺼내둔 targetDocId를 사용합니다.
+            deleteVocabularyBook(targetDocId, uid);
+        });
+
+        builder.setNegativeButton("취소", null);
+        builder.show();
     }
 
 }
