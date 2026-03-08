@@ -1,5 +1,7 @@
 package com.example.vocaapp.VocabularyBookList;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -11,16 +13,25 @@ import java.util.List;
 import java.util.Map;
 
 public class VocabularyBookFirestore {
+
     // 단어장 db에 추가하는 로직
     public static void addVocabularyBook(Map<String, Object> inputVocabularyBookName, String uid, VocabularyBookCallback callback) {
-
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        db.collection("users")
+        // 1. 문서를 생성하기 전에 참조(Reference)를 먼저 만듭니다.
+        // .document()에 인자를 넣지 않으면 Firestore가 고유 ID를 미리 생성해줍니다.
+        DocumentReference newDocRef = db.collection("users")
                 .document(uid)
                 .collection("vocabularies")
-                .add(inputVocabularyBookName)
-                .addOnSuccessListener(documentReference -> {
+                .document();
+
+        // 2. 생성된 고유 ID를 데이터 Map에 삽입합니다.
+        String generatedId = newDocRef.getId();
+        inputVocabularyBookName.put("docId", generatedId);
+
+        // 3. .add() 대신 .set()을 사용하여 데이터를 저장합니다.
+        newDocRef.set(inputVocabularyBookName)
+                .addOnSuccessListener(aVoid -> {
                     if (callback != null) callback.onSuccess();
                 })
                 .addOnFailureListener(e -> {
@@ -112,4 +123,18 @@ public class VocabularyBookFirestore {
                     if (callback != null) callback.onFailure(e);
                 });
     }
+
+    public static void deleteVocabularyBook(String docId, String uid) {
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies").document(docId)
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+
+                })
+                .addOnFailureListener(e -> {
+                    // 에러 처리
+                });
+    }
+
 }

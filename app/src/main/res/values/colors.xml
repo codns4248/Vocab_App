@@ -1,23 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary colors -->
-    <color name="md_theme_primary">#6C88C4</color>
+    <color name="md_theme_primary">#ffff00</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
 
     <color name="md_theme_secondary">#625B71</color>
     <color name="md_theme_onSecondary">#FFFFFF</color>
 
-    <!-- Neutral / Background colors -->
+    <color name="text_color">#000000</color>
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="md_theme_background">#FFFFFF</color>
     <color name="md_theme_onBackground">#1C1B1F</color>
 
-    <!-- Surface colors -->
     <color name="md_theme_surface">#FFFFFF</color>
     <color name="md_theme_onSurface">#1C1B1F</color>
 
-    <!-- Optional: Error colors -->
     <color name="md_theme_error">#B3261E</color>
     <color name="md_theme_onError">#FFFFFF</color>
 </resources>

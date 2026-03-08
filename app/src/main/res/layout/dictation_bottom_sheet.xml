@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:text="시작"
-        android:textColor="#ffffff"
+        android:textColor="@color/text_color"
         app:backgroundTint="@color/md_theme_primary" />
 
 </LinearLayout>

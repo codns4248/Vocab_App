@@ -61,6 +61,8 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
         Map<String, Object> vocab = dataList.get(position);
         holder.textViewItem.setText(String.valueOf(vocab.get("title")));
 
+
+
         // 스탬프 개수를 안전하게 가져오는 로직
         int stampCount = 0;
         Object countObj = vocab.get("stampCount");
@@ -110,7 +112,19 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
             }
         });
 
+        // 단어장 안 단어들 확인을 위한 클릭
         holder.itemView.setOnClickListener(v -> fragment.onItemClick(holder.getBindingAdapterPosition()));
+
+        // [추가] 아이템 롱 클릭 이벤트 (삭제 팝업)
+        holder.itemView.setOnLongClickListener(v -> {
+            int currentPos = holder.getBindingAdapterPosition();
+
+            // Fragment에 삭제 확인 다이얼로그를 띄우는 메서드를 호출합니다.
+            fragment.showDeleteConfirmDialog(currentPos);
+
+            return true; // true를 반환해야 일반 클릭 이벤트가 동시에 발생하지 않습니다.
+        });
+
     }
 
     @Override

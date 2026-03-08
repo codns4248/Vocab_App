@@ -11,16 +11,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="10dp"
-        android:background="#ffffff"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#ffffff">
+            android:background="@drawable/border">
 
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/studyModeSwitch"
@@ -47,6 +46,7 @@
                     android:layout_marginStart="30dp"
                     android:layout_marginTop="30dp"
                     android:text="토익을 위한"
+                    android:textColor="@color/text_color"
                     android:textSize="30dp" />
 
                 <TextView
@@ -55,6 +55,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="30dp"
                     android:text="Voca"
+                    android:textColor="@color/text_color"
                     android:textSize="50dp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -62,23 +63,27 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginBottom="15dp"
                 android:orientation="horizontal"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent">
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         android:text="1구간" />
+
                     <ImageView
                         android:id="@+id/stamp1"
                         android:layout_width="50dp"
@@ -93,12 +98,14 @@
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         android:text="2구간" />
+
                     <ImageView
                         android:id="@+id/stamp2"
                         android:layout_width="50dp"
@@ -113,12 +120,14 @@
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         android:text="3구간" />
+
                     <ImageView
                         android:id="@+id/stamp3"
                         android:layout_width="50dp"
@@ -133,12 +142,14 @@
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         android:text="4구간" />
+
                     <ImageView
                         android:id="@+id/stamp4"
                         android:layout_width="50dp"
@@ -153,12 +164,14 @@
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         android:text="5구간" />
+
                     <ImageView
                         android:id="@+id/stamp5"
                         android:layout_width="50dp"
@@ -173,12 +186,14 @@
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         android:text="6구간" />
+
                     <ImageView
                         android:id="@+id/stamp6"
                         android:layout_width="50dp"
