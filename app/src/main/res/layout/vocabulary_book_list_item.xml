@@ -19,7 +19,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@drawable/border">
+            android:backgroundTint="#ffffff">
 
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/studyModeSwitch"
@@ -82,7 +82,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
-                        android:text="1구간" />
+                        android:text="1단계" />
 
                     <ImageView
                         android:id="@+id/stamp1"
@@ -104,7 +104,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
-                        android:text="2구간" />
+                        android:text="2단계" />
 
                     <ImageView
                         android:id="@+id/stamp2"
@@ -126,7 +126,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
-                        android:text="3구간" />
+                        android:text="3단계" />
 
                     <ImageView
                         android:id="@+id/stamp3"
@@ -148,7 +148,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
-                        android:text="4구간" />
+                        android:text="4단계" />
 
                     <ImageView
                         android:id="@+id/stamp4"
@@ -170,7 +170,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
-                        android:text="5구간" />
+                        android:text="5단계" />
 
                     <ImageView
                         android:id="@+id/stamp5"
@@ -192,7 +192,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_weight="1"
-                        android:text="6구간" />
+                        android:text="6단계" />
 
                     <ImageView
                         android:id="@+id/stamp6"

@@ -76,16 +76,15 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
             }
         }
 
-        // 스탬프 개수만큼 빨간색 필터 적용
+        // 스탬프 획득에 따른 아이콘 변경
         for (int i = 0; i < 6; i++) {
             if (i < stampCount) {
-                // 획득 시: 빨간색 (원하는 색상 코드로 변경 가능)
-                holder.stamps[i].setColorFilter(Color.RED);
+                holder.stamps[i].setImageResource(R.drawable.checked_stamp_icon);
             } else {
-                // 미획득 시: 회색
-                holder.stamps[i].setColorFilter(Color.LTGRAY);
+                holder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
             }
         }
+
         // 1. 스위치 상태 초기화 (현재 데이터에 저장된 대로)
         boolean isStudying = false;
         if (vocab.get("isStudying") != null) {

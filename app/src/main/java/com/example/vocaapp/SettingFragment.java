@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -32,7 +31,7 @@ public class SettingFragment extends Fragment {
 
         //xml에 있는 이메일 글씨, 버튼 가져오기
         TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
-        Button btnLogout = view.findViewById(R.id.btnLogout);
+        TextView btnLogout = view.findViewById(R.id.logoutTextView);
 
         //로그인 한 유저 이메일 보여주기
         FirebaseUser user = mAuth.getCurrentUser();
