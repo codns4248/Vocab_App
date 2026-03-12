@@ -93,10 +93,10 @@ public class StudyManager {
     }
 
     // 단계별 대기 시간 로직 (분 단위)
-    private int getWaitMinutes(int stage) {
+    public int getWaitMinutes(int stage) {
         switch (stage) {
             case 0:
-            case 1: return 10;      // 10분 뒤
+            case 1: return 1;      // 10분 뒤
             case 2: return 60;      // 1시간 뒤
             case 3: return 1440;    // 1일 뒤 (60 * 24)
             case 4: return 10080;   // 7일 뒤 (1440 * 7)

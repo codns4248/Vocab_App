@@ -45,7 +45,7 @@ public class VocabularyBookFirestore {
         void onFailure(Exception e);
     }
 
-    // [중요 수정] 단어장 불러오는 db 로직
+    //  단어장 불러오는 db 로직
     public static void listenVocabularies(String uid, VocabularyListCallback callback) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -59,11 +59,11 @@ public class VocabularyBookFirestore {
                     }
 
                     if (querySnapshot != null) {
-                        // [수정] String 대신 Object를 사용하여 모든 타입의 데이터를 담습니다.
+                        //  String 대신 Object를 사용하여 모든 타입의 데이터를 담습니다.
                         List<Map<String, Object>> dataList = new ArrayList<>();
 
                         for (QueryDocumentSnapshot doc : querySnapshot) {
-                            // [수정] doc.getData()를 쓰면 title, stampCount 등 모든 필드를 한 번에 가져옵니다.
+                            //  doc.getData()를 쓰면 title, stampCount 등 모든 필드를 한 번에 가져옵니다.
                             Map<String, Object> vocabData = doc.getData();
                             // ID 값도 나중에 필요하므로 함께 넣어줍니다.
                             vocabData.put("id", doc.getId());
@@ -76,9 +76,9 @@ public class VocabularyBookFirestore {
                 });
     }
 
-    // [중요 수정] 인터페이스 타입 변경
+    //  인터페이스 타입 변경
     public interface VocabularyListCallback {
-        // [수정] 여기도 List<Map<String, Object>>로 변경하여 숫자 데이터를 허용합니다.
+        // List<Map<String, Object>>로 변경하여 숫자 데이터를 허용합니다.
         void onUpdate(List<Map<String, Object>> dataList);
         void onFailure(Exception e);
     }
@@ -133,8 +133,44 @@ public class VocabularyBookFirestore {
 
                 })
                 .addOnFailureListener(e -> {
-                    // 에러 처리
+
                 });
     }
+    public static void updateAfterQuiz(String uid, String vocabId, VocabularyBookCallback callback) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        DocumentReference docRef = db.collection("users").document(uid)
+                .collection("vocabularies").document(vocabId);
 
+        // 트랜잭션을 사용하여 안전하게 업데이트
+        db.runTransaction(transaction -> {
+            DocumentSnapshot snapshot = transaction.get(docRef);
+
+            // 1. 현재 스탬프 개수 가져오기 (기존 스탬프가 올랐다면 그 값을 기준으로 함)
+            long currentStamp = 0;
+            if (snapshot.contains("stampCount")) {
+                currentStamp = snapshot.getLong("stampCount");
+            }
+
+            // 2. 다음 복습 시간 계산
+            int nextStage = (int) currentStamp;
+            if (nextStage < 1) nextStage = 1; // 최소 1단계부터 시작
+
+            int waitMinutes = com.example.vocaapp.manager.StudyManager.getInstance().getWaitMinutes(nextStage);
+
+            long waitMillis = waitMinutes * 60 * 1000L;
+            long nextReviewMillis = System.currentTimeMillis() + waitMillis;
+
+            // com.google.firebase.Timestamp 를 사용하여 에러 방지
+            com.google.firebase.Timestamp nextReviewDate = new com.google.firebase.Timestamp(new java.util.Date(nextReviewMillis));
+
+            // 3. DB 업데이트 (시간 갱신)
+            transaction.update(docRef, "nextReviewDate", nextReviewDate);
+
+            return null;
+        }).addOnSuccessListener(aVoid -> {
+            if (callback != null) callback.onSuccess();
+        }).addOnFailureListener(e -> {
+            if (callback != null) callback.onFailure(e);
+        });
+    }
 }

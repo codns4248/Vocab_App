@@ -5,6 +5,8 @@ import static com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.del
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vocaapp.R;
 import com.example.vocaapp.VocabularyList.VocabularyActivity;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -37,6 +40,10 @@ public class VocabularyBookListFragment extends Fragment {
     private VocabularyBookListAdapter adapter;
     private final ArrayList<Map<String, Object>> dataList = new ArrayList<>();
     private String uid;
+
+    private Handler timerHandler = new Handler(Looper.getMainLooper());
+    private Runnable timerRunnable;
+
 
     @Nullable
     @Override
@@ -91,13 +98,22 @@ public class VocabularyBookListFragment extends Fragment {
         VocabularyBookFirestore.listenVocabularies(uid, new VocabularyBookFirestore.VocabularyListCallback() {
             @Override
             public void onUpdate(List<Map<String, Object>> newDataList) {
+                Log.d("CHECK_DATA", "데이터 업데이트됨! 개수: " + newDataList.size());
+
+                for (Map<String, Object> data : newDataList) {
+                    Log.d("CHECK_DATA", "단어장 제목: " + data.get("title") + " | 학습중: " + data.get("isStudying"));
+                }
+
                 dataList.clear();
                 dataList.addAll(newDataList);
 
                 if (adapter != null) {
                     adapter.notifyDataSetChanged();
                 }
+                scheduleNextStudyTime();
             }
+
+
 
             @Override
             public void onFailure(Exception e) {
@@ -110,6 +126,50 @@ public class VocabularyBookListFragment extends Fragment {
         recyclerView.setAdapter(adapter);
 
         return view;
+    }
+
+    private void scheduleNextStudyTime() {
+        if (dataList == null || dataList.isEmpty()) return;
+
+        long now = System.currentTimeMillis();
+        long closestFutureTime = Long.MAX_VALUE;
+
+        for (Map<String, Object> vocab : dataList) {
+            Boolean isStudying = (Boolean) vocab.get("isStudying");
+            Timestamp nextReviewTimestamp = (Timestamp) vocab.get("nextReviewDate");
+
+            if (Boolean.TRUE.equals(isStudying) && nextReviewTimestamp != null) {
+                long reviewTime = nextReviewTimestamp.toDate().getTime();
+
+                if (reviewTime > now && reviewTime < closestFutureTime) {
+                    closestFutureTime = reviewTime;
+                }
+            }
+        }
+        if (timerRunnable != null) {
+            timerHandler.removeCallbacks(timerRunnable);
+        }
+        if (closestFutureTime != Long.MAX_VALUE) {
+            long delay = closestFutureTime - now;
+
+            timerRunnable = () -> {
+                if (isAdded() && adapter != null){
+                    adapter.notifyDataSetChanged();
+
+                    scheduleNextStudyTime();
+                }
+            };
+            timerHandler.postDelayed(timerRunnable, delay);
+            Log.d("StudyTimer", (delay / 1000) + "초 뒤에 화면이 새로고침 됩니다.");
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (timerRunnable != null) {
+            timerHandler.removeCallbacks(timerRunnable);
+        }
     }
 
     public void onItemClick(int position) {
@@ -178,11 +238,46 @@ public class VocabularyBookListFragment extends Fragment {
         Map<String, Object> selectedVocabulary = dataList.get(position);
         String vocabId = String.valueOf(selectedVocabulary.get("id"));
 
+        // 1. 처음 켜는 건지(스탬프가 0개인지) 확인
+        boolean isFirstTime = false;
+        long stampCount = 0;
+        if (selectedVocabulary.containsKey("stampCount") && selectedVocabulary.get("stampCount") != null) {
+            try {
+                stampCount = Long.parseLong(String.valueOf(selectedVocabulary.get("stampCount")));
+            } catch (Exception e) {
+                stampCount = 0;
+            }
+        }
+        if (stampCount == 0) {
+            isFirstTime = true;
+        }
+
+        // 2. DB에 업데이트할 데이터 세팅
         Map<String, Object> updates = new HashMap<>();
         updates.put("isStudying", true);
 
-        VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, null);
-        Toast.makeText(getContext(), "학습 모드가 시작되었습니다. 단어 추가가 제한됩니다.", Toast.LENGTH_SHORT).show();
+        // 다음 복습 시간을 '지금 당장'으로 설정!
+        if (isFirstTime) {
+            updates.put("nextReviewDate", new com.google.firebase.Timestamp(new java.util.Date()));
+        }
+
+        // 3. Firestore 업데이트 실행
+        VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, new VocabularyBookFirestore.VocabularyBookCallback() {
+            @Override
+            public void onSuccess() {
+                if (isAdded()) {
+                    Toast.makeText(getContext(), "학습 모드가 시작되었습니다.", Toast.LENGTH_SHORT).show();
+                    Log.d("StudyMode", "학습 모드 ON! (첫 시작이면 바로 학습창이 뜹니다)");
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                if (isAdded()) {
+                    Toast.makeText(getContext(), "학습 모드 켜기 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
 
     // 단어장 삭제를 위한 팝업
