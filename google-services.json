@@ -1,0 +1,79 @@
+{
+  "project_info": {
+    "project_number": "211185583428",
+    "project_id": "vocaapp-bf580",
+    "storage_bucket": "vocaapp-bf580.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211185583428:android:7ebe9b4173627f08160311",
+        "android_client_info": {
+          "package_name": "com.example.vocaapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "211185583428-0dfpvl15tepkmhkr4eeq6757h9487neh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "5c89ad329716fae3a60721440b5bdcfa63d5ba81"
+          }
+        },
+        {
+          "client_id": "211185583428-3dj789lponlt13go2efci81n635b9ndv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "ed80e5ca85652d4e6f127bc7388f879b8aece1d0"
+          }
+        },
+        {
+          "client_id": "211185583428-9ra10k5su8sos4ohpr2jdefoiioqe2f3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "890f6a7bb7dcdaf1ad73d669ab628398cdcf2a8c"
+          }
+        },
+        {
+          "client_id": "211185583428-i89soega6gunl7sh1phffd8jp95577bs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "ab0a27474ab10fec6b0e6658ce076dcae52a6bcc"
+          }
+        },
+        {
+          "client_id": "211185583428-odes0mt5et4n261ibksv5faffqs5ef4g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "e24a31f7b3c354a360847ce4becfae9a4f04fb3d"
+          }
+        },
+        {
+          "client_id": "211185583428-b8jvrel36olutnuiakphpibrofcge2j6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVtPc7SlIA4aGKpfTKvSaUfa3hU9PJIvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "211185583428-b8jvrel36olutnuiakphpibrofcge2j6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
