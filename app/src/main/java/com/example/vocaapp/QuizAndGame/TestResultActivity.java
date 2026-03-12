@@ -62,6 +62,18 @@ public class TestResultActivity extends AppCompatActivity {
 
             StudyManager.getInstance().studyVocabulary(TestResultActivity.this, userId, vocabularyId);
 
+            com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.updateAfterQuiz(userId, vocabularyId, new com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.VocabularyBookCallback() {
+                @Override
+                public void onSuccess() {
+                    android.util.Log.d("TestResult", "다음 복습 시간 갱신 완료!");
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    android.util.Log.e("TestResult", "시간 갱신 실패", e);
+                }
+            });
+
             if (isOfficial) {
 
                 resultTextView.setText("오~~ 잘했어요! 합격이에요!");

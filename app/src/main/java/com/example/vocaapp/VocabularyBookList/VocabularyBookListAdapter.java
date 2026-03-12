@@ -1,43 +1,45 @@
 package com.example.vocaapp.VocabularyBookList;
 
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
-import android.graphics.Color;
 import android.widget.ImageView;
-
+import android.widget.TextView;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
+import com.google.firebase.Timestamp;
 
 import java.util.List;
 import java.util.Map;
 
-public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBookListAdapter.VocabularyListViewHolder>{
+public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    // [수정] 데이터를 Object 타입으로 변경
     private List<Map<String, Object>> dataList;
     private VocabularyBookListFragment fragment;
+
+    private static final int VIEW_TYPE_NORMAL = 0;
+    private static final int VIEW_TYPE_STUDY = 1;
 
     public VocabularyBookListAdapter(List<Map<String, Object>> dataList, VocabularyBookListFragment fragment) {
         this.dataList = dataList;
         this.fragment = fragment;
     }
 
-    public static class VocabularyListViewHolder extends RecyclerView.ViewHolder {
+    // 1. 일반 화면용 뷰홀더 (기존 기능 그대로)
+    public static class NormalViewHolder extends RecyclerView.ViewHolder {
         TextView textViewItem;
         ImageView[] stamps = new ImageView[6];
+        SwitchCompat studyModeSwitch;
 
-        androidx.appcompat.widget.SwitchCompat studyModeSwitch; //스위치 변수 추가
-
-        public VocabularyListViewHolder(View itemView) {
+        public NormalViewHolder(View itemView) {
             super(itemView);
             textViewItem = itemView.findViewById(R.id.textView);
-
             studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
             stamps[0] = itemView.findViewById(R.id.stamp1);
             stamps[1] = itemView.findViewById(R.id.stamp2);
@@ -48,82 +50,131 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
         }
     }
 
-    @NonNull
-    @Override
-    public VocabularyListViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.vocabulary_book_list_item, parent, false);
-        return new VocabularyListViewHolder(view);
+    // 2. 학습 버튼용 뷰홀더
+    public static class StudyViewHolder extends RecyclerView.ViewHolder {
+        TextView titleTextView;
+        SwitchCompat studyModeSwitch;
+        ConstraintLayout btnStartStudy;
+
+        public StudyViewHolder(View itemView) {
+            super(itemView);
+            titleTextView = itemView.findViewById(R.id.textView6);
+            studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
+            btnStartStudy = itemView.findViewById(R.id.btn_start_study);
+        }
     }
 
     @Override
-    public void onBindViewHolder(@NonNull VocabularyListViewHolder holder, int position) {
+    public int getItemViewType(int position) {
         Map<String, Object> vocab = dataList.get(position);
-        holder.textViewItem.setText(String.valueOf(vocab.get("title")));
 
+        boolean isStudying = Boolean.TRUE.equals(vocab.get("isStudying"));
+        Timestamp nextReview = (Timestamp) vocab.get("nextReviewDate");
+        long now = System.currentTimeMillis();
 
+        if (isStudying && nextReview != null) {
+            long reviewTime = nextReview.toDate().getTime();
 
-        // 스탬프 개수를 안전하게 가져오는 로직
-        int stampCount = 0;
-        Object countObj = vocab.get("stampCount");
+            // 로그
+            Log.d("VIEW_CHECK", "단어장: " + vocab.get("title") +
+                    " | 현재: " + now +
+                    " | 복습: " + reviewTime +
+                    " | 남은시간: " + (reviewTime - now) / 1000 + "초");
 
-        if (countObj != null) {
-            try {
-                // 어떤 숫자 타입이 오든 안전하게 int로 변환
-                stampCount = Integer.parseInt(String.valueOf(countObj));
-            } catch (Exception e) {
-                stampCount = 0;
+            if (now >= reviewTime) {
+                Log.d("VIEW_CHECK", "학습 버튼 화면으로 보냅니다.");
+                return VIEW_TYPE_STUDY;
             }
         }
+        return VIEW_TYPE_NORMAL;
+    }
 
-        // 스탬프 획득에 따른 아이콘 변경
-        for (int i = 0; i < 6; i++) {
-            if (i < stampCount) {
-                holder.stamps[i].setImageResource(R.drawable.checked_stamp_icon);
-            } else {
-                holder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
-            }
+    @NonNull
+    @Override
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (viewType == VIEW_TYPE_STUDY) {
+            // 학습 버튼이 있는 레이아웃
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.vocabulary_book_study_list_item, parent, false);
+            return new StudyViewHolder(view);
+        } else {
+            // 기존 일반 레이아웃
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.vocabulary_book_list_item, parent, false);
+            return new NormalViewHolder(view);
         }
+    }
 
-        // 1. 스위치 상태 초기화 (현재 데이터에 저장된 대로)
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        Map<String, Object> vocab = dataList.get(position);
+        String title = String.valueOf(vocab.get("title"));
+
         boolean isStudying = false;
         if (vocab.get("isStudying") != null) {
             isStudying = (boolean) vocab.get("isStudying");
         }
 
-        // 리스너가 중복 호출되지 않도록 일단 null로 초기화 후 상태 설정
-        holder.studyModeSwitch.setOnCheckedChangeListener(null);
-        holder.studyModeSwitch.setChecked(isStudying);
+        // --- 일반 모드일 때 세팅 ---
+        if (holder instanceof NormalViewHolder) {
+            NormalViewHolder normalHolder = (NormalViewHolder) holder;
+            normalHolder.textViewItem.setText(title);
 
-        // 2. 스위치 클릭 이벤트 (작성하신 setOnClickListener 그대로 사용)
-        holder.studyModeSwitch.setOnClickListener(v -> {
-            boolean isChecked = holder.studyModeSwitch.isChecked();
-
-            if (isChecked) {
-                // 스위치를 켰을 때: 학습 모드 시작
-                fragment.startStudyMode(holder.getBindingAdapterPosition());
-            } else {
-                // 스위치를 껐을 때:
-                // 팝업에서 '취소'를 누를 수도 있으므로
-                // 일단 화면상으로는 스위치를 다시 켜두고 팝업을 띄움
-                holder.studyModeSwitch.setChecked(true);
-                fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
+            // 기존 스탬프 로직 그대로
+            int stampCount = 0;
+            Object countObj = vocab.get("stampCount");
+            if (countObj != null) {
+                try { stampCount = Integer.parseInt(String.valueOf(countObj)); } catch (Exception e) { stampCount = 0; }
             }
-        });
+            for (int i = 0; i < 6; i++) {
+                if (i < stampCount) normalHolder.stamps[i].setImageResource(R.drawable.checked_stamp_icon);
+                else normalHolder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
+            }
 
-        // 단어장 안 단어들 확인을 위한 클릭
-        holder.itemView.setOnClickListener(v -> fragment.onItemClick(holder.getBindingAdapterPosition()));
+            // 기존 스위치 로직 그대로
+            normalHolder.studyModeSwitch.setOnCheckedChangeListener(null);
+            normalHolder.studyModeSwitch.setChecked(isStudying);
+            normalHolder.studyModeSwitch.setOnClickListener(v -> {
+                if (normalHolder.studyModeSwitch.isChecked()) fragment.startStudyMode(holder.getBindingAdapterPosition());
+                else {
+                    normalHolder.studyModeSwitch.setChecked(true);
+                    fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
+                }
+            });
 
-        // [추가] 아이템 롱 클릭 이벤트 (삭제 팝업)
-        holder.itemView.setOnLongClickListener(v -> {
-            int currentPos = holder.getBindingAdapterPosition();
+            normalHolder.itemView.setOnClickListener(v -> fragment.onItemClick(holder.getBindingAdapterPosition()));
+            normalHolder.itemView.setOnLongClickListener(v -> {
+                fragment.showDeleteConfirmDialog(holder.getBindingAdapterPosition());
+                return true;
+            });
+        }
 
-            // Fragment에 삭제 확인 다이얼로그를 띄우는 메서드를 호출합니다.
-            fragment.showDeleteConfirmDialog(currentPos);
+        // --- 학습 버튼 모드일 때 세팅 ---
+        else if (holder instanceof StudyViewHolder) {
+            StudyViewHolder studyHolder = (StudyViewHolder) holder;
+            studyHolder.titleTextView.setText(title);
 
-            return true; // true를 반환해야 일반 클릭 이벤트가 동시에 발생하지 않습니다.
-        });
+            studyHolder.studyModeSwitch.setOnCheckedChangeListener(null);
+            studyHolder.studyModeSwitch.setChecked(true); // 이 화면이 떴다는 건 무조건 true임
+            studyHolder.studyModeSwitch.setOnClickListener(v -> {
+                studyHolder.studyModeSwitch.setChecked(true);
+                fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
+            });
 
+            // '학습하기' 버튼 누르면 ox
+            studyHolder.btnStartStudy.setOnClickListener(v -> {
+                android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.vocaapp.QuizAndGame.OXTestActivity.class);
+
+                // OX 퀴즈에서 필요한 단어장 ID 넘겨주기
+                intent.putExtra("vocabularyId", String.valueOf(vocab.get("id")));
+
+                // 망각 곡선 학습 모드라는 걸 알려주기 위해 isOfficial을 true로 넘김 (선택 사항)
+                intent.putExtra("isOfficial", true);
+
+                // 화면 이동!
+                v.getContext().startActivity(intent);
+            });
+        }
     }
 
     @Override

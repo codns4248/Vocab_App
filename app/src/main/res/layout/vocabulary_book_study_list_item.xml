@@ -60,6 +60,7 @@
             </LinearLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/btn_start_study"
                 android:layout_width="300dp"
                 android:layout_height="50dp"
                 android:layout_marginBottom="20dp"
