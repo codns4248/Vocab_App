@@ -86,8 +86,8 @@
 
                     <ImageView
                         android:id="@+id/stamp1"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         app:srcCompat="@drawable/checked_stamp_icon" />
@@ -108,8 +108,8 @@
 
                     <ImageView
                         android:id="@+id/stamp2"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         app:srcCompat="@drawable/checked_stamp_icon" />
@@ -130,8 +130,8 @@
 
                     <ImageView
                         android:id="@+id/stamp3"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         app:srcCompat="@drawable/checked_stamp_icon" />
@@ -152,8 +152,8 @@
 
                     <ImageView
                         android:id="@+id/stamp4"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         app:srcCompat="@drawable/unchecked_stamp_icon" />
@@ -174,8 +174,8 @@
 
                     <ImageView
                         android:id="@+id/stamp5"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         app:srcCompat="@drawable/unchecked_stamp_icon" />
@@ -196,12 +196,33 @@
 
                     <ImageView
                         android:id="@+id/stamp6"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
                         android:layout_gravity="center"
                         android:layout_weight="1"
                         app:srcCompat="@drawable/unchecked_stamp_icon" />
                 </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_weight="1"
+                        android:text="7단계" />
+                    <ImageView
+                        android:id="@+id/stamp7"
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
+                        android:layout_gravity="center"
+                        android:layout_weight="1"
+                        app:srcCompat="@drawable/unchecked_stamp_icon" />
+                </LinearLayout>
+
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
