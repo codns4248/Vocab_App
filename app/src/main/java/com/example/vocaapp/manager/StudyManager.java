@@ -96,10 +96,12 @@ public class StudyManager {
     public int getWaitMinutes(int stage) {
         switch (stage) {
             case 0:
-            case 1: return 1;      // 10분 뒤
+            case 1: return 1;       // 10분 뒤
             case 2: return 60;      // 1시간 뒤
             case 3: return 1440;    // 1일 뒤 (60 * 24)
-            case 4: return 10080;   // 7일 뒤 (1440 * 7)
+            case 4: return 4320;    // 3일 뒤 (1440 * 3)
+            case 5: return 10080;   // 7일 뒤 (1440 * 7)
+            case 6: return 20160;   // 14일 뒤 (1440 * 14)
             default: return 43200;  // 30일 뒤 (1440 * 30)
         }
     }
