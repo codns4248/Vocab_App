@@ -20,10 +20,12 @@ function getGracePeriodMillis(stampCount) {
     case 5: return 1440 * MINUTE;
     case 6: return 2880 * MINUTE;
     case 7: return 4320 * MINUTE;
+    default: return 50 * MINUTE;
   }
 
-}
 
+}
+//학습하세요~알림
 exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => {
   const now = admin.firestore.Timestamp.now();
 
@@ -68,7 +70,8 @@ exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => 
 
         await doc.ref.update({
           isReviewReady: true,
-          penaltyDate: penaltyTime
+          penaltyDate: penaltyTime,
+          isWarningSent: false
         });
         console.log(`알림 발송 성공: ${doc.id}`);
       } catch (error) {
@@ -76,6 +79,50 @@ exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => 
       }
     } else {
       console.log(`토큰이 없어서 알림 못보냄: ${doc.id}`);
+    }
+  }
+});
+
+exports.sendwarningNotification = onSchedule("every 5 minutes", async (event) => {
+
+  const WARNING_MARGIN = 30 * 60 *  1000; // 30분
+  const warningTimeThreshold = admin.firestore.Timestamp.fromMillis(Date.now() + WARNING_MARGIN);
+
+  const snapshot = await admin.firestore().collectionGroup("vocabularies")
+    .where("isStudying", "==", true)
+    .where("isReviewReady", "==", true)
+    .where("isWarningSent", "==", false)
+    .where("penaltyDate", "<=", warningTimeThreshold)
+    .get();
+
+
+  if (snapshot.empty) return;
+
+  for (const doc of snapshot.docs) {
+    const vocabData = doc.data();
+    const userDoc = await doc.ref.parent.parent.get();
+    const userData = userDoc.data();
+    const fcmToken = userData ? userData.fcmToken : null;
+
+    if (fcmToken) {
+      const message = {
+      notification: {
+        title: "단어장 스탬프 깎임 주의",
+        body: `[${vocabData.title || "단어장"}] 복습 유예 시간이 얼마 안남았어요! 얼른 복습하세요!`,
+      },
+      token: fcmToken,
+    };
+
+    try {
+      await admin.messaging().send(message);
+
+      await doc.ref.update({
+        isWarningSent: true
+      });
+      console.log(`경고 알림 발송 성공: ${doc.id}`);
+    } catch (error) {
+        console.error("경고 알림 에러:", error);
+      }
     }
   }
 });
@@ -108,6 +155,7 @@ exports.applySpyPenalty = onSchedule("every 5 minutes", async (event) => {
       await doc.ref.update({
         stampCount: newStamp,
         isReviewReady: false,
+        isWarningSent: false,
         penaltyDate: admin.firestore.FieldValue.delete(),
         showRollbackPopup: true,
         rolledBackFrom: currentStamp
