@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -28,6 +29,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,6 +83,8 @@ public class VocabularyBookListFragment extends Fragment {
                 inputVocabularyBookName.put("title", bookName);
                 // 새 단어장 만들 때 스탬프 0개로 초기화
                 inputVocabularyBookName.put("stampCount", 0);
+                inputVocabularyBookName.put("isStudying",false);
+                inputVocabularyBookName.put("isReviewReady", false);
 
                 VocabularyBookFirestore.addVocabularyBook(inputVocabularyBookName, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
                     @Override
@@ -94,7 +99,7 @@ public class VocabularyBookListFragment extends Fragment {
             });
         });
 
-        // Firestore 데이터 로드 부분의 타입을 Object로 변경
+
         VocabularyBookFirestore.listenVocabularies(uid, new VocabularyBookFirestore.VocabularyListCallback() {
             @Override
             public void onUpdate(List<Map<String, Object>> newDataList) {
@@ -111,6 +116,20 @@ public class VocabularyBookListFragment extends Fragment {
                     adapter.notifyDataSetChanged();
                 }
                 scheduleNextStudyTime();
+
+                for (Map<String, Object> vocab : dataList) {
+                    Boolean showPopup = (Boolean) vocab.get("showRollbackPopup");
+                    if (Boolean.TRUE.equals(showPopup)) {
+                        String vocabId = String.valueOf(vocab.get("id"));
+                        String title = String.valueOf(vocab.get("title"));
+
+                        int currentStamp = vocab.get("stampCount") != null ? ((Number) vocab.get("stampCount")).intValue() : 0;
+                        int rolledBackFrom = vocab.get("rolledBackFrom") != null ? ((Number) vocab.get("rolledBackFrom")).intValue() : (currentStamp + 1);
+
+                        showRollbackDialog(vocabId, title, currentStamp, rolledBackFrom);
+                        break;
+                    }
+                }
             }
 
 
@@ -127,6 +146,8 @@ public class VocabularyBookListFragment extends Fragment {
 
         return view;
     }
+
+
 
     private void scheduleNextStudyTime() {
         if (dataList == null || dataList.isEmpty()) return;
@@ -255,6 +276,7 @@ public class VocabularyBookListFragment extends Fragment {
         // 2. DB에 업데이트할 데이터 세팅
         Map<String, Object> updates = new HashMap<>();
         updates.put("isStudying", true);
+        updates.put("isReviewReady", false);
 
         // 다음 복습 시간을 '지금 당장'으로 설정!
         if (isFirstTime) {
@@ -303,4 +325,62 @@ public class VocabularyBookListFragment extends Fragment {
         builder.show();
     }
 
+    //롤백 팝업
+    private void showRollbackDialog(String vocabId, String vocabTitle, int currentStamp, int rolledBackFrom) {
+        if (!isAdded()) return;
+
+        //1. 다이얼로그 뷰 생성
+        LayoutInflater inflater = LayoutInflater.from(requireContext());
+        View dialogView = inflater.inflate(R.layout.dialog_rollback, null);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+        dialog.setCancelable(false);
+
+        //2. 텍스트
+        TextView tvMessage = dialogView.findViewById(R.id.tv_rollback_message);
+        tvMessage.setText("[" + vocabTitle + "]\n단어장이 " + currentStamp + "단계로 롤백 되었습니다.");
+
+        //3.스탬프
+        ImageView[] dialogStamps = new ImageView[]{
+                dialogView.findViewById(R.id.dialog_stamp1),
+                dialogView.findViewById(R.id.dialog_stamp2),
+                dialogView.findViewById(R.id.dialog_stamp3),
+                dialogView.findViewById(R.id.dialog_stamp4),
+                dialogView.findViewById(R.id.dialog_stamp5),
+                dialogView.findViewById(R.id.dialog_stamp6),
+                dialogView.findViewById(R.id.dialog_stamp7),
+        };
+
+        //4.스챔프 색칠
+        for (int i = 0; i < 7; i++) {
+            if (i < currentStamp) {  //현개 스탬프
+                dialogStamps[i].setImageResource(R.drawable.checked_stamp_icon);
+                dialogStamps[i].setAlpha(1.0f);
+            } else if (i == currentStamp && i < rolledBackFrom) { //깎임 스탬프
+                dialogStamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
+                dialogStamps[i].setAlpha(0.3f);
+            } else {  //원래 빈 스탬프
+                dialogStamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
+                dialogStamps[i].setAlpha(1.0f);
+            }
+        }
+
+        //5. 확인 버튼 눌렀을 때 db에서 플러그 삭제
+        Button btnConfirm = dialogView.findViewById(R.id.btn_rollback_confirm);
+        btnConfirm.setOnClickListener(v -> {
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+            db.collection("users").document(uid)
+                    .collection("vocabularies").document(vocabId)
+                    .update(
+                            "showRollbackPopup", FieldValue.delete(),
+                            "rolledBackFrom", FieldValue.delete()
+                    ).addOnSuccessListener(aVoid -> {
+                        dialog.dismiss();
+                    });
+        });
+        dialog.show();
+    }
 }

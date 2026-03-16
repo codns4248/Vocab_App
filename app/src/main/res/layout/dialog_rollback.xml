@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="@drawable/round_background">
+
+    <TextView
+        android:id="@+id/tv_rollback_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🚨 학습 유예 시간 초과 🚨"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#FF0000" />
+
+    <TextView
+        android:id="@+id/tv_rollback_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="단어장이 n단계로 롤백 되었습니다."
+        android:textSize="16sp"
+        android:layout_marginTop="12dp"
+        android:gravity="center" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="24dp">
+
+        <ImageView android:id="@+id/dialog_stamp1" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+        <ImageView android:id="@+id/dialog_stamp2" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+        <ImageView android:id="@+id/dialog_stamp3" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+        <ImageView android:id="@+id/dialog_stamp4" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+        <ImageView android:id="@+id/dialog_stamp5" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+        <ImageView android:id="@+id/dialog_stamp6" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+        <ImageView android:id="@+id/dialog_stamp7" android:layout_width="32dp" android:layout_height="32dp" android:layout_margin="4dp"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_rollback_confirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="확인"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#2196F3" />
+</LinearLayout>

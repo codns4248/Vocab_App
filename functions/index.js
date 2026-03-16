@@ -7,6 +7,23 @@ admin.initializeApp();
 // 배포 지역을 서울(asia-northeast3)로 설정 (선택 사항이나 권장)
 setGlobalOptions({region: "asia-northeast3"});
 
+//유예 시간 계산
+function getGracePeriodMillis(stampCount) {
+  const MINUTE = 60 * 1000;
+
+  switch (stampCount) {
+    case 0:
+    case 1: return 50 * MINUTE;
+    case 2: return 120 * MINUTE;
+    case 3: return 360 * MINUTE;
+    case 4: return 720 * MINUTE;
+    case 5: return 1440 * MINUTE;
+    case 6: return 2880 * MINUTE;
+    case 7: return 4320 * MINUTE;
+  }
+
+}
+
 exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => {
   const now = admin.firestore.Timestamp.now();
 
@@ -17,6 +34,7 @@ exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => 
   const snapshot = await admin.firestore().collectionGroup("vocabularies")
     .where("nextReviewDate", "<=", nowPlusBuffer)
     .where("isStudying", "==", true)
+    .where("isReviewReady", "==", false)
     .get();
 
   if (snapshot.empty) {
@@ -40,16 +58,74 @@ exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => 
         token: fcmToken,
       };
 
+
       try {
         await admin.messaging().send(message);
-        // 중복 방지를 위해 상태 변경
+        //nextReviewDate: admin.firestore.FieldValue.delete()에서 수정 시간 삭제 안함
+        const currentStamp = vocabData.stampCount || 0;
+        const gracePeriod = getGracePeriodMillis(currentStamp);
+        const penaltyTime = admin.firestore.Timestamp.fromMillis(Date.now() + gracePeriod);
+
         await doc.ref.update({
-                  nextReviewDate: admin.firestore.FieldValue.delete()
-                });
+          isReviewReady: true,
+          penaltyDate: penaltyTime
+        });
         console.log(`알림 발송 성공: ${doc.id}`);
       } catch (error) {
         console.error("FCM 발송 에러:", error);
       }
+    } else {
+      console.log(`토큰이 없어서 알림 못보냄: ${doc.id}`);
+    }
+  }
+});
+
+//롤백 로직
+exports.applySpyPenalty = onSchedule("every 5 minutes", async (event) => {
+  const now = admin.firestore.Timestamp.now();
+
+  const snapshot = await admin.firestore().collectionGroup("vocabularies")
+    .where("isStudying", "==", true)
+    .where("isReviewReady", "==", true)
+    .where("penaltyDate", "<=",now)
+    .get();
+
+  if (snapshot.empty) {
+    return;
+  }
+
+  for (const doc of snapshot.docs) {
+    const vocabData = doc.data();
+    const currentStamp = vocabData.stampCount || 0;
+
+    const newStamp = Math.max(0, currentStamp -1);
+
+    const userDoc = await doc.ref.parent.parent.get();
+    const userData = userDoc.data();
+    const fcmToken = userData ? userData.fcmToken : null;
+
+    try {
+      await doc.ref.update({
+        stampCount: newStamp,
+        isReviewReady: false,
+        penaltyDate: admin.firestore.FieldValue.delete(),
+        showRollbackPopup: true,
+        rolledBackFrom: currentStamp
+      });
+
+      if (fcmToken){
+        const message = {
+          notification: {
+            title: "단어장 스탬프 롤백",
+            body: `[${vocabData.title || "단어장"}] 유예 시간이 지나 스탬프가 깎였습니다`
+          },
+            token: fcmToken,
+        };
+        await admin.messaging().send(message);
+      }
+        console.log(`롤백완료: ${doc.id} (스탬프 ${currentStamp} -> ${newStamp})`);
+    } catch (error) {
+        console.error("롤백 에러:", error);
     }
   }
 });
