@@ -72,4 +72,5 @@ dependencies {
 
     // FCM 라이브러리 추가
     implementation("com.google.firebase:firebase-messaging:23.4.1")
+
 }

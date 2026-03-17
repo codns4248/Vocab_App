@@ -1,13 +1,8 @@
 package com.example.vocaapp;
 
 import com.example.vocaapp.QuizAndGame.QuizAndGameFragment;
-import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.FirebaseFirestore;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import com.example.vocaapp.Settting.SettingFragment;
+
 import android.widget.Toast; //토스트 메세지 출력용
 import android.util.Log; // 로그 출력용
 
