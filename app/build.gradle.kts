@@ -73,4 +73,5 @@ dependencies {
     // FCM 라이브러리 추가
     implementation("com.google.firebase:firebase-messaging:23.4.1")
 
+    implementation("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
 }
