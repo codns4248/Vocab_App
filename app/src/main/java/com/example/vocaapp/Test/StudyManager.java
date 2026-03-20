@@ -1,6 +1,4 @@
-package com.example.vocaapp.manager;
-
-import com.google.firebase.messaging.FirebaseMessaging;
+package com.example.vocaapp.Test;
 
 import android.content.Context;
 import android.util.Log;

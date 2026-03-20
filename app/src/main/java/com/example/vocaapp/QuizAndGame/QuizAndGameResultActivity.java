@@ -2,18 +2,15 @@ package com.example.vocaapp.QuizAndGame;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
-import com.example.vocaapp.manager.StudyManager;
 
 import java.util.ArrayList;
 import java.util.List;

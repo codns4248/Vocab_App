@@ -1,7 +1,5 @@
 package com.example.vocaapp.VocabularyBookList;
 
-import com.example.vocaapp.VocabularyList.VocabularyFirestore;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -156,7 +154,7 @@ public class VocabularyBookFirestore {
             int nextStage = (int) currentStamp;
             if (nextStage < 1) nextStage = 1; // 최소 1단계부터 시작
 
-            int waitMinutes = com.example.vocaapp.manager.StudyManager.getInstance().getWaitMinutes(nextStage);
+            int waitMinutes = com.example.vocaapp.Test.StudyManager.getInstance().getWaitMinutes(nextStage);
 
             long waitMillis = waitMinutes * 60 * 1000L;
             long nextReviewMillis = System.currentTimeMillis() + waitMillis;

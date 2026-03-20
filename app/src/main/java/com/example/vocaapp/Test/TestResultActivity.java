@@ -14,9 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.QuizAndGame.FailVocaListAdapter;
 import com.example.vocaapp.QuizAndGame.QuizAndGameFirestore;
-import com.example.vocaapp.QuizAndGame.QuizAndGameResultActivity;
 import com.example.vocaapp.R;
-import com.example.vocaapp.manager.StudyManager;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -15,11 +15,8 @@ import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
 import androidx.credentials.exceptions.GetCredentialException;
 
-import com.example.vocaapp.manager.StudyManager;
-import com.google.android.gms.common.SignInButton;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -138,7 +135,7 @@ public class LoginActivity extends AppCompatActivity {
                         FirebaseUser user = mAuth.getCurrentUser();
                         if (user != null) {
                             // 로그인/회원가입 시점에 FCM 토큰을 Firestore에 저장합니다.
-                            com.example.vocaapp.manager.StudyManager.getInstance().updateFCMToken(user.getUid());
+                            com.example.vocaapp.Test.StudyManager.getInstance().updateFCMToken(user.getUid());
                         }
 
                         runOnUiThread(() -> {

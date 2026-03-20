@@ -1,4 +1,4 @@
-package com.example.vocaapp.manager;
+package com.example.vocaapp.Test;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
