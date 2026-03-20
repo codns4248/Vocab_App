@@ -27,12 +27,16 @@ public class DictationActivity extends AppCompatActivity {
     Map<String, String> wordsAndMeanings = new HashMap<>();
     EditText wordEditText;
     ConstraintLayout nextConstraintLayout;
-
     int currentIndex = 0;
     List<String> keyList = new ArrayList<>();
     int pass = 0;
     int fail = 0;
     int currentPage = 1;
+
+    // 결과에서 틀린 단어들을 표시하기 위한 리스트
+    ArrayList<Map<String, Object>> failedWordsList = new ArrayList<>();
+
+    List<Map<String, Object>> originWordsList = new ArrayList<>();
 
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,24 +78,28 @@ public class DictationActivity extends AppCompatActivity {
             }
         });
 
+        // 단어장 안에 있는 단어들 가져오기
         quizAndGameFirestore.getAllWords(userId, vocabularyId, new QuizAndGameFirestore.OnWordsLoadedCallback(){
             @Override
             public void onCallback(List<Map<String, Object>> words) {
-                // 1. 데이터 저장
+
+                originWordsList = new ArrayList<>(words);
+
+                // 데이터 저장
                 for (Map<String, Object> data : words) {
-                    wordsAndMeanings.put((String) data.get("mean"), (String) data.get("word"));
+                    wordsAndMeanings.put((String) data.get("meaning"), (String) data.get("word"));
                 }
 
                 if (wordsAndMeanings.isEmpty()) return;
 
-                // 2. 초기화
+                // 초기화
                 keyList = new ArrayList<>(wordsAndMeanings.keySet());
                 currentIndex = 0; // 시작 인덱스
                 pass = 0;
                 fail = 0;
                 currentPage = 1;
 
-                // 3. 첫 번째 문제 표시 함수 호출
+                // 첫 번째 문제 표시 함수 호출
                 updateUI();
             }
         });
@@ -103,12 +111,11 @@ public class DictationActivity extends AppCompatActivity {
             String correctWord = wordsAndMeanings.get(currentMean);
             String userInput = wordEditText.getText().toString().trim();
 
-            // 정답 체크
-            if (userInput.equals(correctWord)) {
-                Toast.makeText(this, "정답입니다!", Toast.LENGTH_SHORT).show();
+            // 정답 유무 체크
+            if (userInput.equalsIgnoreCase(correctWord)) { // 대소문자 구분 없이 체크하려면 equalsIgnoreCase 권장
                 pass++;
             } else {
-                Toast.makeText(this, "오답입니다!", Toast.LENGTH_SHORT).show();
+                failedWordsList.add(originWordsList.get(currentIndex));
                 fail++;
             }
 
@@ -126,7 +133,9 @@ public class DictationActivity extends AppCompatActivity {
                     testResultIntent.putExtra("fail", fail);
 
                     testResultIntent.putExtra("vocabularyId", vocabularyId);
-                    testResultIntent.putExtra("userId", user.getUid());         //127,128 유저 id 단어장 id 넘기기
+                    testResultIntent.putExtra("userId", user.getUid());
+
+                    testResultIntent.putExtra("failedWords", failedWordsList);
 
                     testResultIntent.putExtra("isOfficial", isOfficial);
 

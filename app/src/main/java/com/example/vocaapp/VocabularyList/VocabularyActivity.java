@@ -156,7 +156,7 @@ public class VocabularyActivity extends AppCompatActivity {
                     wordIds.add(document.getId());  // 문서의 ID(wordId) 가져오기
 
                     String word = document.getString("word");
-                    String meaning = document.getString("mean");
+                    String meaning = document.getString("meaning");
                     String pronunciation = document.getString("pronunciation");
                     String comment = document.getString("explain");
 
@@ -265,7 +265,7 @@ public class VocabularyActivity extends AppCompatActivity {
             // Firestore에 저장할 데이터
             Map<String, Object> wordData = new HashMap<>();
             wordData.put("word", word);
-            wordData.put("mean", mean);
+            wordData.put("meaning", mean);
             wordData.put("pronunciation", pronunciation);
             wordData.put("timeStamp", FieldValue.serverTimestamp());
 

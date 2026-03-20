@@ -25,13 +25,14 @@ public class MultipleChoiceActivity extends AppCompatActivity {
     String correctMean;
     int pass;
     int fail;
-
     TextView firstTextView, secondTextView, thirdTextView, forthTextView, wordTextView;
     TextView currentPageTextView, totalPageTextView;
-
     boolean isOfficial = false;
     String userId;
     String vocabularyId;
+
+    // 결과에서 틀린 단어들을 표시하기 위한 리스트
+    ArrayList<Map<String, Object>> failedWordsList = new ArrayList<>();
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,7 +57,7 @@ public class MultipleChoiceActivity extends AppCompatActivity {
 
         QuizAndGameFirestore quizAndGameFirestore = new QuizAndGameFirestore();
 
-        // 단어 전체 가져오기
+        // 단어장 안에 있는 단어들 가져오기
         quizAndGameFirestore.getAllWords(userId, vocabularyId, new QuizAndGameFirestore.OnWordsLoadedCallback() {
             @Override
             public void onCallback(List<Map<String, Object>> words) {
@@ -72,16 +73,16 @@ public class MultipleChoiceActivity extends AppCompatActivity {
         setOptionClickListeners();
     }
 
-    // 2. 퀴즈를 화면에 표시하는 핵심 메서드
+    // 퀴즈를 화면에 표시하는 핵심 메서드
     private void showNextQuiz() {
+
+        // 모든 문제들을 풀었을 때 결과로 이동
         if (allWords == null || currentIndex >= allWords.size()) {
-            // [수정] 모든 문제를 다 풀었을 때 결과 페이지로 이동
             Intent resultIntent = new Intent(MultipleChoiceActivity.this, TestResultActivity.class);
 
-            // 결과 데이터 전달 (정답 수, 오답 수, 총 문제 수 등)
             resultIntent.putExtra("pass", pass);
             resultIntent.putExtra("fail", fail);
-
+            resultIntent.putExtra("failedWords", failedWordsList);
             resultIntent.putExtra("userId", userId);
             resultIntent.putExtra("vocabularyId", vocabularyId);
             resultIntent.putExtra("isOfficial", isOfficial);
@@ -97,7 +98,7 @@ public class MultipleChoiceActivity extends AppCompatActivity {
         // 정답 데이터 가져오기
         Map<String, Object> currentWordData = allWords.get(currentIndex);
         String word = (String) currentWordData.get("word");
-        correctMean = (String) currentWordData.get("mean");
+        correctMean = (String) currentWordData.get("meaning");
 
         wordTextView.setText(word);
 
@@ -111,7 +112,7 @@ public class MultipleChoiceActivity extends AppCompatActivity {
         java.util.Collections.shuffle(tempWords); // 나머지 섞기
 
         for (int i = 0; i < Math.min(3, tempWords.size()); i++) {
-            options.add((String) tempWords.get(i).get("mean"));
+            options.add((String) tempWords.get(i).get("meaning"));
         }
 
         java.util.Collections.shuffle(options); // 보기 최종 섞기
@@ -123,6 +124,7 @@ public class MultipleChoiceActivity extends AppCompatActivity {
         if (options.size() > 3) forthTextView.setText(options.get(3));
     }
 
+    // 4지선다 중 하나를 선택하는 경우의 처리 메서드
     private void setOptionClickListeners() {
         View.OnClickListener listener = v -> {
             TextView selectedView = (TextView) v;
@@ -131,6 +133,8 @@ public class MultipleChoiceActivity extends AppCompatActivity {
             View parentLayout = (View) v.getParent();
             int color = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_primary);
 
+            // 현재 문제의 단어 데이터 가져오기
+            Map<String, Object> currentWordData = allWords.get(currentIndex);
 
             // 정답 유무 체크
             if (selectedText.equals(correctMean)) {
@@ -138,6 +142,7 @@ public class MultipleChoiceActivity extends AppCompatActivity {
                 parentLayout.getBackground().setTint(color);
             } else {
                 fail ++;
+                failedWordsList.add(currentWordData);
                 parentLayout.getBackground().setTint(color);
             }
 

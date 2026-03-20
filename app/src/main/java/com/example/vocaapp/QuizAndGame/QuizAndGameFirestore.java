@@ -100,7 +100,8 @@ public class QuizAndGameFirestore {
                             // 각 문서에서 word와 mean 필드 추출
                             Map<String, Object> wordData = new HashMap<>();
                             wordData.put("word", document.getString("word"));
-                            wordData.put("mean", document.getString("mean"));
+                            wordData.put("meaning", document.getString("meaning"));
+                            wordData.put("pronunciation", document.getString("pronunciation"));
                             wordList.add(wordData);
                         }
 

@@ -1,13 +1,19 @@
 package com.example.vocaapp.QuizAndGame;
 
 import android.content.Intent;
+import android.database.DataSetObserver;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Adapter;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
 import com.example.vocaapp.manager.StudyManager;
@@ -16,7 +22,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.SetOptions;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class TestResultActivity extends AppCompatActivity {
@@ -24,12 +32,21 @@ public class TestResultActivity extends AppCompatActivity {
     private String userId;
     private String vocabularyId;
 
+    private List<Map<String, Object>> failedWordList;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test_result);
 
-        // 1. 인텐트 데이터 수신
+
+        if (getIntent().hasExtra("failedWords")) {
+            failedWordList = (List<Map<String, Object>>) getIntent().getSerializableExtra("failedWords");
+        } else {
+            failedWordList = new ArrayList<>();
+        }
+
+        // 인텐트 데이터 수신
         Intent intent = getIntent();
         int pass = intent.getIntExtra("pass", 0);
         int fail = intent.getIntExtra("fail", 0);
@@ -38,13 +55,26 @@ public class TestResultActivity extends AppCompatActivity {
 
         boolean isOfficial = intent.getBooleanExtra("isOfficial", false);
 
-        // 2. XML 뷰 연결
+        // 뷰 연결
         TextView passTextView = findViewById(R.id.passTextView);
         TextView failTextView = findViewById(R.id.failTextView);
         ProgressBar circularProgressBar = findViewById(R.id.circularProgressBar);
         TextView tvProgress = findViewById(R.id.tvProgress);
         TextView finishTextView = findViewById(R.id.finishTextView);
         TextView resultTextView = findViewById(R.id.resultTextView);
+        RecyclerView recycler = findViewById(R.id.failVocaRecyclerView);
+
+        // [추가 및 수정] 2-1. RecyclerView 설정 (매우 중요!)
+        if (failedWordList != null && !failedWordList.isEmpty()) {
+            // 어댑터 연결 (생성자에 'this'와 '리스트' 전달)
+            FailVocaListAdapter adapter = new FailVocaListAdapter(this, failedWordList);
+            recycler.setAdapter(adapter);
+            // 레이아웃 매니저 설정 (리스트 형태로 보여줌)
+            recycler.setLayoutManager(new LinearLayoutManager(this));
+        } else {
+            // 틀린 단어가 없으면 리스트를 숨김
+            recycler.setVisibility(View.GONE);
+        }
 
         // 3. 점수 계산 및 텍스트 설정
         passTextView.setText(String.valueOf(pass));
@@ -58,10 +88,7 @@ public class TestResultActivity extends AppCompatActivity {
 
         // 4. 합격 조건(80점) 체크
         if (progress >= 80) {
-
-
             StudyManager.getInstance().studyVocabulary(TestResultActivity.this, userId, vocabularyId);
-
             com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.updateAfterQuiz(userId, vocabularyId, new com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.VocabularyBookCallback() {
                 @Override
                 public void onSuccess() {
@@ -106,25 +133,5 @@ public class TestResultActivity extends AppCompatActivity {
         finishTextView.setOnClickListener(v -> {
             finish();
         });
-    }
-
-    // [메서드 분리] 단어별 망각곡선 적용 및 에러 처리
-    private void applySpacedRepetition(FirebaseFirestore db, String userId, String vocabularyId) {
-        db.collection("users").document(userId)
-                .collection("vocabularies").document(vocabularyId)
-                .collection("words")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        // StudyManager를 통해 각 단어별 stage/날짜 업데이트
-                        StudyManager.getInstance()
-                                .studyVocabulary(TestResultActivity.this, userId, vocabularyId);
-                    }
-                    Log.d("StudyLogic", "모든 단어 망각곡선 적용 완료");
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("StudyLogic", "단어 목록 로드 실패: ", e);
-                    Toast.makeText(TestResultActivity.this, "❌ 복습 일정 업데이트 실패", Toast.LENGTH_SHORT).show();
-                });
     }
 }
