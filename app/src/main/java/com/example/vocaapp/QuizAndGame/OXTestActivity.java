@@ -2,22 +2,18 @@ package com.example.vocaapp.QuizAndGame;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.example.vocaapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +22,9 @@ public class OXTestActivity extends AppCompatActivity {
 
     private TextView vocabularyTextView;
     private ConstraintLayout failImageView, passImageView;
-
     private List<Map<String, Object>> wordList = new ArrayList<>();
+    private List<Map<String, Object>> failedWordList = new ArrayList<>();
+
     private int currentIndex = 0;
     private int correctCount = 0;
     private String vocabularyId;
@@ -84,6 +81,11 @@ public class OXTestActivity extends AppCompatActivity {
 
         // X 버튼 클릭 리스너
         failImageView.setOnClickListener(v -> {
+
+            if (currentIndex < wordList.size()) {
+                failedWordList.add(wordList.get(currentIndex));
+            }
+
             currentPage ++;
             moveToNextWord();
         });
@@ -121,14 +123,16 @@ public class OXTestActivity extends AppCompatActivity {
         int pass = correctCount;
         int fail = wordList.size() - correctCount;
 
-        Intent intent = new Intent(OXTestActivity.this, TestResultActivity.class);
+        Intent intent = new Intent(OXTestActivity.this, QuizAndGameResultActivity.class);
 
         intent.putExtra("pass", pass);
         intent.putExtra("fail", fail);
         intent.putExtra("userId", userId);
         intent.putExtra("vocabularyId", vocabularyId);
-
         intent.putExtra("isOfficial", isOfficial);
+
+        // 틀린 단어와 뜻을 넘겨줌
+        intent.putExtra("failedWords", (Serializable) failedWordList);
 
         startActivity(intent);
         finish();

@@ -82,4 +82,28 @@ public class VocabularyFirestore {
         void onChanged(QuerySnapshot snapshots);
         void onError(Exception e);
     }
+
+    public void alreadyVocabulary(String uid, String vocabularyId, String word, alreadyVocabularyInterface alreadyVocabularyInterface){
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies").document(vocabularyId)
+                .collection("words")
+                .whereEqualTo("word", word)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        // 결과 리스트가 비어있지 않으면(isEmpty()가 false면) 단어가 존재하는 것임
+                        boolean exists = !task.getResult().isEmpty();
+                        alreadyVocabularyInterface.alreadyVocabulary(exists);
+                    } else {
+                        // 쿼리 실패 시에는 안전하게 false를 반환하거나 에러 처리를 합니다.
+                        alreadyVocabularyInterface.alreadyVocabulary(false);
+                    }
+                });
+    }
+
+    public interface alreadyVocabularyInterface{
+        void alreadyVocabulary(boolean isAlready);
+    }
+
 }

@@ -101,7 +101,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
         } else {
             // 기존 일반 레이아웃
             View view = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.vocabulary_book_list_item, parent, false);
+                    .inflate(R.layout.item_vocabulary_book_list, parent, false);
             return new NormalViewHolder(view);
         }
     }

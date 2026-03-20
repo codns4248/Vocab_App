@@ -1,5 +1,6 @@
 package com.example.vocaapp.VocabularyBookList;
 
+import com.example.vocaapp.VocabularyList.VocabularyFirestore;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
@@ -173,4 +174,28 @@ public class VocabularyBookFirestore {
             if (callback != null) callback.onFailure(e);
         });
     }
+
+    public void alreadyVocabularyBook(String uid, String bookName, alreadyVocabularyBookInterface alreadyVocabularyBookInterface) {
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies") // 단어장 목록이 있는 컬렉션
+                .whereEqualTo("title", bookName) // 단어장 이름 필드와 비교
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        // 문서가 존재하면(isEmpty가 false면) 이미 있는 단어장 이름
+                        boolean exists = !task.getResult().isEmpty();
+                        alreadyVocabularyBookInterface.alreadyVocabularyBook(exists);
+                    } else {
+                        // 에러 발생 시 안전하게 false 처리
+                        alreadyVocabularyBookInterface.alreadyVocabularyBook(false);
+                    }
+                });
+    }
+
+    // 인터페이스 선언 (클래스 내부에 맞춰서 위치시키세요)
+    public interface alreadyVocabularyBookInterface {
+        void alreadyVocabularyBook(boolean isAlready);
+    }
+
 }

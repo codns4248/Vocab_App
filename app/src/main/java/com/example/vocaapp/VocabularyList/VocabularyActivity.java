@@ -41,7 +41,7 @@ public class VocabularyActivity extends AppCompatActivity {
     private boolean isStudying = false; //학습 상 태 저장용 변수 추가
     VocabularyListAdapter adapter;
 
-    List<String> words = new ArrayList<>();
+     List<String> words = new ArrayList<>();
     List<String> meanings = new ArrayList<>();
     List<String> pronunciations = new ArrayList<>();
     List<String> comments = new ArrayList<>();
@@ -156,7 +156,7 @@ public class VocabularyActivity extends AppCompatActivity {
                     wordIds.add(document.getId());  // 문서의 ID(wordId) 가져오기
 
                     String word = document.getString("word");
-                    String meaning = document.getString("mean");
+                    String meaning = document.getString("meaning");
                     String pronunciation = document.getString("pronunciation");
                     String comment = document.getString("explain");
 
@@ -239,7 +239,6 @@ public class VocabularyActivity extends AppCompatActivity {
         EditText pronunciationEditText = view.findViewById(R.id.pronunciationEditText);
         Button wordRegisterButton = view.findViewById(R.id.wordRegisterButton);
 
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
         if (user == null) {
@@ -249,9 +248,9 @@ public class VocabularyActivity extends AppCompatActivity {
 
         String uid = user.getUid();
 
-
+        // 단어 등록 처리
         wordRegisterButton.setOnClickListener(v -> {
-
+            // 입력 단어 가져오기
             String word = wordEditText.getText().toString().trim();
             String mean = meanEditText.getText().toString().trim();
             String pronunciation = pronunciationEditText.getText().toString().trim();
@@ -262,24 +261,14 @@ public class VocabularyActivity extends AppCompatActivity {
                 return;
             }
 
-            // Firestore에 저장할 데이터
-            Map<String, Object> wordData = new HashMap<>();
-            wordData.put("word", word);
-            wordData.put("mean", mean);
-            wordData.put("pronunciation", pronunciation);
-            wordData.put("timeStamp", FieldValue.serverTimestamp());
+            alreadyVocabularyFilter(word, mean, pronunciation);
 
-            // WordFirestore에서 실제로 데이터 삽입
-            VocabularyFirestore.addWord(uid, vocabularyId, wordData, () -> {
-                //Toast.makeText(this, "단어 등록 완료!", Toast.LENGTH_SHORT).show();
-                wordEditText.setText("");
-                meanEditText.setText("");
-                pronunciationEditText.setText("");
-            }, () -> {
-                Toast.makeText(this, "등록 실패", Toast.LENGTH_SHORT).show();
-            });
-
+            // 유효성 검사와 db 단어 등록 완료 시 글자 초기화
+            wordEditText.setText("");
+            meanEditText.setText("");
+            pronunciationEditText.setText("");
         });
+
     }
     private void setupSwipeController(RecyclerView recyclerView) {
         SwipeController swipeController = new SwipeController(new SwipeController.SwipeControllerActions() {
@@ -320,6 +309,34 @@ public class VocabularyActivity extends AppCompatActivity {
             public void onDraw(@NonNull Canvas c, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
                 swipeController.onDraw(c);
             }
+        });
+    }
+
+    // 이미 존재하는 단어 검사하는 메서드
+    private void alreadyVocabularyFilter(String word, String mean, String pronunciation){
+        VocabularyFirestore alreadyVocabularyFirestore = new VocabularyFirestore();
+        alreadyVocabularyFirestore.alreadyVocabulary(uid, vocabularyId, word, isAlready -> {
+            if (isAlready){
+                Toast.makeText(this, "이미 등록된 단어입니다", Toast.LENGTH_SHORT).show();
+            }
+            else{
+                saveWordToFirestore(word, mean, pronunciation);
+            }
+        });
+    }
+
+    // 실제 Firestore 저장 로직을 분리
+    private void saveWordToFirestore(String word, String mean, String pronunciation) {
+        Map<String, Object> wordData = new HashMap<>();
+        wordData.put("word", word);
+        wordData.put("meaning", mean);
+        wordData.put("pronunciation", pronunciation);
+        wordData.put("timeStamp", FieldValue.serverTimestamp());
+
+        VocabularyFirestore.addWord(uid, vocabularyId, wordData, () -> {
+            Toast.makeText(this, "단어가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+        }, () -> {
+            Toast.makeText(this, "등록 실패", Toast.LENGTH_SHORT).show();
         });
     }
 }

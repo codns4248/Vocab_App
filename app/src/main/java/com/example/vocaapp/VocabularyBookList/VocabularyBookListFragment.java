@@ -25,7 +25,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
 import com.example.vocaapp.VocabularyList.VocabularyActivity;
+import com.example.vocaapp.VocabularyList.VocabularyFirestore;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -46,7 +48,7 @@ public class VocabularyBookListFragment extends Fragment {
 
     private Handler timerHandler = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable;
-
+    private BottomSheetDialog bottomSheetDialog;
 
     @Nullable
     @Override
@@ -64,7 +66,7 @@ public class VocabularyBookListFragment extends Fragment {
 
         ImageView vocabularyBookRegisterImageView = view.findViewById(R.id.vocabularyBookRegisterImageView);
         vocabularyBookRegisterImageView.setOnClickListener(v -> {
-            BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(requireContext());
+            bottomSheetDialog = new BottomSheetDialog(requireContext());
             View view2 = getLayoutInflater().inflate(R.layout.vocabulary_book_bottom_sheet, null);
             bottomSheetDialog.setContentView(view2);
             bottomSheetDialog.show();
@@ -72,30 +74,18 @@ public class VocabularyBookListFragment extends Fragment {
             Button registerButton = view2.findViewById(R.id.registerButton);
             EditText bookNameEditText = view2.findViewById(R.id.bookNameEditText);
 
+            // 단어장을 등록하는 처리
             registerButton.setOnClickListener( v2 -> {
+                // 입력 없을 시 처리
                 String bookName = bookNameEditText.getText().toString();
                 if (bookName.isEmpty()){
                     Toast.makeText(getContext(), "단어장 이름을 입력해주세요.", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                Map<String, Object> inputVocabularyBookName = new HashMap<>();
-                inputVocabularyBookName.put("title", bookName);
-                // 새 단어장 만들 때 스탬프 0개로 초기화
-                inputVocabularyBookName.put("stampCount", 0);
-                inputVocabularyBookName.put("isStudying",false);
-                inputVocabularyBookName.put("isReviewReady", false);
+                // 이미 존재하는 단어장 이름 검사
+                alreadyVocabularyBookFilter(bookName);
 
-                VocabularyBookFirestore.addVocabularyBook(inputVocabularyBookName, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
-                    @Override
-                    public void onSuccess() {
-                        bottomSheetDialog.dismiss();
-                    }
-                    @Override
-                    public void onFailure(Exception e) {
-                        Toast.makeText(getContext(), "등록 실패", Toast.LENGTH_SHORT).show();
-                    }
-                });
             });
         });
 
@@ -383,4 +373,38 @@ public class VocabularyBookListFragment extends Fragment {
         });
         dialog.show();
     }
+
+    // 이미 존재하는 단어 검사하는 메서드
+    private void alreadyVocabularyBookFilter(String bookName){
+        VocabularyBookFirestore alreadyVocabularyBookFirestore = new VocabularyBookFirestore();
+        alreadyVocabularyBookFirestore.alreadyVocabularyBook(uid, bookName, isAlready ->  {
+            if (isAlready){
+                Toast.makeText(getContext(), "이미 등록된 단어장 이름입니다", Toast.LENGTH_SHORT).show();
+            }
+            else{
+                saveWordToFirestore(bookName);
+            }
+        });
+    }
+
+    // 실제 Firestore 저장 로직을 분리
+    private void saveWordToFirestore(String bookName) {
+        Map<String, Object> inputVocabularyBookName = new HashMap<>();
+        inputVocabularyBookName.put("title", bookName);
+        inputVocabularyBookName.put("stampCount", 0);
+        inputVocabularyBookName.put("isStudying",false);
+        inputVocabularyBookName.put("isReviewReady", false);
+
+        VocabularyBookFirestore.addVocabularyBook(inputVocabularyBookName, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
+            @Override
+            public void onSuccess() {
+                bottomSheetDialog.dismiss();
+            }
+            @Override
+            public void onFailure(Exception e) {
+                Toast.makeText(getContext(), "등록 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
 }

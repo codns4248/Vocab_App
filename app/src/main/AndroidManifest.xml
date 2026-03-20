@@ -49,7 +49,7 @@
         <activity android:name=".QuizAndGame.DictationActivity"
             android:exported="false"/>
 
-        <activity android:name=".QuizAndGame.TestResultActivity"
+        <activity android:name=".QuizAndGame.QuizAndGameResultActivity"
             android:exported="false"/>
 
         <activity android:name=".QuizAndGame.OXTestActivity"
