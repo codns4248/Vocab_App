@@ -2,21 +2,16 @@ package com.example.vocaapp.QuizAndGame;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.example.vocaapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -128,7 +123,7 @@ public class OXTestActivity extends AppCompatActivity {
         int pass = correctCount;
         int fail = wordList.size() - correctCount;
 
-        Intent intent = new Intent(OXTestActivity.this, TestResultActivity.class);
+        Intent intent = new Intent(OXTestActivity.this, QuizAndGameResultActivity.class);
 
         intent.putExtra("pass", pass);
         intent.putExtra("fail", fail);

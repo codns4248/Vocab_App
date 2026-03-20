@@ -78,7 +78,7 @@ public class MultipleChoiceActivity extends AppCompatActivity {
 
         // 모든 문제들을 풀었을 때 결과로 이동
         if (allWords == null || currentIndex >= allWords.size()) {
-            Intent resultIntent = new Intent(MultipleChoiceActivity.this, TestResultActivity.class);
+            Intent resultIntent = new Intent(MultipleChoiceActivity.this, QuizAndGameResultActivity.class);
 
             resultIntent.putExtra("pass", pass);
             resultIntent.putExtra("fail", fail);

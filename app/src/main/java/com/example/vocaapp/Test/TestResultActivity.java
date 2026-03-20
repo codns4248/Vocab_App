@@ -1,12 +1,9 @@
-package com.example.vocaapp.QuizAndGame;
+package com.example.vocaapp.Test;
 
 import android.content.Intent;
-import android.database.DataSetObserver;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Adapter;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -15,15 +12,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.vocaapp.QuizAndGame.FailVocaListAdapter;
+import com.example.vocaapp.QuizAndGame.QuizAndGameFirestore;
+import com.example.vocaapp.QuizAndGame.QuizAndGameResultActivity;
 import com.example.vocaapp.R;
 import com.example.vocaapp.manager.StudyManager;
-import com.google.firebase.firestore.FieldValue;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.SetOptions;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -86,7 +81,7 @@ public class TestResultActivity extends AppCompatActivity {
         circularProgressBar.setProgress(progress);
         tvProgress.setText(String.valueOf(progress));
 
-        // 4. 합격 조건(80점) 체크
+        // 합격 조건(80점) 체크
         if (progress >= 80) {
             StudyManager.getInstance().studyVocabulary(TestResultActivity.this, userId, vocabularyId);
             com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.updateAfterQuiz(userId, vocabularyId, new com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.VocabularyBookCallback() {
@@ -135,3 +130,4 @@ public class TestResultActivity extends AppCompatActivity {
         });
     }
 }
+

@@ -126,7 +126,7 @@ public class DictationActivity extends AppCompatActivity {
             if (currentIndex < keyList.size()) {
                 updateUI(); // 다음 단어 보여주기
             } else {
-                Intent testResultIntent = new Intent(this, TestResultActivity.class);
+                Intent testResultIntent = new Intent(this, QuizAndGameResultActivity.class);
 
                 if (user != null) {
                     testResultIntent.putExtra("pass", pass);
