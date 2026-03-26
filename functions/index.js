@@ -1,179 +1,114 @@
-const {onSchedule} = require("firebase-functions/v2/scheduler");
-const {setGlobalOptions} = require("firebase-functions/v2");
+const { onCall, onRequest } = require("firebase-functions/v2/https"); // v2 필수
 const admin = require("firebase-admin");
+const { CloudTasksClient } = require("@google-cloud/tasks");
 
-admin.initializeApp();
-
-// 배포 지역을 서울(asia-northeast3)로 설정 (선택 사항이나 권장)
-setGlobalOptions({region: "asia-northeast3"});
-
-//유예 시간 계산
-function getGracePeriodMillis(stampCount) {
-  const MINUTE = 60 * 1000;
-
-  switch (stampCount) {
-    case 0:
-    case 1: return 50 * MINUTE;
-    case 2: return 120 * MINUTE;
-    case 3: return 360 * MINUTE;
-    case 4: return 720 * MINUTE;
-    case 5: return 1440 * MINUTE;
-    case 6: return 2880 * MINUTE;
-    case 7: return 4320 * MINUTE;
-    default: return 50 * MINUTE;
-  }
-
-
+if (!admin.apps.length) {
+    admin.initializeApp();
 }
-//학습하세요~알림
-exports.sendReviewNotification = onSchedule("every 5 minutes", async (event) => {
-  const now = admin.firestore.Timestamp.now();
 
-  const bufferTime = 60 * 1000;
-  const nowPlusBuffer = admin.firestore.Timestamp.fromMillis(Date.now() + bufferTime);
+const client = new CloudTasksClient();
 
-  // 1. 복습 대상자 조회
-  const snapshot = await admin.firestore().collectionGroup("vocabularies")
-    .where("nextReviewDate", "<=", nowPlusBuffer)
-    .where("isStudying", "==", true)
-    .where("isReviewReady", "==", false)
-    .get();
+const PROJECT_ID = "vocaapp-bf580";
+const LOCATION = "asia-northeast3"; 
+const QUEUE_NAME = "voca-review-queue";
 
-  if (snapshot.empty) {
-    console.log("복습 대상이 없습니다.");
-    return;
-  }
+function getTaskPath(uid, vocabId) {
+    return client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `task_${uid}_${vocabId}`);
+}
 
-  for (const doc of snapshot.docs) {
-    const vocabData = doc.data();
-    // 부모 문서(users/{userId})로 올라가서 fcmToken 확인
-    const userDoc = await doc.ref.parent.parent.get();
-    const userData = userDoc.data();
-    const fcmToken = userData ? userData.fcmToken : null;
-
-    if (fcmToken) {
-      const message = {
-        notification: {
-          title: "복습할 시간이에요! 📖",
-          body: `[${vocabData.title || "단어장"}]의 다음 단계 학습이 가능합니다.`,
-        },
-        token: fcmToken,
-      };
-
-
-      try {
-        await admin.messaging().send(message);
-        //nextReviewDate: admin.firestore.FieldValue.delete()에서 수정 시간 삭제 안함
-        const currentStamp = vocabData.stampCount || 0;
-        const gracePeriod = getGracePeriodMillis(currentStamp);
-        const penaltyTime = admin.firestore.Timestamp.fromMillis(Date.now() + gracePeriod);
-
-        await doc.ref.update({
-          isReviewReady: true,
-          penaltyDate: penaltyTime,
-          isWarningSent: false
-        });
-        console.log(`알림 발송 성공: ${doc.id}`);
-      } catch (error) {
-        console.error("FCM 발송 에러:", error);
-      }
-    } else {
-      console.log(`토큰이 없어서 알림 못보냄: ${doc.id}`);
+// [1] 알림 예약 함수 (onCall)
+exports.scheduleReviewNotification = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { data, auth } = request; // v2는 request 객체에서 data와 auth를 추출합니다.
+    
+    if (!auth) {
+        throw new Error('로그인이 필요합니다.');
     }
-  }
-});
 
-exports.sendwarningNotification = onSchedule("every 5 minutes", async (event) => {
+    const { vocabId, title, scheduledTime } = data; 
+    const uid = auth.uid;
+    const taskName = getTaskPath(uid, vocabId);
+    const targetUrl = `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`;
 
-  const WARNING_MARGIN = 30 * 60 *  1000; // 30분
-  const warningTimeThreshold = admin.firestore.Timestamp.fromMillis(Date.now() + WARNING_MARGIN);
+    try {
+        await client.deleteTask({ name: taskName });
+    } catch (e) { /* 기존 태스크 없음 무시 */ }
 
-  const snapshot = await admin.firestore().collectionGroup("vocabularies")
-    .where("isStudying", "==", true)
-    .where("isReviewReady", "==", true)
-    .where("isWarningSent", "==", false)
-    .where("penaltyDate", "<=", warningTimeThreshold)
-    .get();
-
-
-  if (snapshot.empty) return;
-
-  for (const doc of snapshot.docs) {
-    const vocabData = doc.data();
-    const userDoc = await doc.ref.parent.parent.get();
-    const userData = userDoc.data();
-    const fcmToken = userData ? userData.fcmToken : null;
-
-    if (fcmToken) {
-      const message = {
-      notification: {
-        title: "단어장 스탬프 깎임 주의",
-        body: `[${vocabData.title || "단어장"}] 복습 유예 시간이 얼마 안남았어요! 얼른 복습하세요!`,
-      },
-      token: fcmToken,
+    const task = {
+        name: taskName,
+        httpRequest: {
+            httpMethod: "POST",
+            url: targetUrl,
+            headers: { "Content-Type": "application/json" },
+            body: Buffer.from(JSON.stringify({
+                uid: uid,
+                vocabId: vocabId,
+                title: title
+            })).toString("base64"),
+        },
+        scheduleTime: {
+            seconds: scheduledTime,
+        },
     };
 
     try {
-      await admin.messaging().send(message);
-
-      await doc.ref.update({
-        isWarningSent: true
-      });
-      console.log(`경고 알림 발송 성공: ${doc.id}`);
+        const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
+        const [response] = await client.createTask({ parent, task });
+        console.log(`알림 예약 성공: ${response.name}`);
+        return { success: true };
     } catch (error) {
-        console.error("경고 알림 에러:", error);
-      }
+        console.error("Task 생성 실패:", error);
+        throw new Error(error.message);
     }
-  }
 });
 
-//롤백 로직
-exports.applySpyPenalty = onSchedule("every 5 minutes", async (event) => {
-  const now = admin.firestore.Timestamp.now();
+// [2] 알림 취소 함수 (onCall)
+exports.cancelReviewNotification = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { data, auth } = request;
+    if (!auth) throw new Error('로그인이 필요합니다.');
 
-  const snapshot = await admin.firestore().collectionGroup("vocabularies")
-    .where("isStudying", "==", true)
-    .where("isReviewReady", "==", true)
-    .where("penaltyDate", "<=",now)
-    .get();
-
-  if (snapshot.empty) {
-    return;
-  }
-
-  for (const doc of snapshot.docs) {
-    const vocabData = doc.data();
-    const currentStamp = vocabData.stampCount || 0;
-
-    const newStamp = Math.max(0, currentStamp -1);
-
-    const userDoc = await doc.ref.parent.parent.get();
-    const userData = userDoc.data();
-    const fcmToken = userData ? userData.fcmToken : null;
+    const { vocabId } = data;
+    const taskName = getTaskPath(auth.uid, vocabId);
 
     try {
-      await doc.ref.update({
-        stampCount: newStamp,
-        isReviewReady: false,
-        isWarningSent: false,
-        penaltyDate: admin.firestore.FieldValue.delete(),
-        showRollbackPopup: true,
-        rolledBackFrom: currentStamp
-      });
-
-      if (fcmToken){
-        const message = {
-          notification: {
-            title: "단어장 스탬프 롤백",
-            body: `[${vocabData.title || "단어장"}] 유예 시간이 지나 스탬프가 깎였습니다`
-          },
-            token: fcmToken,
-        };
-        await admin.messaging().send(message);
-      }
-        console.log(`롤백완료: ${doc.id} (스탬프 ${currentStamp} -> ${newStamp})`);
+        await client.deleteTask({ name: taskName });
+        return { success: true };
     } catch (error) {
-        console.error("롤백 에러:", error);
+        return { success: false, message: "취소할 작업이 없습니다." };
     }
-  }
+});
+
+// [3] 실제 알림 발송 함수 (onRequest)
+exports.sendFcmNotification = onRequest({ region: "asia-northeast3" }, async (req, res) => {
+    // Cloud Tasks에서 오는 요청 바디 파싱
+    const data = (typeof req.body === 'string') ? JSON.parse(req.body) : req.body;
+    const { uid, vocabId, title } = data;
+
+    try {
+        const userDoc = await admin.firestore().collection("users").doc(uid).get();
+        const fcmToken = userDoc.data() ? userDoc.data().fcmToken : null;
+
+        if (!fcmToken) {
+            console.log("FCM 토큰을 찾을 수 없습니다.");
+            return res.status(200).send("No token");
+        }
+
+        const message = {
+            notification: {
+                title: "복습 시간이 되었습니다! ✍️",
+                body: `'${title}' 단어장을 복습하고 스탬프를 찍으세요!`
+            },
+            data: {
+                vocabId: vocabId,
+                type: "REVIEW_NOTIFICATION"
+            },
+            token: fcmToken
+        };
+
+        await admin.messaging().send(message);
+        console.log(`FCM 발송 성공: ${uid}`);
+        res.status(200).send("OK");
+    } catch (error) {
+        console.error("FCM 발송 실패:", error);
+        res.status(500).send(error.message);
+    }
 });

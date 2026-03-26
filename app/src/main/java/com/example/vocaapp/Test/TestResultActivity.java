@@ -81,42 +81,37 @@ public class TestResultActivity extends AppCompatActivity {
 
         // 합격 조건(80점) 체크
         if (progress >= 80) {
-            StudyManager.getInstance().studyVocabulary(TestResultActivity.this, userId, vocabularyId);
-            com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.updateAfterQuiz(userId, vocabularyId, new com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.VocabularyBookCallback() {
-                @Override
-                public void onSuccess() {
-                    android.util.Log.d("TestResult", "다음 복습 시간 갱신 완료!");
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    android.util.Log.e("TestResult", "시간 갱신 실패", e);
-                }
-            });
-
-            if (isOfficial) {
-
+            if (isOfficial && userId != null && vocabularyId != null) {
                 resultTextView.setText("오~~ 잘했어요! 합격이에요!");
 
-                if (userId != null && vocabularyId != null) {
-                    QuizAndGameFirestore.handleTestPass(userId, vocabularyId, new QuizAndGameFirestore.QuizResultCallback() {
-                        @Override
-                        public void onSuccess() {
-                            Log.d("Firestore", "스탬프 획득 성공!");
-                            Toast.makeText(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!", Toast.LENGTH_SHORT).show();
-                        }
+                // 1. 이전 화면(OXTestActivity)에서 넘겨받은 현재 스탬프 값 (기본값 0)
+                int currentStamp = getIntent().getIntExtra("currentStamp", 0);
+                // 2. 합격했으므로 다음 단계 계산
+                final int nextStamp = currentStamp + 1;
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            Log.e("DB_ERROR", "업데이트 실패", e);
-                            Toast.makeText(TestResultActivity.this, "❌ 스탬프 기록 실패", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
+                // [수정] 3. 스탬프를 먼저 올리고 (handleTestPass)
+                QuizAndGameFirestore.handleTestPass(userId, vocabularyId, new QuizAndGameFirestore.QuizResultCallback() {
+                    @Override
+                    public void onSuccess() {
+                        Log.d("Firestore", "스탬프 획득 성공!");
+
+                        StudyManager.getInstance().studyVocabulary(
+                                TestResultActivity.this,
+                                userId,
+                                vocabularyId,
+                                nextStamp
+                        );
+
+                        Toast.makeText(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!", Toast.LENGTH_SHORT).show();
+                    }
+                    @Override
+                    public void onFailure(Exception e) {
+                        Log.e("DB_ERROR", "업데이트 실패", e);
+                    }
+                });
             } else {
-
+                // 자율 복습일 때
                 resultTextView.setText("오~~ 잘했어요!\n(자율 복습이라 기록은 안 돼요!)");
-                Toast.makeText(TestResultActivity.this, "✍️ 자율학습 완료! 스탬프는 적립되지 않습니다.", Toast.LENGTH_SHORT).show();
             }
         } else {
             resultTextView.setText("흑흑.. 아쉽게도 불합격이에요..");
@@ -128,4 +123,3 @@ public class TestResultActivity extends AppCompatActivity {
         });
     }
 }
-

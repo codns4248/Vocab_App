@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
+import com.example.vocaapp.Test.StudyManager;
 import com.example.vocaapp.VocabularyList.VocabularyActivity;
 import com.example.vocaapp.VocabularyList.VocabularyFirestore;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -211,8 +212,16 @@ public class VocabularyBookListFragment extends Fragment {
                 .setTitle("학습 초기화 경고")
                 .setMessage("학습 모드를 끄면 단어를 추가할 수 있지만, 지금까지의 학습 횟수와 마지막 학습 시간이 모두 초기화됩니다. 정말 끄시겠습니까?")
                 .setPositiveButton("확인", (dialog, which) -> {
-                    // [확인] 클릭 시: 장부 초기화 (isStudying -> false, 횟수 -> 0 등)
-                    resetStudyStatus(vocabId);
+                    // 1. StudyManager를 통해 DB 초기화 + 서버 알림 취소 (Cloud Functions 호출)를 한 번에 실행
+                    StudyManager.getInstance().stopStudying(uid, vocabId);
+
+                    // 2. 사용자에게 알림 (Toast)
+                    if (isAdded()) {
+                        Toast.makeText(getContext(), "학습 모드가 해제되고 예약된 알림이 취소되었습니다.", Toast.LENGTH_SHORT).show();
+                    }
+
+                    // 기존에 있던 resetStudyStatus(vocabId)는 stopStudying과 역할이 겹치므로
+                    // StudyManager를 사용하는 방향으로 합치시는 게 관리에 더 좋습니다.
                 })
                 .setNegativeButton("취소", (dialog, which) -> {
                     // [취소] 클릭 시: 아무것도 안 함 (스위치는 다시 켜진 상태로 유지됨)
@@ -244,49 +253,41 @@ public class VocabularyBookListFragment extends Fragment {
         });
     }
 
-    // 학습 모드를 켤 때 호출할 메서드 (단순 업데이트)
+    // 학습 스위치를 활성화하면 실행되는 method
     public void startStudyMode(int position) {
         Map<String, Object> selectedVocabulary = dataList.get(position);
         String vocabId = String.valueOf(selectedVocabulary.get("id"));
+        String title = String.valueOf(selectedVocabulary.get("title"));
 
-        // 1. 처음 켜는 건지(스탬프가 0개인지) 확인
-        boolean isFirstTime = false;
-        long stampCount = 0;
-        if (selectedVocabulary.containsKey("stampCount") && selectedVocabulary.get("stampCount") != null) {
-            try {
-                stampCount = Long.parseLong(String.valueOf(selectedVocabulary.get("stampCount")));
-            } catch (Exception e) {
-                stampCount = 0;
-            }
-        }
-        if (stampCount == 0) {
-            isFirstTime = true;
-        }
+        // 1. 첫 번째 복습 시간 설정 (현재 시간 + 1분)
+        long oneMinuteMillis = 1 * 60 * 1000;
+        long firstReviewMillis = System.currentTimeMillis() + oneMinuteMillis;
+        Timestamp firstReviewTimestamp = new Timestamp(new java.util.Date(firstReviewMillis));
 
-        // 2. DB에 업데이트할 데이터 세팅
+        // 2. DB 업데이트 데이터 세팅
         Map<String, Object> updates = new HashMap<>();
         updates.put("isStudying", true);
-        updates.put("isReviewReady", false);
+        updates.put("buttonReady", false); // 1분 전까지는 버튼이 안 보이게 설정
+        updates.put("nextReviewDate", firstReviewTimestamp);
+        // 현재 몇 단계(1분, 2분...)인지 기록하기 위해 stampCount 등을 활용할 수 있습니다.
+        updates.put("stampCount", 0);
 
-        // 다음 복습 시간을 '지금 당장'으로 설정!
-        if (isFirstTime) {
-            updates.put("nextReviewDate", new com.google.firebase.Timestamp(new java.util.Date()));
-        }
-
-        // 3. Firestore 업데이트 실행
         VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, new VocabularyBookFirestore.VocabularyBookCallback() {
             @Override
             public void onSuccess() {
                 if (isAdded()) {
-                    Toast.makeText(getContext(), "학습 모드가 시작되었습니다.", Toast.LENGTH_SHORT).show();
-                    Log.d("StudyMode", "학습 모드 ON! (첫 시작이면 바로 학습창이 뜹니다)");
+                    Toast.makeText(getContext(), "학습 시작! 1분 뒤 첫 알림이 옵니다.", Toast.LENGTH_SHORT).show();
+
+                    // 3. Cloud Functions 호출 (StudyManager에 구현된 메서드 실행)
+                    // firstReviewMillis / 1000 을 하는 이유는 서버가 '초' 단위를 받기 때문입니다.
+                    StudyManager.getInstance().scheduleNotification(uid, vocabId, title, firstReviewMillis / 1000);
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
                 if (isAdded()) {
-                    Toast.makeText(getContext(), "학습 모드 켜기 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "오류 발생: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -294,21 +295,26 @@ public class VocabularyBookListFragment extends Fragment {
 
     // 단어장 삭제를 위한 팝업
     public void showDeleteConfirmDialog(int position) {
-        // 1. 다이얼로그를 띄우기 직전에 미리 docId를 추출합니다.
         if (dataList == null || position < 0 || position >= dataList.size()) {
-            return; // 데이터가 없으면 다이얼로그 자체를 띄우지 않음
+            return;
         }
 
-        // 미리 꺼내두기 (final 상수로 선언하여 리스너 내부에서 사용 가능하게 함)
         final String targetDocId = (String) dataList.get(position).get("docId");
+        final String vocabId = String.valueOf(dataList.get(position).get("id"));
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("삭제 확인");
-        builder.setMessage("삭제를 진행하면 단어장을 복구할 수 없습니다.\n정말 삭제하시겠습니까?");
+        builder.setTitle("단어장 삭제");
+        builder.setMessage("삭제하면 모든 단어와 학습 데이터가 사라지며 복구할 수 없습니다. 정말 삭제하시겠습니까?");
 
         builder.setPositiveButton("삭제", (dialog, id) -> {
-            // 2. 리스너 내부에서는 리스트를 다시 참조하지 않고, 미리 꺼내둔 targetDocId를 사용합니다.
+            // 1. StudyManager를 통해 학습 상태 초기화 및 예약된 알림 취소 실행
+            // (작성하신 stopStudying 메서드 내부에서 Functions 호출이 일어납니다.)
+            StudyManager.getInstance().stopStudying(uid, vocabId);
+
+            // 2. 실제 Firestore에서 단어장 문서 삭제
             deleteVocabularyBook(targetDocId, uid);
+
+            Log.d("Delete", "단어장 삭제 및 알림 취소 요청 완료");
         });
 
         builder.setNegativeButton("취소", null);
@@ -393,7 +399,6 @@ public class VocabularyBookListFragment extends Fragment {
         inputVocabularyBookName.put("title", bookName);
         inputVocabularyBookName.put("stampCount", 0);
         inputVocabularyBookName.put("isStudying",false);
-        inputVocabularyBookName.put("isReviewReady", false);
 
         VocabularyBookFirestore.addVocabularyBook(inputVocabularyBookName, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
             @Override
@@ -406,5 +411,4 @@ public class VocabularyBookListFragment extends Fragment {
             }
         });
     }
-
 }

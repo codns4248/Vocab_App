@@ -76,12 +76,6 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
         if (isStudying && nextReview != null) {
             long reviewTime = nextReview.toDate().getTime();
 
-            // 로그
-            Log.d("VIEW_CHECK", "단어장: " + vocab.get("title") +
-                    " | 현재: " + now +
-                    " | 복습: " + reviewTime +
-                    " | 남은시간: " + (reviewTime - now) / 1000 + "초");
-
             if (now >= reviewTime) {
                 Log.d("VIEW_CHECK", "학습 버튼 화면으로 보냅니다.");
                 return VIEW_TYPE_STUDY;
@@ -132,11 +126,18 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
                 else normalHolder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
             }
 
-            // 기존 스위치 로직 그대로
+
             normalHolder.studyModeSwitch.setOnCheckedChangeListener(null);
             normalHolder.studyModeSwitch.setChecked(isStudying);
+
+
             normalHolder.studyModeSwitch.setOnClickListener(v -> {
-                if (normalHolder.studyModeSwitch.isChecked()) fragment.startStudyMode(holder.getBindingAdapterPosition());
+
+                // 스위치가 활성화로 변경했을 때의 처리
+                if (normalHolder.studyModeSwitch.isChecked()) {
+                    fragment.startStudyMode(holder.getBindingAdapterPosition());
+                }
+
                 else {
                     normalHolder.studyModeSwitch.setChecked(true);
                     fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
@@ -150,29 +151,25 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
             });
         }
 
-        // --- 학습 버튼 모드일 때 세팅 ---
+
         else if (holder instanceof StudyViewHolder) {
             StudyViewHolder studyHolder = (StudyViewHolder) holder;
             studyHolder.titleTextView.setText(title);
 
             studyHolder.studyModeSwitch.setOnCheckedChangeListener(null);
-            studyHolder.studyModeSwitch.setChecked(true); // 이 화면이 떴다는 건 무조건 true임
+            studyHolder.studyModeSwitch.setChecked(true);
             studyHolder.studyModeSwitch.setOnClickListener(v -> {
                 studyHolder.studyModeSwitch.setChecked(true);
                 fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
             });
 
-            // '학습하기' 버튼 누르면 ox
+
             studyHolder.btnStartStudy.setOnClickListener(v -> {
                 android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.vocaapp.QuizAndGame.OXTestActivity.class);
 
-                // OX 퀴즈에서 필요한 단어장 ID 넘겨주기
                 intent.putExtra("vocabularyId", String.valueOf(vocab.get("id")));
-
-                // 망각 곡선 학습 모드라는 걸 알려주기 위해 isOfficial을 true로 넘김 (선택 사항)
                 intent.putExtra("isOfficial", true);
 
-                // 화면 이동!
                 v.getContext().startActivity(intent);
             });
         }
