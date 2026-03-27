@@ -46,7 +46,6 @@ public class TestResultActivity extends AppCompatActivity {
         userId = intent.getStringExtra("userId");
         vocabularyId = intent.getStringExtra("vocabularyId");
 
-        boolean isOfficial = intent.getBooleanExtra("isOfficial", false);
 
         // 뷰 연결
         TextView passTextView = findViewById(R.id.passTextView);
@@ -57,19 +56,14 @@ public class TestResultActivity extends AppCompatActivity {
         TextView resultTextView = findViewById(R.id.resultTextView);
         RecyclerView recycler = findViewById(R.id.failVocaRecyclerView);
 
-        // [추가 및 수정] 2-1. RecyclerView 설정 (매우 중요!)
         if (failedWordList != null && !failedWordList.isEmpty()) {
-            // 어댑터 연결 (생성자에 'this'와 '리스트' 전달)
             FailVocaListAdapter adapter = new FailVocaListAdapter(this, failedWordList);
             recycler.setAdapter(adapter);
-            // 레이아웃 매니저 설정 (리스트 형태로 보여줌)
             recycler.setLayoutManager(new LinearLayoutManager(this));
         } else {
-            // 틀린 단어가 없으면 리스트를 숨김
             recycler.setVisibility(View.GONE);
         }
 
-        // 3. 점수 계산 및 텍스트 설정
         passTextView.setText(String.valueOf(pass));
         failTextView.setText(String.valueOf(fail));
 
@@ -79,36 +73,43 @@ public class TestResultActivity extends AppCompatActivity {
         circularProgressBar.setProgress(progress);
         tvProgress.setText(String.valueOf(progress));
 
-        // 합격 조건(80점) 체크
+        // 합격 조건에 부합 처리
         if (progress >= 80) {
-            if (isOfficial && userId != null && vocabularyId != null) {
+            if (userId != null && vocabularyId != null) {
                 resultTextView.setText("오~~ 잘했어요! 합격이에요!");
 
-                // 1. 이전 화면(OXTestActivity)에서 넘겨받은 현재 스탬프 값 (기본값 0)
-                int currentStamp = getIntent().getIntExtra("currentStamp", 0);
-                // 2. 합격했으므로 다음 단계 계산
-                final int nextStamp = currentStamp + 1;
-
-                // [수정] 3. 스탬프를 먼저 올리고 (handleTestPass)
-                QuizAndGameFirestore.handleTestPass(userId, vocabularyId, new QuizAndGameFirestore.QuizResultCallback() {
+                TestFirestore.getStampCount(userId, vocabularyId, new TestFirestore.StampCountCallback() {
                     @Override
-                    public void onSuccess() {
-                        Log.d("Firestore", "스탬프 획득 성공!");
+                    public void onResult(int stampCount) {
+                        int nextStamp = stampCount + 1;
 
-                        StudyManager.getInstance().studyVocabulary(
-                                TestResultActivity.this,
-                                userId,
-                                vocabularyId,
-                                nextStamp
-                        );
+                        TestFirestore.handleTestPass(userId, vocabularyId, new TestFirestore.TestResultCallback() {
+                            @Override
+                            public void onSuccess() {
+                                Log.d("Firestore", "스탬프 획득 성공!");
 
-                        Toast.makeText(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!", Toast.LENGTH_SHORT).show();
+                                StudyManager.getInstance().studyVocabulary(
+                                        TestResultActivity.this,
+                                        userId,
+                                        vocabularyId,
+                                        nextStamp
+                                );
+
+                                Toast.makeText(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!", Toast.LENGTH_SHORT).show();
+                            }
+                            @Override
+                            public void onFailure(Exception e) {
+                                Log.e("DB_ERROR", "업데이트 실패", e);
+                            }
+                        });
                     }
                     @Override
-                    public void onFailure(Exception e) {
-                        Log.e("DB_ERROR", "업데이트 실패", e);
+                    public void onError(Exception e) {
+
                     }
                 });
+
+
             } else {
                 // 자율 복습일 때
                 resultTextView.setText("오~~ 잘했어요!\n(자율 복습이라 기록은 안 돼요!)");
@@ -117,7 +118,6 @@ public class TestResultActivity extends AppCompatActivity {
             resultTextView.setText("흑흑.. 아쉽게도 불합격이에요..");
         }
 
-        // 6. 종료 버튼 설정
         finishTextView.setOnClickListener(v -> {
             finish();
         });

@@ -65,21 +65,16 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
         }
     }
 
+    // 단어장 필드 buttonOn이 true면 학습하기 아이템으로 체인지
     @Override
     public int getItemViewType(int position) {
         Map<String, Object> vocab = dataList.get(position);
 
-        boolean isStudying = Boolean.TRUE.equals(vocab.get("isStudying"));
-        Timestamp nextReview = (Timestamp) vocab.get("nextReviewDate");
-        long now = System.currentTimeMillis();
+        boolean buttonOn = Boolean.TRUE.equals(vocab.get("buttonOn"));
 
-        if (isStudying && nextReview != null) {
-            long reviewTime = nextReview.toDate().getTime();
-
-            if (now >= reviewTime) {
-                Log.d("VIEW_CHECK", "학습 버튼 화면으로 보냅니다.");
-                return VIEW_TYPE_STUDY;
-            }
+        if (buttonOn) {
+            Log.d("VIEW_CHECK", "학습 버튼 화면으로 보냅니다.");
+            return VIEW_TYPE_STUDY;
         }
         return VIEW_TYPE_NORMAL;
     }
@@ -163,13 +158,10 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
                 fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
             });
 
-
+            // 학습하기 버튼을 누르면 intent에 데이터를 넣어서 testActivity로 넘겨줌
             studyHolder.btnStartStudy.setOnClickListener(v -> {
-                android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.vocaapp.QuizAndGame.OXTestActivity.class);
-
+                android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.vocaapp.Test.TestActivity.class);
                 intent.putExtra("vocabularyId", String.valueOf(vocab.get("id")));
-                intent.putExtra("isOfficial", true);
-
                 v.getContext().startActivity(intent);
             });
         }

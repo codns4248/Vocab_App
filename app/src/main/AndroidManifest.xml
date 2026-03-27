@@ -58,6 +58,11 @@
         <activity android:name=".QuizAndGame.MultipleChoiceActivity"
             android:exported="false"/>
 
+
+        <activity android:name=".Test.TestResultActivity"
+            android:exported="false"/>
+        <activity android:name=".Test.TestActivity"
+            android:exported="false"/>
     </application>
 
 </manifest>

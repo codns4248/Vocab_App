@@ -19,75 +19,92 @@ function getTaskPath(uid, docId) {
 
 exports.scheduleReviewNotification = onCall({ region: "asia-northeast3" }, async (request) => {
     const { data, auth } = request;
-    const { docId, title, scheduledTime } = data;
+    // Android에서 넘겨준 scheduledTime과 rollbackTime을 받습니다.
+    const { docId, title, scheduledTime, rollbackTime } = data;
     const uid = auth.uid;
 
-    // ✅ 1. 기존 Task ID를 Firestore에서 가져와서 삭제
-    try {
-        const vocabDoc = await admin.firestore()
-            .collection("users").doc(uid)
-            .collection("vocabularies").doc(docId).get();
-        
-        const existingTaskId = vocabDoc.data()?.currentTaskId;
-        if (existingTaskId) {
-            await client.deleteTask({ name: existingTaskId });
-            console.log("기존 태스크 삭제 성공:", existingTaskId);
-        }
-    } catch (e) {
-        console.log("삭제할 기존 태스크 없음 (무시)");
-    }
-
-    // ✅ 2. 새 Task는 매번 고유 이름으로 생성
-    const uniqueSuffix = Date.now();
-    const taskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, 
-        `task_${uid}_${docId}_${uniqueSuffix}`);
-    
-    const targetUrl = `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`;
-
-    const task = {
-        name: taskName,
-        httpRequest: {
-            httpMethod: "POST",
-            url: targetUrl,
-            headers: { "Content-Type": "application/json" },
-            body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
-        },
-        scheduleTime: {
-            seconds: scheduledTime, // ✅ Android에서 계산한 시간 그대로 사용
-        },
-    };
-
-    const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
-    const [response] = await client.createTask({ parent, task });
-
-    // ✅ 3. 새 Task ID를 Firestore에 저장 (다음번 삭제에 사용)
-    await admin.firestore()
+    const vocabRef = admin.firestore()
         .collection("users").doc(uid)
-        .collection("vocabularies").doc(docId)
-        .update({ currentTaskId: response.name });
+        .collection("vocabularies").doc(docId);
 
-    console.log(`알림 예약 성공: ${scheduledTime}초, Task: ${response.name}`);
-    return { success: true };
+    try {
+        // [1] 기존 Task 삭제 (알림용, 롤백용 둘 다)
+        const doc = await vocabRef.get();
+        const oldReviewId = doc.data()?.currentTaskId;
+        const oldRollbackId = doc.data()?.currentRollbackTaskId;
+        
+        if (oldReviewId) await client.deleteTask({ name: oldReviewId }).catch(() => {});
+        if (oldRollbackId) await client.deleteTask({ name: oldRollbackId }).catch(() => {});
+
+        // [2] 알림(Review) Task 생성
+        const reviewTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `rev_${uid}_${docId}_${Date.now()}`);
+        const reviewTask = {
+            name: reviewTaskName,
+            httpRequest: {
+                httpMethod: "POST",
+                url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`,
+                headers: { "Content-Type": "application/json" },
+                body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
+            },
+            scheduleTime: { seconds: Number(scheduledTime) },
+        };
+
+        // [3] 롤백(Rollback) Task 생성
+        const rollbackTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `roll_${uid}_${docId}_${Date.now()}`);
+        const rollbackTask = {
+            name: rollbackTaskName,
+            httpRequest: {
+                httpMethod: "POST",
+                url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/handleRollback`, // 롤백 처리 함수 URL
+                headers: { "Content-Type": "application/json" },
+                body: Buffer.from(JSON.stringify({ uid, docId })).toString("base64"),
+            },
+            scheduleTime: { seconds: Number(rollbackTime) },
+        };
+
+        const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
+        const [revRes] = await client.createTask({ parent, task: reviewTask });
+        const [rollRes] = await client.createTask({ parent, task: rollbackTask });
+
+        // [4] DB 업데이트 (두 Task ID 모두 저장)
+        await vocabRef.update({
+            currentTaskId: revRes.name,
+            currentRollbackTaskId: rollRes.name,
+            rollbackState: false
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Task 예약 에러:", error);
+        throw new Error(error.message);
+    }
 });
 
-// [2] 알림 취소 함수 (onCall)
+// 알림 취소 함수
 exports.cancelReviewNotification = onCall({ region: "asia-northeast3" }, async (request) => {
     const { docId } = request.data;
     const uid = request.auth.uid;
 
     try {
-        // ★ 추가: Firestore에서 저장된 Task ID를 가져옴
         const vocabDoc = await admin.firestore().collection("users").doc(uid)
             .collection("vocabularies").doc(docId).get();
-        const taskId = vocabDoc.data()?.currentTaskId;
+        
+        const data = vocabDoc.data();
+        const taskId = data?.currentTaskId;
+        const rollbackId = data?.currentRollbackTaskId; // 롤백 ID 추가
 
+        // 알림 삭제
         if (taskId) {
-            await client.deleteTask({ name: taskId });
-            console.log(`알림 취소 완료: ${taskId}`);
+            await client.deleteTask({ name: taskId }).catch(() => console.log("알림 이미 실행됨"));
         }
+        // 롤백 삭제 (이게 빠지면 복습을 해도 나중에 롤백이 되어버립니다)
+        if (rollbackId) {
+            await client.deleteTask({ name: rollbackId }).catch(() => console.log("롤백 이미 실행됨"));
+        }
+
         return { success: true };
     } catch (error) {
-        return { success: false, message: "취소할 작업이 없거나 이미 실행됨" };
+        return { success: false, message: error.message };
     }
 });
 
@@ -161,6 +178,110 @@ exports.sendFcmNotification = onRequest({ region: "asia-northeast3" }, async (re
 
     } catch (error) {
         console.error("최종 에러 발생:", error);
+        return res.status(500).send(error.message);
+    }
+});
+
+// 롤백을 위한 함수
+exports.handleRollback = onRequest({ region: "asia-northeast3" }, async (req, res) => {
+    try {
+        let payload = req.body;
+        if (typeof payload === 'string') payload = JSON.parse(payload);
+        if (Buffer.isBuffer(payload)) payload = JSON.parse(payload.toString());
+        
+        const { uid, docId } = payload;
+        if (!uid || !docId) return res.status(400).send("Missing Data");
+
+        const vocabRef = admin.firestore().collection("users").doc(uid).collection("vocabularies").doc(docId);
+        const vocabSnap = await vocabRef.get();
+        if (!vocabSnap.exists) return res.status(404).send("Doc Not Found");
+        
+        const vocabData = vocabSnap.data();
+        const currentStamp = vocabData.stampCount || 0;
+        const title = vocabData.title || "단어장";
+
+        // 기본값 설정 (DB 로드 실패 대비)
+        let intervalMin = 10;
+        let graceMin = 5;
+
+        // --- 설정 로드 로직 (강화됨) ---
+        try {
+            const settingsDoc = await admin.firestore().collection("reviewAndRollbackTimeSetting").doc("reviewAndRollbackTimeSetting").get();
+            
+            if (settingsDoc.exists) {
+                const settingsData = settingsDoc.data();
+                const stepKey = `step${currentStamp + 1}`;
+                
+                console.log(`설정 로드 성공: ${stepKey} 찾는 중...`);
+
+                // settingsData가 null이 아니고 해당 스텝이 있는지 체크
+                if (settingsData && settingsData[stepKey]) {
+                    intervalMin = Number(settingsData[stepKey].interval) || intervalMin;
+                    graceMin = Number(settingsData[stepKey].grace) || graceMin;
+                    console.log(`시간 설정 적용됨: interval=${intervalMin}, grace=${graceMin}`);
+                } else {
+                    console.warn(`${stepKey} 필드가 없어서 기본값을 사용합니다.`);
+                }
+            } else {
+                console.warn("reviewAndRollbackTimeSetting 문서가 Firestore에 존재하지 않습니다.");
+            }
+        } catch (dbError) {
+            console.error("설정 DB 접근 중 오류 발생 (기본값으로 진행):", dbError.message);
+        }
+
+        // 시간 계산
+        const nowInSeconds = Math.floor(Date.now() / 1000);
+        const nextScheduledTime = nowInSeconds + (intervalMin * 60);
+        const nextRollbackTime = nextScheduledTime + (graceMin * 60);
+
+        // Task 생성 (이전과 동일)
+        const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
+        const revTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `rev_${uid}_${docId}_${Date.now()}`);
+        const rollTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `roll_${uid}_${docId}_${Date.now()}`);
+
+        const [revRes] = await client.createTask({
+            parent,
+            task: {
+                name: revTaskName,
+                httpRequest: {
+                    httpMethod: "POST",
+                    url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`,
+                    headers: { "Content-Type": "application/json" },
+                    body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
+                },
+                scheduleTime: { seconds: nextScheduledTime },
+            }
+        });
+
+        const [rollRes] = await client.createTask({
+            parent,
+            task: {
+                name: rollTaskName,
+                httpRequest: {
+                    httpMethod: "POST",
+                    url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/handleRollback`,
+                    headers: { "Content-Type": "application/json" },
+                    body: Buffer.from(JSON.stringify({ uid, docId })).toString("base64"),
+                },
+                scheduleTime: { seconds: nextRollbackTime },
+            }
+        });
+
+        // 마지막 DB 업데이트
+        await vocabRef.update({
+            rollbackState: true,
+            buttonOn: false,
+            currentTaskId: revRes.name,
+            currentRollbackTaskId: rollRes.name,
+            nextReviewDate: admin.firestore.Timestamp.fromMillis(nextScheduledTime * 1000),
+            rollbackTime: admin.firestore.Timestamp.fromMillis(nextRollbackTime * 1000)
+        });
+
+        console.log(`롤백 완료: ${docId}, 다음 스케줄 예약됨.`);
+        return res.status(200).send("OK");
+
+    } catch (error) {
+        console.error("Critical handleRollback Error:", error);
         return res.status(500).send(error.message);
     }
 });

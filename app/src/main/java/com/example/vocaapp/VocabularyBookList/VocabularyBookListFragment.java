@@ -36,6 +36,8 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +53,9 @@ public class VocabularyBookListFragment extends Fragment {
     private Runnable timerRunnable;
     private BottomSheetDialog bottomSheetDialog;
 
+    private FirebaseFirestore db;
+
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -64,6 +69,8 @@ public class VocabularyBookListFragment extends Fragment {
         if (user != null) {
             uid = user.getUid();
         }
+
+        db = FirebaseFirestore.getInstance();
 
         ImageView vocabularyBookRegisterImageView = view.findViewById(R.id.vocabularyBookRegisterImageView);
         vocabularyBookRegisterImageView.setOnClickListener(v -> {
@@ -203,29 +210,31 @@ public class VocabularyBookListFragment extends Fragment {
         startActivity(intent);
     }
 
-    // 학습 모드를 끌 때 띄울 경고창
+    // 학습 모드를 끌 때 띄울 경고창과 응답에 따른 처리
     public void showResetWarningDialog(int position) {
         Map<String, Object> selectedVocabulary = dataList.get(position);
         String vocabId = String.valueOf(selectedVocabulary.get("id"));
-
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("학습 초기화 경고")
                 .setMessage("학습 모드를 끄면 단어를 추가할 수 있지만, 지금까지의 학습 횟수와 마지막 학습 시간이 모두 초기화됩니다. 정말 끄시겠습니까?")
                 .setPositiveButton("확인", (dialog, which) -> {
-                    // 1. StudyManager를 통해 DB 초기화 + 서버 알림 취소 (Cloud Functions 호출)를 한 번에 실행
                     StudyManager.getInstance().stopStudying(uid, vocabId);
 
-                    // 2. 사용자에게 알림 (Toast)
+                    // buttonOn을 false로 업데이트
+                    db.collection("users").document(uid)
+                            .collection("vocabularies").document(vocabId)
+                            .update("buttonOn", false)
+                            .addOnSuccessListener(aVoid -> {
+                                selectedVocabulary.put("buttonOn", false);
+                                adapter.notifyItemChanged(position);
+                            });
+
                     if (isAdded()) {
                         Toast.makeText(getContext(), "학습 모드가 해제되고 예약된 알림이 취소되었습니다.", Toast.LENGTH_SHORT).show();
                     }
-
-                    // 기존에 있던 resetStudyStatus(vocabId)는 stopStudying과 역할이 겹치므로
-                    // StudyManager를 사용하는 방향으로 합치시는 게 관리에 더 좋습니다.
                 })
                 .setNegativeButton("취소", (dialog, which) -> {
-                    // [취소] 클릭 시: 아무것도 안 함 (스위치는 다시 켜진 상태로 유지됨)
-                    adapter.notifyItemChanged(position); // 화면 새로고침해서 스위치 상태 복구
+                    adapter.notifyItemChanged(position);
                     dialog.dismiss();
                 })
                 .setCancelable(false)
@@ -259,37 +268,50 @@ public class VocabularyBookListFragment extends Fragment {
         String vocabId = String.valueOf(selectedVocabulary.get("id"));
         String title = String.valueOf(selectedVocabulary.get("title"));
 
-        // 1. 첫 번째 복습 시간 설정 (현재 시간 + 1분)
-        long oneMinuteMillis = 1 * 60 * 1000;
-        long firstReviewMillis = System.currentTimeMillis() + oneMinuteMillis;
-        Timestamp firstReviewTimestamp = new Timestamp(new java.util.Date(firstReviewMillis));
+        // 미리 정의한 db에서 시간 가져오기
+        VocabularyBookFirestore.bringTime(data -> {
+            // DB에서 가져온 값을 안전하게 Long -> int로 변환
+            int intervalMinutes = ((Long) data.get("interval")).intValue();
+            int graceMinutes = ((Long) data.get("grace")).intValue();
 
-        // 2. DB 업데이트 데이터 세팅
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("isStudying", true);
-        updates.put("buttonReady", false); // 1분 전까지는 버튼이 안 보이게 설정
-        updates.put("nextReviewDate", firstReviewTimestamp);
-        // 현재 몇 단계(1분, 2분...)인지 기록하기 위해 stampCount 등을 활용할 수 있습니다.
-        updates.put("stampCount", 0);
+            // 현재 시간 가져오기 (Calendar 객체 사용)
+            Calendar now = Calendar.getInstance();
 
-        VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, new VocabularyBookFirestore.VocabularyBookCallback() {
-            @Override
-            public void onSuccess() {
-                if (isAdded()) {
-                    Toast.makeText(getContext(), "학습 시작! 1분 뒤 첫 알림이 옵니다.", Toast.LENGTH_SHORT).show();
+            // 현재 시간 + interval (복습 시간)
+            Calendar reviewCalendar = (Calendar) now.clone(); // 현재 시간 복사
+            reviewCalendar.add(Calendar.MINUTE, intervalMinutes); // 분(Minute) 단위로 더하기
+            Date reviewTime = reviewCalendar.getTime(); // 최종 Date 객체
 
-                    // 3. Cloud Functions 호출 (StudyManager에 구현된 메서드 실행)
-                    // firstReviewMillis / 1000 을 하는 이유는 서버가 '초' 단위를 받기 때문입니다.
-                    StudyManager.getInstance().scheduleNotification(uid, vocabId, title, firstReviewMillis / 1000);
+            // 현재 시간 + interval + grace (롤백/마감 시간)
+            Calendar rollbackCalendar = (Calendar) now.clone();
+            rollbackCalendar.add(Calendar.MINUTE, intervalMinutes + graceMinutes);
+            Date rollbackTime = rollbackCalendar.getTime();
+
+            // 망각 시스템 활성화 시 단어장에 넣어지는 필드들
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("isStudying", true);
+            updates.put("buttonOn", false);
+            updates.put("nextReviewDate", reviewTime);
+            updates.put("stampCount", 0);
+            updates.put("rollbackTime", rollbackTime);
+            updates.put("rollbackState", false);
+
+            // firestore and functions에 데이터를 입력하는 메서드를 실행
+            VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, new VocabularyBookFirestore.VocabularyBookCallback() {
+                @Override
+                public void onSuccess() {
+                    if (isAdded()) {
+                        Toast.makeText(getContext(), "학습 시작! 1분 뒤 첫 알림이 옵니다.", Toast.LENGTH_SHORT).show();
+                        StudyManager.getInstance().scheduleNotification(vocabId, title, reviewTime.getTime() / 1000, rollbackTime.getTime() / 1000);
+                    }
                 }
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                if (isAdded()) {
-                    Toast.makeText(getContext(), "오류 발생: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                @Override
+                public void onFailure(Exception e) {
+                    if (isAdded()) {
+                        Toast.makeText(getContext(), "오류 발생: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
+            });
         });
     }
 

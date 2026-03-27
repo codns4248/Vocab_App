@@ -1,5 +1,7 @@
 package com.example.vocaapp.VocabularyBookList;
 
+import android.util.Log;
+
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -194,6 +196,30 @@ public class VocabularyBookFirestore {
     // 인터페이스 선언 (클래스 내부에 맞춰서 위치시키세요)
     public interface alreadyVocabularyBookInterface {
         void alreadyVocabularyBook(boolean isAlready);
+    }
+
+    public static void bringTime(BringTimeInterface BringTimeInterface){
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        DocumentReference docRef = db.collection("reviewAndRollbackTimeSetting").document("reviewAndRollbackTimeSetting");
+
+        docRef.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                DocumentSnapshot document = task.getResult();
+                if (document.exists()) {
+                    Map<String, Object> data = (Map<String, Object>) document.get("step1");
+                    BringTimeInterface.bringTime(data);
+                } else {
+                    Log.d("Firestore", "No such document");
+                }
+            } else {
+                Log.d("Firestore", "get failed with ", task.getException());
+            }
+        });
+    }
+
+    public interface BringTimeInterface{
+        void bringTime(Map<String, Object> data);
     }
 
 }

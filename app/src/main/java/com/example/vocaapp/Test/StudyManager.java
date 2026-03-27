@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
@@ -54,8 +55,6 @@ public class StudyManager {
                 });
     }
 
-    // StudyManager.java 내 수정 부분
-
     public void studyVocabulary(Context context, String userId, String vocabId, int nextStamp) {
         DocumentReference vocabRef = db.collection("users").document(userId)
                 .collection("vocabularies").document(vocabId);
@@ -64,48 +63,60 @@ public class StudyManager {
         updates.put("lastStudiedAt", new Timestamp(new Date()));
         updates.put("stampCount", nextStamp);
 
-        // [핵심] 스탬프 7단계 도달 여부에 따른 분기 처리
+        // 모든 스탬프를 달성 후 처리
         if (nextStamp >= 7) {
-            // 모든 단계 완료 -> 학습 모드 종료 (버튼 사라짐)
             updates.put("isStudying", false);
             updates.put("nextReviewDate", null);
 
             vocabRef.update(updates).addOnSuccessListener(aVoid -> {
                 if (context != null) Toast.makeText(context, "🎉 모든 복습 완료! 수고하셨습니다.", Toast.LENGTH_SHORT).show();
             });
-        } else {
-            // 다음 단계가 있음 -> 다음 복습 예약
-            int waitMinutes = getWaitMinutes(nextStamp);
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.MINUTE, waitMinutes);
-            Date nextReviewDate = cal.getTime();
-
-            updates.put("buttonReady", true);
-            updates.put("isStudying", true);
-            updates.put("nextReviewDate", new Timestamp(nextReviewDate));
-
-            vocabRef.update(updates).addOnSuccessListener(aVoid -> {
-                // 알림 예약 로직 실행 (아래에 새로 만든 메소드 호출)
-                long scheduledTimeSeconds = nextReviewDate.getTime() / 1000;
-                callScheduleNotificationFunction(vocabId, scheduledTimeSeconds);
-
-                String timeInfo = formatWaitTime(waitMinutes);
-                if (context != null) Toast.makeText(context, nextStamp + "단계 완료! (" + timeInfo + " 후 알림)", Toast.LENGTH_SHORT).show();
-            }).addOnFailureListener(e -> Log.e("StudyManager", "DB 업데이트 실패", e));
         }
-    }
 
-    // [추가] 에러가 났던 알림 예약 로직을 메소드로 분리
-    private void callScheduleNotificationFunction(String vocabId, long scheduledTimeSeconds) {
-        Map<String, Object> funcData = new HashMap<>();
-        funcData.put("vocabId", vocabId);
-        funcData.put("scheduledTime", scheduledTimeSeconds);
-        funcData.put("title", "단어장 복습 시간입니다!");
+        // 학습 진행 중 처리
+        else {
+            // 1. DB에서 설정값(interval, grace) 가져오기
+            VocabularyBookFirestore.bringTime(configData -> {
+                if (configData == null) {
+                    Log.e("StudyManager", "설정 데이터를 가져오지 못했습니다.");
+                    return;
+                }
 
-        mFunctions.getHttpsCallable("scheduleReviewNotification")
-                .call(funcData)
-                .addOnSuccessListener(result -> Log.d("CloudTask", "알림 예약 성공"))
-                .addOnFailureListener(e -> Log.e("CloudTask", "알림 예약 실패", e));
+                // DB에서 가져온 분(minute) 단위 값 (없을 경우를 대비해 기본값 설정)
+                int intervalMinutes = configData.get("interval") != null ? ((Long) configData.get("interval")).intValue() : 10;
+                int graceMinutes = configData.get("grace") != null ? ((Long) configData.get("grace")).intValue() : 5;
+
+                // 2. 알림 시간 계산 (현재 시간 + interval)
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.MINUTE, intervalMinutes);
+                Date nextReviewDate = cal.getTime();
+
+                // 3. 롤백 시간 계산 (알림 시간 + grace)
+                Calendar rollCal = Calendar.getInstance();
+                rollCal.setTime(nextReviewDate);
+                rollCal.add(Calendar.MINUTE, graceMinutes);
+                Date rollbackDate = rollCal.getTime();
+
+                // 4. DB 업데이트 맵 구성
+                updates.put("isStudying", true);
+                updates.put("nextReviewDate", new Timestamp(nextReviewDate));
+                updates.put("rollbackTime", new Timestamp(rollbackDate));
+                updates.put("rollbackState", false); // 새로 시작하거나 다음 단계로 갈 때 초기화
+
+                vocabRef.update(updates).addOnSuccessListener(aVoid -> {
+                    long scheduledTimeSeconds = nextReviewDate.getTime() / 1000;
+                    long rollbackTimeSeconds = rollbackDate.getTime() / 1000;
+
+                    // 5. 서버에 알림 및 롤백 예약 (인자 4개 전달)
+                    scheduleNotification(vocabId, "단어장 복습 시간입니다!", scheduledTimeSeconds, rollbackTimeSeconds);
+
+                    String timeInfo = intervalMinutes + "분";
+                    if (context != null) {
+                        Toast.makeText(context, nextStamp + "단계 완료! (" + timeInfo + " 후 알림)", Toast.LENGTH_SHORT).show();
+                    }
+                }).addOnFailureListener(e -> Log.e("StudyManager", "DB 업데이트 실패", e));
+            });
+        }
     }
 
     public void stopStudying(String userId, String vocabId) {
@@ -131,9 +142,17 @@ public class StudyManager {
         });
     }
 
+    // 다음 단계 언제 알림을 보내야 하는 지 정한 시간들
     public int getWaitMinutes(int stage) {
-        // 어댑터에서 즉시 다시 버튼이 뜨는 것을 방지하기 위해 2분 이상 권장
-        return 2;
+        switch (stage) {
+            case 1: return 1;            // 1분 후
+            case 2: return 2;            // 2분 후
+            case 3: return 3;            // 3분 후
+            case 4: return 60;           // 1시간 후
+            case 5: return 60 * 24;      // 1일 후
+            case 6: return 60 * 24 * 3;  // 3일 후
+            default: return 1;
+        }
     }
 
     private String formatWaitTime(int minutes) {
@@ -142,12 +161,12 @@ public class StudyManager {
         return (minutes / 1440) + "일";
     }
 
-    // StudyManager.java 내의 이 부분을 수정
-    public void scheduleNotification(String userId, String vocabId, String title, long scheduledTimeSeconds) {
+    public void scheduleNotification(String vocabId, String title, long scheduledTimeSeconds, long rollbackTimeSeconds) {
         Map<String, Object> funcData = new HashMap<>();
-        funcData.put("vocabId", vocabId);
-        funcData.put("scheduledTime", scheduledTimeSeconds);
-        funcData.put("title", title); // 인자로 받은 title 사용
+        funcData.put("docId", vocabId);
+        funcData.put("scheduledTime", String.valueOf(scheduledTimeSeconds));
+        funcData.put("title", title);
+        funcData.put("rollbackTime", rollbackTimeSeconds);
 
         mFunctions.getHttpsCallable("scheduleReviewNotification")
                 .call(funcData)
