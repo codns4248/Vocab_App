@@ -204,28 +204,6 @@
                         app:srcCompat="@drawable/unchecked_stamp_icon" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:layout_weight="1"
-                        android:text="7단계" />
-
-                    <ImageView
-                        android:id="@+id/stamp7"
-                        android:layout_width="45dp"
-                        android:layout_height="45dp"
-                        android:layout_gravity="center"
-                        android:layout_weight="1"
-                        app:srcCompat="@drawable/unchecked_stamp_icon" />
-                </LinearLayout>
-
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
 

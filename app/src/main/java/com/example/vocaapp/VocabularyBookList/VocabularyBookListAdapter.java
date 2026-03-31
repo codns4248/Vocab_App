@@ -47,7 +47,6 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
             stamps[3] = itemView.findViewById(R.id.stamp4);
             stamps[4] = itemView.findViewById(R.id.stamp5);
             stamps[5] = itemView.findViewById(R.id.stamp6);
-            stamps[6] = itemView.findViewById(R.id.stamp7); //스탬프 하나 추가
         }
     }
 
@@ -116,7 +115,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
             if (countObj != null) {
                 try { stampCount = Integer.parseInt(String.valueOf(countObj)); } catch (Exception e) { stampCount = 0; }
             }
-            for (int i = 0; i < 7; i++) {  //7개 늘림
+            for (int i = 0; i < 6; i++) {
                 if (i < stampCount) normalHolder.stamps[i].setImageResource(R.drawable.checked_stamp_icon);
                 else normalHolder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
             }

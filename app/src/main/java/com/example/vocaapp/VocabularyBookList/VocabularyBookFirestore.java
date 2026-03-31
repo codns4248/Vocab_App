@@ -137,43 +137,6 @@ public class VocabularyBookFirestore {
 
                 });
     }
-    public static void updateAfterQuiz(String uid, String vocabId, VocabularyBookCallback callback) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        DocumentReference docRef = db.collection("users").document(uid)
-                .collection("vocabularies").document(vocabId);
-
-        // 트랜잭션을 사용하여 안전하게 업데이트
-        db.runTransaction(transaction -> {
-            DocumentSnapshot snapshot = transaction.get(docRef);
-
-            // 1. 현재 스탬프 개수 가져오기 (기존 스탬프가 올랐다면 그 값을 기준으로 함)
-            long currentStamp = 0;
-            if (snapshot.contains("stampCount")) {
-                currentStamp = snapshot.getLong("stampCount");
-            }
-
-            // 2. 다음 복습 시간 계산
-            int nextStage = (int) currentStamp;
-            if (nextStage < 1) nextStage = 1; // 최소 1단계부터 시작
-
-            int waitMinutes = com.example.vocaapp.Test.StudyManager.getInstance().getWaitMinutes(nextStage);
-
-            long waitMillis = waitMinutes * 60 * 1000L;
-            long nextReviewMillis = System.currentTimeMillis() + waitMillis;
-
-            // com.google.firebase.Timestamp 를 사용하여 에러 방지
-            com.google.firebase.Timestamp nextReviewDate = new com.google.firebase.Timestamp(new java.util.Date(nextReviewMillis));
-
-            // 3. DB 업데이트 (시간 갱신)
-            transaction.update(docRef, "nextReviewDate", nextReviewDate);
-
-            return null;
-        }).addOnSuccessListener(aVoid -> {
-            if (callback != null) callback.onSuccess();
-        }).addOnFailureListener(e -> {
-            if (callback != null) callback.onFailure(e);
-        });
-    }
 
     public void alreadyVocabularyBook(String uid, String bookName, alreadyVocabularyBookInterface alreadyVocabularyBookInterface) {
         FirebaseFirestore.getInstance()
@@ -198,22 +161,30 @@ public class VocabularyBookFirestore {
         void alreadyVocabularyBook(boolean isAlready);
     }
 
-    public static void bringTime(BringTimeInterface BringTimeInterface){
+    public static void bringTime(int stampCount, BringTimeInterface bringTimeInterface) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-
         DocumentReference docRef = db.collection("reviewAndRollbackTimeSetting").document("reviewAndRollbackTimeSetting");
 
         docRef.get().addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
+            if (task.isSuccessful() && task.getResult() != null) {
                 DocumentSnapshot document = task.getResult();
                 if (document.exists()) {
-                    Map<String, Object> data = (Map<String, Object>) document.get("step1");
-                    BringTimeInterface.bringTime(data);
-                } else {
-                    Log.d("Firestore", "No such document");
+                    // 1. stampCount가 6 이상일 경우 마지막 단계(step6)를 사용하도록 제한 (선택 사항)
+                    int stepLevel = Math.min(stampCount + 1, 6);
+                    String stepKey = "step" + stepLevel;
+
+                    Map<String, Object> data = (Map<String, Object>) document.get(stepKey);
+
+                    if (data != null) {
+                        bringTimeInterface.bringTime(data);
+                    } else {
+                        // stepKey에 해당하는 데이터가 없을 경우 기본값(step1)으로 폴백
+                        Log.e("Firestore", stepKey + " 데이터가 없습니다. 기본값 step1을 사용합니다.");
+                        bringTimeInterface.bringTime((Map<String, Object>) document.get("step1"));
+                    }
                 }
             } else {
-                Log.d("Firestore", "get failed with ", task.getException());
+                Log.e("Firestore", "데이터 가져오기 실패", task.getException());
             }
         });
     }

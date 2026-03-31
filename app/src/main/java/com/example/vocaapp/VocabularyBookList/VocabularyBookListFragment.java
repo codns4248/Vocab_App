@@ -268,47 +268,64 @@ public class VocabularyBookListFragment extends Fragment {
         String vocabId = String.valueOf(selectedVocabulary.get("id"));
         String title = String.valueOf(selectedVocabulary.get("title"));
 
-        // 미리 정의한 db에서 시간 가져오기
-        VocabularyBookFirestore.bringTime(data -> {
-            // DB에서 가져온 값을 안전하게 Long -> int로 변환
-            int intervalMinutes = ((Long) data.get("interval")).intValue();
-            int graceMinutes = ((Long) data.get("grace")).intValue();
+        // stampCount 안전하게 가져오기
+        Object stampObj = selectedVocabulary.get("stampCount");
+        int currentStampCount = 0;
+        if (stampObj instanceof Number) {
+            currentStampCount = ((Number) stampObj).intValue();
+        }
 
-            // 현재 시간 가져오기 (Calendar 객체 사용)
+        // 람다식 내에서 사용하기 위해 final 변수로 선언 (Java 8 이상은 사실상 final이면 생략 가능)
+        final int finalStampCount = currentStampCount;
+
+        VocabularyBookFirestore.bringTime(finalStampCount, data -> {
+            // null 체크
+            if (data == null) return;
+
+            int intervalMinutes = ((Number) data.get("interval")).intValue();
+            int graceMinutes = ((Number) data.get("grace")).intValue();
+
             Calendar now = Calendar.getInstance();
 
-            // 현재 시간 + interval (복습 시간)
-            Calendar reviewCalendar = (Calendar) now.clone(); // 현재 시간 복사
-            reviewCalendar.add(Calendar.MINUTE, intervalMinutes); // 분(Minute) 단위로 더하기
-            Date reviewTime = reviewCalendar.getTime(); // 최종 Date 객체
+            // 복습 시간 설정
+            Calendar reviewCalendar = (Calendar) now.clone();
+            reviewCalendar.add(Calendar.MINUTE, intervalMinutes);
+            Date reviewTime = reviewCalendar.getTime();
 
-            // 현재 시간 + interval + grace (롤백/마감 시간)
+            // 롤백 시간 설정
             Calendar rollbackCalendar = (Calendar) now.clone();
             rollbackCalendar.add(Calendar.MINUTE, intervalMinutes + graceMinutes);
             Date rollbackTime = rollbackCalendar.getTime();
 
-            // 망각 시스템 활성화 시 단어장에 넣어지는 필드들
             Map<String, Object> updates = new HashMap<>();
             updates.put("isStudying", true);
             updates.put("buttonOn", false);
             updates.put("nextReviewDate", reviewTime);
-            updates.put("stampCount", 0);
+            updates.put("stampCount", finalStampCount);
             updates.put("rollbackTime", rollbackTime);
             updates.put("rollbackState", false);
 
-            // firestore and functions에 데이터를 입력하는 메서드를 실행
             VocabularyBookFirestore.updateVocabularyBook(uid, vocabId, updates, new VocabularyBookFirestore.VocabularyBookCallback() {
                 @Override
                 public void onSuccess() {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "학습 시작! 1분 뒤 첫 알림이 옵니다.", Toast.LENGTH_SHORT).show();
-                        StudyManager.getInstance().scheduleNotification(vocabId, title, reviewTime.getTime() / 1000, rollbackTime.getTime() / 1000);
+                        // 알림 메시지에 현재 단계를 표시해주면 사용자 경험이 더 좋아집니다.
+                        String msg = String.format("단계 %d 학습 시작! %d분 뒤 알림이 옵니다.", (finalStampCount + 1), intervalMinutes);
+                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+
+                        StudyManager.getInstance().scheduleNotification(
+                                vocabId,
+                                title,
+                                reviewTime.getTime() / 1000,
+                                rollbackTime.getTime() / 1000
+                        );
                     }
                 }
+
                 @Override
                 public void onFailure(Exception e) {
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "오류 발생: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "업데이트 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 }
             });
