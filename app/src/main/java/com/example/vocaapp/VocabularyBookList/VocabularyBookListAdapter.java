@@ -1,49 +1,46 @@
 package com.example.vocaapp.VocabularyBookList;
 
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.SwitchCompat;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.auth.User;
+import com.example.vocaapp.Test.TestActivity;
 
 import java.util.List;
 import java.util.Map;
 
-public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBookListAdapter.UnifiedViewHolder> {
 
     private List<Map<String, Object>> dataList;
     private VocabularyBookListFragment fragment;
-
-    private static final int VIEW_TYPE_NORMAL = 0;
-    private static final int VIEW_TYPE_STUDY = 1;
 
     public VocabularyBookListAdapter(List<Map<String, Object>> dataList, VocabularyBookListFragment fragment) {
         this.dataList = dataList;
         this.fragment = fragment;
     }
 
-    public static class NormalViewHolder extends RecyclerView.ViewHolder {
-        TextView textViewItem;
-        ImageView[] stamps = new ImageView[7];
+    public static class UnifiedViewHolder extends RecyclerView.ViewHolder {
+        TextView titleTextView;
         SwitchCompat studyModeSwitch;
+        View stampContainer;
+        View btnStartStudy;
+        ImageView[] stamps = new ImageView[6];
 
-
-        public NormalViewHolder(View itemView) {
+        public UnifiedViewHolder(View itemView) {
             super(itemView);
-            textViewItem = itemView.findViewById(R.id.vocabularyNameTextView);
+            titleTextView = itemView.findViewById(R.id.vocabularyNameTextView);
             studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
+            stampContainer = itemView.findViewById(R.id.stampContainer);
+            btnStartStudy = itemView.findViewById(R.id.btn_start_study);
+
             stamps[0] = itemView.findViewById(R.id.stamp1);
             stamps[1] = itemView.findViewById(R.id.stamp2);
             stamps[2] = itemView.findViewById(R.id.stamp3);
@@ -53,116 +50,80 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
         }
     }
 
-    // 학습 버튼의 뷰 필드들 연결
-    public static class StudyViewHolder extends RecyclerView.ViewHolder {
-        TextView titleTextView;
-        SwitchCompat studyModeSwitch;
-        ConstraintLayout btnStartStudy;
-
-        public StudyViewHolder(View itemView) {
-            super(itemView);
-            titleTextView = itemView.findViewById(R.id.vocabularyNameTextView);
-            studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
-            btnStartStudy = itemView.findViewById(R.id.btn_start_study);
-        }
-    }
-
-    // 단어장 필드 buttonOn이 true면 학습하기 아이템으로 체인지
-    @Override
-    public int getItemViewType(int position) {
-        Map<String, Object> vocab = dataList.get(position);
-
-        boolean buttonOn = Boolean.TRUE.equals(vocab.get("buttonOn"));
-
-        if (buttonOn) {
-            Log.d("VIEW_CHECK", "학습 버튼 화면으로 보냅니다.");
-            return VIEW_TYPE_STUDY;
-        }
-        return VIEW_TYPE_NORMAL;
-    }
-
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        if (viewType == VIEW_TYPE_STUDY) {
-            // 학습 버튼이 있는 레이아웃
-            View view = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.vocabulary_book_study_list_item, parent, false);
-            return new StudyViewHolder(view);
-        } else {
-            // 기존 일반 레이아웃
-            View view = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_vocabulary_book_list, parent, false);
-            return new NormalViewHolder(view);
-        }
+    public UnifiedViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // 단일 레이아웃 인플레이트
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_integrated_vacabulary_book, parent, false);
+        return new UnifiedViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull UnifiedViewHolder holder, int position) {
         Map<String, Object> vocab = dataList.get(position);
-        String title = String.valueOf(vocab.get("title"));
 
-        boolean isStudying = false;
-        if (vocab.get("isStudying") != null) {
-            isStudying = (boolean) vocab.get("isStudying");
-        }
+        // 1. 기준 데이터 추출
+        boolean buttonOn = Boolean.TRUE.equals(vocab.get("buttonOn")); // 레이아웃 결정자
+        boolean isStudying = Boolean.TRUE.equals(vocab.get("isStudying")); // 스위치 상태
 
-        // 일반 모드
-        if (holder instanceof NormalViewHolder) {
-            NormalViewHolder normalHolder = (NormalViewHolder) holder;
-            normalHolder.textViewItem.setText(title);
+        holder.titleTextView.setText(String.valueOf(vocab.get("title")));
 
+        // 2. buttonOn 값에 따라 하단 레이아웃 교체
+        if (buttonOn) {
+            holder.stampContainer.setVisibility(View.GONE);
+            holder.btnStartStudy.setVisibility(View.VISIBLE);
+        } else {
+            holder.stampContainer.setVisibility(View.VISIBLE);
+            holder.btnStartStudy.setVisibility(View.GONE);
+
+            // 스탬프 상태 업데이트
             int stampCount = 0;
             Object countObj = vocab.get("stampCount");
             if (countObj != null) {
                 try { stampCount = Integer.parseInt(String.valueOf(countObj)); } catch (Exception e) { stampCount = 0; }
             }
             for (int i = 0; i < 6; i++) {
-                if (i < stampCount) normalHolder.stamps[i].setImageResource(R.drawable.checked_stamp_icon);
-                else normalHolder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
+                if (holder.stamps[i] != null) {
+                    holder.stamps[i].setImageResource(i < stampCount ?
+                            R.drawable.checked_stamp_icon : R.drawable.unchecked_stamp_icon);
+                }
             }
-
-            normalHolder.studyModeSwitch.setOnCheckedChangeListener(null);
-            normalHolder.studyModeSwitch.setChecked(isStudying);
-
-            normalHolder.studyModeSwitch.setOnClickListener(v -> {
-                // 스위치를 활성화를 처리
-                if (normalHolder.studyModeSwitch.isChecked()) {
-                    fragment.startStudyMode(holder.getBindingAdapterPosition());
-                }
-                // 스위치를 비활성화 처리
-                else {
-                    normalHolder.studyModeSwitch.setChecked(true);
-                    fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
-                }
-            });
-
-            normalHolder.itemView.setOnClickListener(v -> fragment.onItemClick(holder.getBindingAdapterPosition()));
-            normalHolder.itemView.setOnLongClickListener(v -> {
-                fragment.showDeleteConfirmDialog(holder.getBindingAdapterPosition());
-                return true;
-            });
         }
 
-        else if (holder instanceof StudyViewHolder) {
-            StudyViewHolder studyHolder = (StudyViewHolder) holder;
-            studyHolder.titleTextView.setText(title);
+        // 3. 스위치 설정 (데이터의 isStudying 참조)
+        holder.studyModeSwitch.setOnCheckedChangeListener(null);
+        holder.studyModeSwitch.setChecked(isStudying);
 
-            studyHolder.studyModeSwitch.setOnCheckedChangeListener(null);
-            studyHolder.studyModeSwitch.setChecked(true);
-            studyHolder.studyModeSwitch.setOnClickListener(v -> {
-                studyHolder.studyModeSwitch.setChecked(true);
-                fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
-            });
+        holder.studyModeSwitch.setOnClickListener(v -> {
+            int currentPos = holder.getBindingAdapterPosition();
+            if (currentPos == RecyclerView.NO_POSITION) return;
 
-            // 학습하기 버튼을 누르면 intent에 데이터를 넣어서 testActivity로 넘겨줌
-            studyHolder.btnStartStudy.setOnClickListener(v -> {
-                android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.vocaapp.Test.TestActivity.class);
-                intent.putExtra("vocabularyId", String.valueOf(vocab.get("id")));
-                v.getContext().startActivity(intent);
-            });
-        }
+            if (holder.studyModeSwitch.isChecked()) {
+                // 스위치를 켰을 때
+                fragment.startStudyMode(currentPos);
+            } else {
+                // 스위치를 끌 때 (다이얼로그 노출을 위해 체크유지)
+                holder.studyModeSwitch.setChecked(true);
+                fragment.showResetWarningDialog(currentPos);
+            }
+        });
+
+        // 4. 학습하기 버튼 클릭
+        holder.btnStartStudy.setOnClickListener(v -> {
+            Intent intent = new Intent(v.getContext(), TestActivity.class);
+            intent.putExtra("vocabularyId", String.valueOf(vocab.get("id")));
+            v.getContext().startActivity(intent);
+        });
+
+        // 5. 기타 아이템 클릭
+        holder.itemView.setOnClickListener(v -> fragment.onItemClick(holder.getBindingAdapterPosition()));
+        holder.itemView.setOnLongClickListener(v -> {
+            fragment.showDeleteConfirmDialog(holder.getBindingAdapterPosition());
+            return true;
+        });
     }
+
     @Override
     public int getItemCount() {
         return dataList.size();
