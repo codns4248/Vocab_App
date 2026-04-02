@@ -97,7 +97,6 @@ public class VocabularyBookListFragment extends Fragment {
             });
         });
 
-
         VocabularyBookFirestore.listenVocabularies(uid, new VocabularyBookFirestore.VocabularyListCallback() {
             @Override
             public void onUpdate(List<Map<String, Object>> newDataList) {
@@ -130,8 +129,6 @@ public class VocabularyBookListFragment extends Fragment {
                 }
             }
 
-
-
             @Override
             public void onFailure(Exception e) {
                 Log.e("Firestore", "Failed to listen vocabularies", e);
@@ -144,8 +141,6 @@ public class VocabularyBookListFragment extends Fragment {
 
         return view;
     }
-
-
 
     private void scheduleNextStudyTime() {
         if (dataList == null || dataList.isEmpty()) return;
@@ -243,16 +238,13 @@ public class VocabularyBookListFragment extends Fragment {
 
     // Firestore 장부 초기화 로직
     private void resetStudyStatus(String vocabId) {
-        // DB 작업은 Firestore 파일에서 하고, 여기선 결과만 받습니다.
         VocabularyBookFirestore.resetStudyStatus(uid, vocabId, new VocabularyBookFirestore.VocabularyBookCallback() {
             @Override
             public void onSuccess() {
                 if (isAdded()) {
                     Toast.makeText(getContext(), "학습 진행 상황이 초기화되었습니다.", Toast.LENGTH_SHORT).show();
                 }
-                // ListenVocabularies가 작동 중이므로 화면은 자동 갱신됩니다.
             }
-
             @Override
             public void onFailure(Exception e) {
                 Toast.makeText(getContext(), "초기화 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -268,19 +260,33 @@ public class VocabularyBookListFragment extends Fragment {
         String vocabId = String.valueOf(selectedVocabulary.get("id"));
         String title = String.valueOf(selectedVocabulary.get("title"));
 
-        // stampCount 안전하게 가져오기
+        // 1. 단어 개수 확인
+        VocabularyBookFirestore.getWordCount(uid, vocabId, count -> {
+            if (!isAdded() || getContext() == null) return;
+
+            // 필드가 없거나(null), 개수가 0인 경우
+            if (count == null || count <= 0) {
+                String errorMessage = (count == null) ? "단어장 데이터가 유효하지 않습니다." : "단어장에 단어를 추가해주세요.";
+                Toast.makeText(getContext(), errorMessage, Toast.LENGTH_SHORT).show();
+
+                // 핵심: 스위치를 다시 OFF 상태로 UI 업데이트
+                // dataList의 해당 객체 상태를 false로 확실히 고정하고 어댑터 새로고침
+                selectedVocabulary.put("isStudying", false);
+                adapter.notifyItemChanged(position);
+                return;
+            }
+
+            // 2. 단어가 있을 때만 다음 로직 진행
+            proceedToStartStudy(vocabId, title, selectedVocabulary);
+        });
+    }
+
+    private void proceedToStartStudy(String vocabId, String title, Map<String, Object> selectedVocabulary) {
         Object stampObj = selectedVocabulary.get("stampCount");
-        int currentStampCount = 0;
-        if (stampObj instanceof Number) {
-            currentStampCount = ((Number) stampObj).intValue();
-        }
+        int currentStampCount = (stampObj instanceof Number) ? ((Number) stampObj).intValue() : 0;
 
-        // 람다식 내에서 사용하기 위해 final 변수로 선언 (Java 8 이상은 사실상 final이면 생략 가능)
-        final int finalStampCount = currentStampCount;
-
-        VocabularyBookFirestore.bringTime(finalStampCount, data -> {
-            // null 체크
-            if (data == null) return;
+        VocabularyBookFirestore.bringTime(currentStampCount, data -> {
+            if (data == null || !isAdded()) return;
 
             int intervalMinutes = ((Number) data.get("interval")).intValue();
             int graceMinutes = ((Number) data.get("grace")).intValue();
@@ -301,7 +307,7 @@ public class VocabularyBookListFragment extends Fragment {
             updates.put("isStudying", true);
             updates.put("buttonOn", false);
             updates.put("nextReviewDate", reviewTime);
-            updates.put("stampCount", finalStampCount);
+            updates.put("stampCount", currentStampCount);
             updates.put("rollbackTime", rollbackTime);
             updates.put("rollbackState", false);
 
@@ -309,15 +315,11 @@ public class VocabularyBookListFragment extends Fragment {
                 @Override
                 public void onSuccess() {
                     if (isAdded()) {
-                        // 알림 메시지에 현재 단계를 표시해주면 사용자 경험이 더 좋아집니다.
-                        String msg = String.format("단계 %d 학습 시작! %d분 뒤 알림이 옵니다.", (finalStampCount + 1), intervalMinutes);
+                        String msg = String.format("단계 %d 학습 시작! %d분 뒤 알림이 옵니다.", (currentStampCount + 1), intervalMinutes);
                         Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
 
                         StudyManager.getInstance().scheduleNotification(
-                                vocabId,
-                                title,
-                                reviewTime.getTime() / 1000,
-                                rollbackTime.getTime() / 1000
+                                vocabId, title, reviewTime.getTime() / 1000, rollbackTime.getTime() / 1000
                         );
                     }
                 }
@@ -346,13 +348,8 @@ public class VocabularyBookListFragment extends Fragment {
         builder.setMessage("삭제하면 모든 단어와 학습 데이터가 사라지며 복구할 수 없습니다. 정말 삭제하시겠습니까?");
 
         builder.setPositiveButton("삭제", (dialog, id) -> {
-            // 1. StudyManager를 통해 학습 상태 초기화 및 예약된 알림 취소 실행
-            // (작성하신 stopStudying 메서드 내부에서 Functions 호출이 일어납니다.)
             StudyManager.getInstance().stopStudying(uid, vocabId);
-
-            // 2. 실제 Firestore에서 단어장 문서 삭제
             deleteVocabularyBook(targetDocId, uid);
-
             Log.d("Delete", "단어장 삭제 및 알림 취소 요청 완료");
         });
 

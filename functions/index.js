@@ -109,33 +109,30 @@ exports.cancelReviewNotification = onCall({ region: "asia-northeast3" }, async (
 });
 
 exports.sendFcmNotification = onRequest({ region: "asia-northeast3" }, async (req, res) => {
-
-
-    console.log("함수 시작"); // ← 추가
-    console.log("req.body 타입:", typeof req.body); // ← 추가
-    console.log("req.body 내용:", JSON.stringify(req.body)); // ← 추가
-
     try {
-        // [1] 안전하게 데이터 파싱
+        // [1] 안전하게 데이터 파싱 (기존 로직)
         let payload = req.body;
         if (typeof payload === 'string') payload = JSON.parse(payload);
         if (Buffer.isBuffer(payload)) payload = JSON.parse(payload.toString());
 
         const { uid, docId, title } = payload;
-        
-        // 디버깅 로그: 여기서 값이 잘 찍히는지 꼭 확인하세요!
-        console.log(`수신 데이터 확인 -> UID: ${uid}, DocID: ${docId}, Title: ${title}`);
 
-        if (!uid || !docId) {
-            console.error("데이터 누락: UID나 DocID가 없습니다.");
-            return res.status(400).send("Missing Data");
-        }
-
-        // [2] Firestore 업데이트 (기본 로직)
+        // --- 여기서부터 추가 ---
         const vocabRef = admin.firestore()
             .collection("users").doc(uid)
             .collection("vocabularies").doc(docId);
 
+        const vocabSnap = await vocabRef.get();
+        const vocabData = vocabSnap.data();
+
+        // 학습 모드가 꺼져 있다면 중단
+        if (!vocabData || vocabData.isStudying === false) {
+            console.log(`[알림 중단] UID: ${uid}, DocID: ${docId} - 학습 모드 비활성화 상태입니다.`);
+            return res.status(200).send("Studying disabled");
+        }
+        // --- 여기까지 추가 ---
+
+        // [2] Firestore 업데이트 및 FCM 발송 로직 계속...
         await vocabRef.update({
             buttonOn: true,
             lastNotificationSent: admin.firestore.FieldValue.serverTimestamp()
@@ -183,58 +180,74 @@ exports.sendFcmNotification = onRequest({ region: "asia-northeast3" }, async (re
 });
 
 // 롤백을 위한 함수
+// 롤백을 위한 함수 (전체 버전)
 exports.handleRollback = onRequest({ region: "asia-northeast3" }, async (req, res) => {
     try {
+        // [1] 데이터 파싱 및 기본 검증
         let payload = req.body;
         if (typeof payload === 'string') payload = JSON.parse(payload);
         if (Buffer.isBuffer(payload)) payload = JSON.parse(payload.toString());
         
         const { uid, docId } = payload;
-        if (!uid || !docId) return res.status(400).send("Missing Data");
+        if (!uid || !docId) {
+            console.error("롤백 에러: UID 또는 DocID 누락");
+            return res.status(400).send("Missing Data");
+        }
 
-        const vocabRef = admin.firestore().collection("users").doc(uid).collection("vocabularies").doc(docId);
+        // [2] Firestore에서 현재 단어장 상태 조회
+        const vocabRef = admin.firestore()
+            .collection("users").doc(uid)
+            .collection("vocabularies").doc(docId);
+        
         const vocabSnap = await vocabRef.get();
-        if (!vocabSnap.exists) return res.status(404).send("Doc Not Found");
+        if (!vocabSnap.exists) {
+            console.log("롤백 중단: 해당 문서가 존재하지 않음");
+            return res.status(404).send("Doc Not Found");
+        }
         
         const vocabData = vocabSnap.data();
+
+        // ★ 핵심 방어 로직: 사용자가 스위치를 껐다면 롤백 절차를 진행하지 않음
+        if (vocabData.isStudying === false) {
+            console.log(`[롤백 중단] UID: ${uid}, DocID: ${docId} - 학습 모드가 꺼져 있습니다.`);
+            return res.status(200).send("Studying disabled. Rollback skipped.");
+        }
+
         const currentStamp = vocabData.stampCount || 0;
         const title = vocabData.title || "단어장";
 
-        // 기본값 설정 (DB 로드 실패 대비)
+        // [3] 복습 시간 및 그레이스 타임 설정 로드 (기본값 설정)
         let intervalMin = 10;
         let graceMin = 5;
 
-        // --- 설정 로드 로직 (강화됨) ---
         try {
-            const settingsDoc = await admin.firestore().collection("reviewAndRollbackTimeSetting").doc("reviewAndRollbackTimeSetting").get();
+            const settingsDoc = await admin.firestore()
+                .collection("reviewAndRollbackTimeSetting")
+                .doc("reviewAndRollbackTimeSetting")
+                .get();
             
             if (settingsDoc.exists) {
                 const settingsData = settingsDoc.data();
+                // 롤백 되었으므로 현재 스탬프(깎인 상태) 기준으로 다음 시간을 계산하거나, 
+                // 로직에 따라 step을 결정합니다. 여기서는 현재 스탬프 + 1 기준 설정을 가져옵니다.
                 const stepKey = `step${currentStamp + 1}`;
                 
-                console.log(`설정 로드 성공: ${stepKey} 찾는 중...`);
-
-                // settingsData가 null이 아니고 해당 스텝이 있는지 체크
                 if (settingsData && settingsData[stepKey]) {
                     intervalMin = Number(settingsData[stepKey].interval) || intervalMin;
                     graceMin = Number(settingsData[stepKey].grace) || graceMin;
-                    console.log(`시간 설정 적용됨: interval=${intervalMin}, grace=${graceMin}`);
-                } else {
-                    console.warn(`${stepKey} 필드가 없어서 기본값을 사용합니다.`);
+                    console.log(`설정 적용: ${stepKey} (Interval: ${intervalMin}, Grace: ${graceMin})`);
                 }
-            } else {
-                console.warn("reviewAndRollbackTimeSetting 문서가 Firestore에 존재하지 않습니다.");
             }
         } catch (dbError) {
-            console.error("설정 DB 접근 중 오류 발생 (기본값으로 진행):", dbError.message);
+            console.error("설정 로드 중 오류(기본값 사용):", dbError.message);
         }
 
-        // 시간 계산
+        // [4] 다음 복습 및 롤백 시간 계산
         const nowInSeconds = Math.floor(Date.now() / 1000);
         const nextScheduledTime = nowInSeconds + (intervalMin * 60);
         const nextRollbackTime = nextScheduledTime + (graceMin * 60);
 
-        // Task 생성 (이전과 동일)
+        // [5] 새로운 Cloud Tasks 생성 (다음 알림 및 다음 롤백 예약)
         const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
         const revTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `rev_${uid}_${docId}_${Date.now()}`);
         const rollTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `roll_${uid}_${docId}_${Date.now()}`);
@@ -267,17 +280,17 @@ exports.handleRollback = onRequest({ region: "asia-northeast3" }, async (req, re
             }
         });
 
-        // 마지막 DB 업데이트
+        // [6] DB 업데이트 (롤백 상태 반영 및 새 Task ID 저장)
         await vocabRef.update({
-            rollbackState: true,
-            buttonOn: false,
+            rollbackState: true,     // 롤백됨을 표시
+            buttonOn: false,         // 학습하기 버튼은 숨김 (알림이 올 때까지)
             currentTaskId: revRes.name,
             currentRollbackTaskId: rollRes.name,
             nextReviewDate: admin.firestore.Timestamp.fromMillis(nextScheduledTime * 1000),
             rollbackTime: admin.firestore.Timestamp.fromMillis(nextRollbackTime * 1000)
         });
 
-        console.log(`롤백 완료: ${docId}, 다음 스케줄 예약됨.`);
+        console.log(`[롤백 완료] 문서: ${docId}, 다음 스케줄 예약됨.`);
         return res.status(200).send("OK");
 
     } catch (error) {

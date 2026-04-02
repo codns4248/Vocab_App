@@ -13,7 +13,10 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
-import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.auth.User;
 
 import java.util.List;
 import java.util.Map;
@@ -31,15 +34,15 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
         this.fragment = fragment;
     }
 
-    // 1. 일반 화면용 뷰홀더 (기존 기능 그대로)
     public static class NormalViewHolder extends RecyclerView.ViewHolder {
         TextView textViewItem;
         ImageView[] stamps = new ImageView[7];
         SwitchCompat studyModeSwitch;
 
+
         public NormalViewHolder(View itemView) {
             super(itemView);
-            textViewItem = itemView.findViewById(R.id.textView);
+            textViewItem = itemView.findViewById(R.id.vocabularyNameTextView);
             studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
             stamps[0] = itemView.findViewById(R.id.stamp1);
             stamps[1] = itemView.findViewById(R.id.stamp2);
@@ -50,7 +53,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
         }
     }
 
-    // 2. 학습 버튼용 뷰홀더
+    // 학습 버튼의 뷰 필드들 연결
     public static class StudyViewHolder extends RecyclerView.ViewHolder {
         TextView titleTextView;
         SwitchCompat studyModeSwitch;
@@ -58,7 +61,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
 
         public StudyViewHolder(View itemView) {
             super(itemView);
-            titleTextView = itemView.findViewById(R.id.textView6);
+            titleTextView = itemView.findViewById(R.id.vocabularyNameTextView);
             studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
             btnStartStudy = itemView.findViewById(R.id.btn_start_study);
         }
@@ -104,12 +107,11 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
             isStudying = (boolean) vocab.get("isStudying");
         }
 
-        // --- 일반 모드일 때 세팅 ---
+        // 일반 모드
         if (holder instanceof NormalViewHolder) {
             NormalViewHolder normalHolder = (NormalViewHolder) holder;
             normalHolder.textViewItem.setText(title);
 
-            // 기존 스탬프 로직 그대로
             int stampCount = 0;
             Object countObj = vocab.get("stampCount");
             if (countObj != null) {
@@ -120,18 +122,15 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
                 else normalHolder.stamps[i].setImageResource(R.drawable.unchecked_stamp_icon);
             }
 
-
             normalHolder.studyModeSwitch.setOnCheckedChangeListener(null);
             normalHolder.studyModeSwitch.setChecked(isStudying);
 
-
             normalHolder.studyModeSwitch.setOnClickListener(v -> {
-
-                // 스위치가 활성화로 변경했을 때의 처리
+                // 스위치를 활성화를 처리
                 if (normalHolder.studyModeSwitch.isChecked()) {
                     fragment.startStudyMode(holder.getBindingAdapterPosition());
                 }
-
+                // 스위치를 비활성화 처리
                 else {
                     normalHolder.studyModeSwitch.setChecked(true);
                     fragment.showResetWarningDialog(holder.getBindingAdapterPosition());
@@ -144,7 +143,6 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
                 return true;
             });
         }
-
 
         else if (holder instanceof StudyViewHolder) {
             StudyViewHolder studyHolder = (StudyViewHolder) holder;
@@ -165,7 +163,6 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<RecyclerView
             });
         }
     }
-
     @Override
     public int getItemCount() {
         return dataList.size();

@@ -46,7 +46,7 @@ public class VocabularyBookFirestore {
         void onFailure(Exception e);
     }
 
-    //  단어장 불러오는 db 로직
+    // 단어장 불러오는 db 로직
     public static void listenVocabularies(String uid, VocabularyListCallback callback) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -58,20 +58,16 @@ public class VocabularyBookFirestore {
                         if (callback != null) callback.onFailure(e);
                         return;
                     }
-
                     if (querySnapshot != null) {
                         //  String 대신 Object를 사용하여 모든 타입의 데이터를 담습니다.
                         List<Map<String, Object>> dataList = new ArrayList<>();
-
                         for (QueryDocumentSnapshot doc : querySnapshot) {
                             //  doc.getData()를 쓰면 title, stampCount 등 모든 필드를 한 번에 가져옵니다.
                             Map<String, Object> vocabData = doc.getData();
                             // ID 값도 나중에 필요하므로 함께 넣어줍니다.
                             vocabData.put("id", doc.getId());
-
                             dataList.add(vocabData);
                         }
-
                         if (callback != null) callback.onUpdate(dataList);
                     }
                 });
@@ -102,7 +98,7 @@ public class VocabularyBookFirestore {
     }
 
 
-    //진행상황 초기화 메서드
+    // 진행상황 초기화 메서드
     public static void resetStudyStatus(String uid, String vocabId, VocabularyBookCallback callback) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -191,6 +187,46 @@ public class VocabularyBookFirestore {
 
     public interface BringTimeInterface{
         void bringTime(Map<String, Object> data);
+    }
+
+    public static void getWordCount(String userId, String vocabId, GetWordCountInterface getWordCountInterface) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        DocumentReference docRef = db.collection("users")
+                .document(userId)
+                .collection("vocabularies")
+                .document(vocabId);
+
+        docRef.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                DocumentSnapshot document = task.getResult();
+                if (document != null && document.exists()) {
+                    Long count = document.getLong("wordCount");
+
+                    if (count != null) {
+                        // 1. 필드가 정상적으로 있을 때
+                        getWordCountInterface.wordCount(count.intValue());
+                        Log.d("Firestore", "wordCount 값: " + count);
+                    } else {
+                        // 2. 문서는 있지만 wordCount 필드가 없을 때 -> 0 전달
+                        Log.d("Firestore", "wordCount 필드가 없음 -> 0 반환");
+                        getWordCountInterface.wordCount(0);
+                    }
+                } else {
+                    // 3. 문서 자체가 없을 때 -> 0 혹은 null 전달
+                    Log.d("Firestore", "문서 없음 -> 0 반환");
+                    getWordCountInterface.wordCount(0);
+                }
+            } else {
+                // 4. 에러 발생 시 -> null 혹은 -1 전달 (에러 처리용)
+                Log.e("Firestore", "에러 발생: ", task.getException());
+                getWordCountInterface.wordCount(null);
+            }
+        });
+    }
+
+    public interface GetWordCountInterface{
+        void wordCount(Integer count);
     }
 
 }
