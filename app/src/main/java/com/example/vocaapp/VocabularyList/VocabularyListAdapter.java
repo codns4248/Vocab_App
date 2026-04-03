@@ -14,19 +14,10 @@ import java.util.List;
 
 public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAdapter.WordViewHolder> {
 
-    // 4개의 문자열을 각각 담은 리스트들
-    private List<String> words;
-    private List<String> meanings;
-    private List<String> pronunciations;
+    private List<WordItem> wordList;
 
-
-    // 생성자
-    public VocabularyListAdapter(List<String> words, List<String> meanings,
-                                 List<String> pronunciations) {
-        this.words = words;
-        this.meanings = meanings;
-        this.pronunciations = pronunciations;
-
+    public VocabularyListAdapter(List<WordItem> wordList) {
+        this.wordList = wordList;
     }
 
     // ViewHolder 정의
@@ -52,34 +43,36 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
 
     @Override
     public void onBindViewHolder(@NonNull WordViewHolder holder, int position) {
+        holder.itemView.setTranslationX(0f);
 
-        holder.itemView.setTranslationX(0f);  // [수정] 뷰가 재사용될 때, 기존에 밀려있던 위치를 0으로 강제 초기화
+        WordItem item = wordList.get(position);
 
-        // 리스트에서 각각 꺼내서 TextView에 세팅 (기존 코드)
-        holder.wordTextView.setText(words.get(position));
-        holder.meanTextView.setText(meanings.get(position));
-        holder.pronunciationTextView.setText("(" + pronunciations.get(position) + ")");
+        holder.wordTextView.setText(item.word);
+        holder.meanTextView.setText(item.meaning);
+        holder.pronunciationTextView.setText("(" + item.pronunciation + ")");
     }
 
     @Override
     public int getItemCount() {
-        return words.size(); // 모든 리스트는 같은 길이여야 함
+        return wordList.size();
     }
 
-    public void removeItem(int position) {   //디버깅 추가(단어 삭제 헬퍼)
-        //1. 데이터 리스트에서 삭제
-        words.remove(position);
-        meanings.remove(position);
-        pronunciations.remove(position);
-        //comments.remove(position);
-
-        //2. 삭제 애니메이션 실행
+    public void removeItem(int position) {
+        wordList.remove(position);
         notifyItemRemoved(position);
 
-        //3. 번호표 다시 붙이기 (삭제된 위치부터 남은 개수만큼만 업데이트
-        if (position < words.size()) {
-            notifyItemRangeChanged(position, words.size() - position);
+        if (position < wordList.size()) {
+            notifyItemRangeChanged(position, wordList.size() - position);
         }
     }
-}
 
+    // 이 메서드를 추가해야 VocabularyActivity에서 호출할 수 있습니다.
+    public void updateItems(List<WordItem> newList) {
+        // 1. 어댑터가 들고 있는 기존 리스트를 새로운 리스트로 교체
+        this.wordList = newList;
+
+        // 2. 어댑터에게 데이터가 변경되었으니 화면을 다시 그리라고 명령 (핵심!)
+        notifyDataSetChanged();
+    }
+
+}

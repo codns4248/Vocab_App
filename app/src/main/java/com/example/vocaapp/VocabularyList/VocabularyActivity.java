@@ -27,7 +27,6 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
-import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
@@ -41,7 +40,7 @@ public class VocabularyActivity extends AppCompatActivity {
     private boolean isStudying = false; //학습 상 태 저장용 변수 추가
     VocabularyListAdapter adapter;
 
-     List<String> words = new ArrayList<>();
+    List<String> words = new ArrayList<>();
     List<String> meanings = new ArrayList<>();
     List<String> pronunciations = new ArrayList<>();
     List<String> comments = new ArrayList<>();
@@ -141,43 +140,43 @@ public class VocabularyActivity extends AppCompatActivity {
             return;
         }
 
-        uid = user.getUid();   // 기존: String uid = user.getUid(); -> 수정: 전역 변수에 저장
+        uid = user.getUid();
 
         VocabularyFirestore.listenWords(uid, vocabularyId, new VocabularyFirestore.OnWordsChanged() {
             @Override
             public void onChanged(QuerySnapshot snapshots) {
-                words.clear();
-                meanings.clear();
-                pronunciations.clear();
-                comments.clear();
-                wordIds.clear(); //  ID 리스트 초기화
+                List<WordItem> newWordList = new ArrayList<>();
+                wordIds.clear();
 
                 for (DocumentSnapshot document : snapshots) {
-                    wordIds.add(document.getId());  // 문서의 ID(wordId) 가져오기
+                    wordIds.add(document.getId());
 
+                    // 데이터 매핑
                     String word = document.getString("word");
                     String meaning = document.getString("meaning");
                     String pronunciation = document.getString("pronunciation");
-                    String comment = document.getString("explain");
 
-                    if (word != null) words.add(word);
-                    if (meaning != null) meanings.add(meaning);
-                    if (pronunciation != null) pronunciations.add(pronunciation);
-                    if (comment != null) comments.add(comment);
+                    if (word != null) {
+                        newWordList.add(new WordItem(word, meaning, pronunciation));
+                    }
                 }
 
+                // 어댑터 갱신 로직
                 if (adapter == null) {
-                    adapter = new VocabularyListAdapter(words, meanings, pronunciations);
+                    adapter = new VocabularyListAdapter(newWordList);
                     recyclerView.setAdapter(adapter);
-                    setupSwipeController(recyclerView); //  어댑터 연결 후 스와이프 기능 장착
+                    setupSwipeController(recyclerView);
                 } else {
-                    adapter.notifyDataSetChanged();
+                    adapter.updateItems(newWordList);
                 }
-
             }
+
+            // 🔴 이 부분이 빠져서 에러가 났던 것입니다!
             @Override
             public void onError(Exception e) {
-                Log.e("Firestore", "Listen failed.", e);
+                Log.e("FirestoreError", "단어 목록을 불러오는 중 에러 발생: " + e.getMessage());
+                // 사용자에게 알림을 주고 싶다면 토스트 추가
+                // Toast.makeText(VocabularyActivity.this, "데이터 로딩 실패", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -245,8 +244,6 @@ public class VocabularyActivity extends AppCompatActivity {
             // 로그인 안 된 상태
             return;
         }
-
-        String uid = user.getUid();
 
         // 단어 등록 처리
         wordRegisterButton.setOnClickListener(v -> {

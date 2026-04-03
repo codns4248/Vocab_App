@@ -59,6 +59,7 @@ public class VocabularyFirestore {
                 .addOnSuccessListener(aVoid -> { if (onSuccess != null) onSuccess.run(); })
                 .addOnFailureListener(e -> { if (onFailure != null) onFailure.run(); });
     }
+
     // 단어 불러오는 db 로직
     public static void listenWords(String userId, String vocabularyId, OnWordsChanged listener) {
         FirebaseFirestore.getInstance()
@@ -76,8 +77,6 @@ public class VocabularyFirestore {
                     listener.onChanged(snapshots);
                 });
     }
-
-
     public interface OnWordsChanged {
         void onChanged(QuerySnapshot snapshots);
         void onError(Exception e);

@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
 import com.example.vocaapp.VocabularyList.VocabularyFirestore;
+import com.example.vocaapp.VocabularyList.WordItem;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -161,7 +162,7 @@ public class CameraActivity extends AppCompatActivity {
             contentBuilder.addImage(resized);
         }
 
-        contentBuilder.addText("첨부된 모든 이미지들에서 중요한 단어들을 찾아내고, 각 단어의 한국어 뜻을 설명해줘.");
+        contentBuilder.addText("이미지에서 영어 단어들을 추출하고, 한국어 뜻과 한국어 발음을 적어줘. 만약 전문 용어라면 가장 대중적인 뜻을 선택해줘.");
 
         Content content = contentBuilder.build();
 
@@ -186,32 +187,32 @@ public class CameraActivity extends AppCompatActivity {
                             // 결과 처리 (메인 스레드에서 UI 업데이트)
                             runOnUiThread(() -> {
                                 if (wordList != null && !wordList.isEmpty()) {
-                                    Toast.makeText(CameraActivity.this, "추출 완료: " + wordList.size() + "개 단어", Toast.LENGTH_SHORT).show();
+                                    int totalCount = wordList.size();
+                                    final int[] successCount = {0}; // 저장 성공 카운트
 
-                                    Log.wtf("CHECK_ID", "현재 전달된 ID: " + (vocabularyId == null ? "NULL입니다!" : vocabularyId));
+                                    for (WordItem item : wordList) {
+                                        Map<String, Object> wordData = new HashMap<>();
+                                        wordData.put("word", item.word);
+                                        wordData.put("meaning", item.meaning); // mean -> meaning으로 통일 권장
+                                        wordData.put("pronunciation", item.pronunciation);
+                                        wordData.put("timeStamp", FieldValue.serverTimestamp());
 
-                                    finish();
-
-                                    if (user != null && vocabularyId != null) {
-                                        String uid = user.getUid();
-                                        for (WordItem item : wordList) {
-                                            Map<String, Object> wordData = new HashMap<>();
-                                            wordData.put("word", item.word);
-                                            wordData.put("mean", item.meaning);
-                                            wordData.put("pronunciation", item.pronunciation);
-                                            wordData.put("timeStamp", FieldValue.serverTimestamp());
-
-
-                                            // 여기서 저장 호출
-                                            VocabularyFirestore.addWord(uid, vocabularyId, wordData,
-                                                    () -> Log.d("Firestore", "저장 성공: " + item.word),
-                                                    () -> Log.e("Firestore", "저장 실패: " + item.word)
-                                            );
-                                        }
-                                    } else {
-                                        // ID가 없어서 저장이 안 되는 상황이라면 이 로그가 찍힐 겁니다.
-                                        Log.e("FirestoreError", "UID 또는 VocabularyId가 없어 저장을 시작하지 못했습니다.");
+                                        VocabularyFirestore.addWord(uid, vocabularyId, wordData,
+                                                () -> {
+                                                    successCount[0]++;
+                                                    Log.d("Firestore", "성공: " + item.word);
+                                                    // 모든 단어가 저장되었을 때만 종료
+                                                    if (successCount[0] == totalCount) {
+                                                        Toast.makeText(CameraActivity.this, "모든 단어가 저장되었습니다.", Toast.LENGTH_SHORT).show();
+                                                        finish();
+                                                    }
+                                                },
+                                                () -> Log.e("Firestore", "저장 실패: " + item.word)
+                                        );
                                     }
+                                }
+                                else {
+                                    Toast.makeText(CameraActivity.this, "추출된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
                                 }
                             });
 
