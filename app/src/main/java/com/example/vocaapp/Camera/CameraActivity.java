@@ -1,11 +1,13 @@
 package com.example.vocaapp.Camera;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -68,6 +70,8 @@ public class CameraActivity extends AppCompatActivity {
     private String uid;
     private FirebaseUser user;
 
+    private View loadingOverlay;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,6 +88,7 @@ public class CameraActivity extends AppCompatActivity {
         captureImageView = findViewById(R.id.captureImageView);
         backImageView = findViewById(R.id.backImageView);
         finishTextView = findViewById(R.id.finishTextView);
+        loadingOverlay = findViewById(R.id.loadingOverlay);
 
         vocabularyId = getIntent().getStringExtra("vocabularyId");
 
@@ -146,17 +151,16 @@ public class CameraActivity extends AppCompatActivity {
 
     // 사진에서 단어를 추출하는 method
     private void extractData() {
+
+        loadingOverlay.setVisibility(View.VISIBLE);
+
         if (photoList.isEmpty()) {
             Toast.makeText(this, "먼저 사진을 촬영해주세요.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 1. 분석 중임을 알리는 로딩 표시 (선택 사항)
-        Toast.makeText(this, "단어를 추출 중입니다...", Toast.LENGTH_SHORT).show();
-
         Content.Builder contentBuilder = new Content.Builder();
 
-        // 2. photoList에 있는 모든 사진을 리사이징하여 추가
         for (Bitmap photo : photoList) {
             Bitmap resized = getResizedBitmap(photo, 1024);
             contentBuilder.addImage(resized);
