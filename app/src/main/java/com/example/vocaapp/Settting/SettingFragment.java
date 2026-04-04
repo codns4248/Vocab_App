@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.net.Uri;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -38,12 +39,20 @@ public class SettingFragment extends Fragment {
         TextView btnLogout = view.findViewById(R.id.logoutTextView);
         TextView unregisterTextView = view.findViewById(R.id.unregisterTextView);
 
+        // 추가된 약관 텍스트뷰 찾기
+        TextView termsTextView = view.findViewById(R.id.termsTextView);
 
         //로그인 한 유저 이메일 보여주기
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
             tvUserEmail.setText(user.getEmail());
         }
+
+        termsTextView.setOnClickListener(v -> {
+            String notionUrl = "https://ajar-saturnalia-176.notion.site/Voca-App-Privacy-Policy-Terms-Conditions-KOR-335c76a94e95808ab816d27f73c51e8c";
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(notionUrl));
+            startActivity(intent);
+        });
 
         //로그아웃 버튼 눌렀을 때 할 일
         btnLogout.setOnClickListener(new View.OnClickListener() {
