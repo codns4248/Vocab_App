@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.net.Uri;
@@ -38,9 +39,8 @@ public class SettingFragment extends Fragment {
         TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
         TextView btnLogout = view.findViewById(R.id.logoutTextView);
         TextView unregisterTextView = view.findViewById(R.id.unregisterTextView);
-
-        // 추가된 약관 텍스트뷰 찾기
-        TextView termsTextView = view.findViewById(R.id.termsTextView);
+        LinearLayout sendCommentLinear = view.findViewById(R.id.sendCommentLinear);
+        LinearLayout checkPolicyLinear = view.findViewById(R.id.checkPolicyLinear);
 
         //로그인 한 유저 이메일 보여주기
         FirebaseUser user = mAuth.getCurrentUser();
@@ -48,7 +48,13 @@ public class SettingFragment extends Fragment {
             tvUserEmail.setText(user.getEmail());
         }
 
-        termsTextView.setOnClickListener(v -> {
+        sendCommentLinear.setOnClickListener(v -> {
+            String commentUrl = "https://docs.google.com/forms/d/e/1FAIpQLSefi_zWPR3Lry12_PVikiCkDr7e6s19GGj_kTORSLWUGE1Egg/viewform?usp=dialog";
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(commentUrl));
+            startActivity(intent);
+        });
+
+        checkPolicyLinear.setOnClickListener(v -> {
             String notionUrl = "https://ajar-saturnalia-176.notion.site/Voca-App-Privacy-Policy-Terms-Conditions-KOR-335c76a94e95808ab816d27f73c51e8c";
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(notionUrl));
             startActivity(intent);
