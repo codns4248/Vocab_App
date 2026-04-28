@@ -25,6 +25,7 @@ import com.example.vocaapp.R;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -289,46 +290,52 @@ public class VocabularyActivity extends AppCompatActivity {
         });
 
     }
+
     private void setupSwipeController(RecyclerView recyclerView) {
         SwipeController swipeController = new SwipeController(new SwipeController.SwipeControllerActions() {
             @Override
             public void onRightClicked(int position) {
-                // [안전 장치] 위치가 유효한지 확인
                 if (position < 0 || position >= wordIds.size()) {
                     if (adapter != null) adapter.notifyDataSetChanged();
                     return;
                 }
 
-                // 1. 지울 단어의 ID를 미리 백업해둡니다 (화면에서 지워지면 못 찾으니까요)
                 String wordIdToDelete = wordIds.get(position);
+                WordItem deletedWord = adapter.getItemAt(position);
+                int deletedPosition = position;
 
-                // 2. 화면(UI)과 메모리 리스트에서 '먼저' 삭제
-                wordIds.remove(position); // 액티비티의 ID 리스트에서 삭제
-                if (adapter != null){
-                    adapter.removeItem(position); // 어댑터의 데이터 리스트 삭제 + 애니메이션 수행
+                wordIds.remove(position);
+                if (adapter != null) {
+                    adapter.removeItem(position);
                 }
 
-                // 단어 삭제 요청
                 VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete,
-                        () -> {
-                            // 성공 시 처리
-                            // Toast.makeText(VocabularyActivity.this, "삭제되었습니다.", Toast.LENGTH_SHORT).show();
-                        },
-                        // 실패 시 처리
+                        () -> {},
                         null
                 );
+
+                Snackbar.make(recyclerView,
+                                "'" + deletedWord.word + "' 삭제됨",  // ✅ 변경
+                                Snackbar.LENGTH_LONG)
+                        .setAction("실행 취소", v -> {
+                            wordIds.add(deletedPosition, wordIdToDelete);
+                            adapter.addItem(deletedPosition, deletedWord);
+
+                            Map<String, Object> wordData = new HashMap<>();
+                            wordData.put("word", deletedWord.word);                  // ✅ 변경
+                            wordData.put("meaning", deletedWord.meaning);            // ✅ 변경
+                            wordData.put("pronunciation", deletedWord.pronunciation); // ✅ 변경
+                            wordData.put("timeStamp", FieldValue.serverTimestamp());
+
+                            VocabularyFirestore.addWord(uid, vocabularyId, wordData,
+                                    () -> {}, () -> {});
+                        })
+                        .show();
             }
         });
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(swipeController);
         itemTouchHelper.attachToRecyclerView(recyclerView);
-
-        recyclerView.addItemDecoration(new RecyclerView.ItemDecoration() {
-            @Override
-            public void onDraw(@NonNull Canvas c, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-                swipeController.onDraw(c);
-            }
-        });
     }
 
     // 이미 존재하는 단어 검사하는 메서드

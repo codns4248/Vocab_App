@@ -75,4 +75,15 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
         notifyDataSetChanged();
     }
 
+    // 특정 위치의 단어를 가져오기 (Undo용 백업)
+    public WordItem getItemAt(int position) {
+        return wordList.get(position);
+    }
+
+    // 특정 위치에 단어를 다시 삽입 (Undo 시 복구)
+    public void addItem(int position, WordItem item) {
+        wordList.add(position, item);
+        notifyItemInserted(position);
+    }
+
 }
