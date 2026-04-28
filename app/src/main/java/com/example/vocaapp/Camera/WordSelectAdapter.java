@@ -18,6 +18,12 @@ import java.util.List;
 public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.ViewHolder> {
 
     private List<WordItem> wordList;
+    private OnSelectionChangedListener selectionChangedListener;
+
+    // 전체 선택 체크박스 동기화를 위한 인터페이스
+    public interface OnSelectionChangedListener {
+        void onSelectionChanged();
+    }
 
     public WordSelectAdapter(List<WordItem> wordList) {
         this.wordList = wordList;
@@ -43,6 +49,10 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
         holder.checkBox.setChecked(item.selected);
         holder.checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             item.selected = isChecked;
+            // 전체 선택 체크박스 동기화 알림
+            if (selectionChangedListener != null) {
+                selectionChangedListener.onSelectionChanged();
+            }
         });
 
         // 행 전체 클릭으로도 토글되게
@@ -65,12 +75,25 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
         return selected;
     }
 
+    // 모든 단어 반환 (전체 선택 상태 확인용)
+    public List<WordItem> getAllWords() {
+        return wordList;
+    }
+
     // 전체 선택/해제 (전체 선택 체크박스용)
     public void setAllSelected(boolean selected) {
         for (WordItem item : wordList) {
             item.selected = selected;
         }
         notifyDataSetChanged();
+        if (selectionChangedListener != null) {
+            selectionChangedListener.onSelectionChanged();
+        }
+    }
+
+    // 선택 변경 리스너 설정
+    public void setOnSelectionChangedListener(OnSelectionChangedListener listener) {
+        this.selectionChangedListener = listener;
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

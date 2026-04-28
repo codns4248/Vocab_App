@@ -312,10 +312,10 @@ public class VocabularyActivity extends AppCompatActivity {
                 VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete,
                         () -> {
                             // 성공 시 처리
-                            Toast.makeText(VocabularyActivity.this, "삭제되었습니다.", Toast.LENGTH_SHORT).show();
-                            // 필요하다면 여기서 리스트를 새로고침하는 로직을 추가하세요.
+                            // Toast.makeText(VocabularyActivity.this, "삭제되었습니다.", Toast.LENGTH_SHORT).show();
                         },
-                        null // 실패 처리가 필요 없다면 null 전달
+                        // 실패 시 처리
+                        null
                 );
             }
         });

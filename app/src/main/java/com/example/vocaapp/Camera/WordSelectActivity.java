@@ -2,6 +2,7 @@ package com.example.vocaapp.Camera;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.CheckBox;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -21,6 +22,7 @@ import java.util.Map;
 
 public class WordSelectActivity extends AppCompatActivity {
     private WordSelectAdapter adapter;
+    private CheckBox selectAllCheckBox;
     private String vocabularyId;
     private String uid;
 
@@ -34,11 +36,37 @@ public class WordSelectActivity extends AppCompatActivity {
         uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
         RecyclerView recyclerView = findViewById(R.id.wordRecyclerView);
+        selectAllCheckBox = findViewById(R.id.selectAllCheckBox);
+
         adapter = new WordSelectAdapter(wordList);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
+        // 개별 항목 체크 변경 시 → 전체 선택 체크박스 동기화
+        adapter.setOnSelectionChangedListener(() -> updateSelectAllCheckBox());
+
+        // 전체 선택 체크박스 토글
+        selectAllCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            // 사용자가 직접 누른 경우에만 동작 (코드로 setChecked 할 때는 무시)
+            if (buttonView.isPressed()) {
+                adapter.setAllSelected(isChecked);
+            }
+        });
+
         findViewById(R.id.saveButton).setOnClickListener(v -> saveSelectedWords());
+    }
+
+    // 모든 항목이 선택되어 있으면 전체 선택 체크박스도 체크
+    private void updateSelectAllCheckBox() {
+        boolean allSelected = true;
+        for (WordItem item : adapter.getAllWords()) {
+            if (!item.selected) {
+                allSelected = false;
+                break;
+            }
+        }
+        // 리스너 일시 제거 후 변경 (무한 루프 방지)
+        selectAllCheckBox.setChecked(allSelected);
     }
 
     private void saveSelectedWords() {
