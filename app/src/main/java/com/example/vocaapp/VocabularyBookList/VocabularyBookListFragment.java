@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -26,9 +27,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vocaapp.R;
 import com.example.vocaapp.Test.StudyManager;
 import com.example.vocaapp.VocabularyList.VocabularyActivity;
-import com.example.vocaapp.VocabularyList.VocabularyFirestore;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -75,8 +75,28 @@ public class VocabularyBookListFragment extends Fragment {
         ImageView vocabularyBookRegisterImageView = view.findViewById(R.id.vocabularyBookRegisterImageView);
         vocabularyBookRegisterImageView.setOnClickListener(v -> {
             bottomSheetDialog = new BottomSheetDialog(requireContext());
-            View view2 = getLayoutInflater().inflate(R.layout.vocabulary_book_bottom_sheet, null);
+            View view2 = getLayoutInflater().inflate(R.layout.vocabulary_book_register_bottom_sheet, null);
             bottomSheetDialog.setContentView(view2);
+
+            // 키보드가 올라올 때 BottomSheet가 키보드 위에 붙도록 설정
+            if (bottomSheetDialog.getWindow() != null) {
+                bottomSheetDialog.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                );
+            }
+
+            // BottomSheet를 처음부터 EXPANDED 상태로 설정
+            bottomSheetDialog.setOnShowListener(dialog -> {
+                View bottomSheet = bottomSheetDialog.findViewById(
+                        com.google.android.material.R.id.design_bottom_sheet
+                );
+                if (bottomSheet != null) {
+                    BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
+                    behavior.setSkipCollapsed(true);
+                    behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                }
+            });
+
             bottomSheetDialog.show();
 
             Button registerButton = view2.findViewById(R.id.registerButton);

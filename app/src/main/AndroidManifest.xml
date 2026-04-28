@@ -38,10 +38,11 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="false"/>
+            android:windowSoftInputMode="adjustResize" />
 
-        <activity android:name=".VocabularyList.VocabularyActivity"
-            android:exported="false"/>
+        <activity
+            android:name=".VocabularyList.VocabularyActivity"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity android:name=".Camera.CameraActivity"
             android:exported="false"/>
@@ -58,9 +59,9 @@
         <activity android:name=".QuizAndGame.MultipleChoiceActivity"
             android:exported="false"/>
 
-
         <activity android:name=".Test.TestResultActivity"
             android:exported="false"/>
+
         <activity android:name=".Test.TestActivity"
             android:exported="false"/>
     </application>

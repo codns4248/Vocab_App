@@ -10,6 +10,7 @@ import com.example.vocaapp.Camera.CameraActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -21,6 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vocaapp.R;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
@@ -228,9 +230,29 @@ public class VocabularyActivity extends AppCompatActivity {
         BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(VocabularyActivity.this);
 
         View view = getLayoutInflater()
-                .inflate(R.layout.word_register_bottom_sheet, null);
+                .inflate(R.layout.vocabulary_register_bottom_sheet, null);
 
         bottomSheetDialog.setContentView(view);
+
+        // 키보드가 올라올 때 BottomSheet가 키보드 위에 붙도록 설정
+        if (bottomSheetDialog.getWindow() != null) {
+            bottomSheetDialog.getWindow().setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            );
+        }
+
+        // BottomSheet를 처음부터 EXPANDED 상태로 설정
+        bottomSheetDialog.setOnShowListener(dialog -> {
+            View bottomSheet = bottomSheetDialog.findViewById(
+                    com.google.android.material.R.id.design_bottom_sheet
+            );
+            if (bottomSheet != null) {
+                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
+                behavior.setSkipCollapsed(true);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            }
+        });
+
         bottomSheetDialog.show();
 
         EditText wordEditText = view.findViewById(R.id.wordEditText);

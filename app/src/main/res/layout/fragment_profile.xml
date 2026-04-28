@@ -92,10 +92,10 @@
 
                 <ImageView
                     android:id="@+id/imageView10"
-                    android:layout_width="wrap_content"
+                    android:layout_width="25dp"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    app:srcCompat="@drawable/comment_icon" />
+                    app:srcCompat="@drawable/email" />
 
                 <TextView
                     android:id="@+id/textView15"
@@ -123,10 +123,10 @@
 
                 <ImageView
                     android:id="@+id/imageView10"
-                    android:layout_width="wrap_content"
+                    android:layout_width="25dp"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    app:srcCompat="@drawable/term_icon" />
+                    app:srcCompat="@drawable/term" />
 
                 <TextView
                     android:id="@+id/textView15"
