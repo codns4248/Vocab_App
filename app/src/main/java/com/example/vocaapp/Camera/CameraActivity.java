@@ -190,32 +190,15 @@ public class CameraActivity extends AppCompatActivity {
 
                             // 결과 처리 (메인 스레드에서 UI 업데이트)
                             runOnUiThread(() -> {
+                                loadingOverlay.setVisibility(View.GONE);
+
                                 if (wordList != null && !wordList.isEmpty()) {
-                                    int totalCount = wordList.size();
-                                    final int[] successCount = {0}; // 저장 성공 카운트
-
-                                    for (WordItem item : wordList) {
-                                        Map<String, Object> wordData = new HashMap<>();
-                                        wordData.put("word", item.word);
-                                        wordData.put("meaning", item.meaning); // mean -> meaning으로 통일 권장
-                                        wordData.put("pronunciation", item.pronunciation);
-                                        wordData.put("timeStamp", FieldValue.serverTimestamp());
-
-                                        VocabularyFirestore.addWord(uid, vocabularyId, wordData,
-                                                () -> {
-                                                    successCount[0]++;
-                                                    Log.d("Firestore", "성공: " + item.word);
-                                                    // 모든 단어가 저장되었을 때만 종료
-                                                    if (successCount[0] == totalCount) {
-                                                        Toast.makeText(CameraActivity.this, "모든 단어가 저장되었습니다.", Toast.LENGTH_SHORT).show();
-                                                        finish();
-                                                    }
-                                                },
-                                                () -> Log.e("Firestore", "저장 실패: " + item.word)
-                                        );
-                                    }
-                                }
-                                else {
+                                    Intent intent = new Intent(CameraActivity.this, WordSelectActivity.class);
+                                    intent.putParcelableArrayListExtra("wordList", new ArrayList<>(wordList));
+                                    intent.putExtra("vocabularyId", vocabularyId);
+                                    startActivity(intent);
+                                    finish();
+                                } else {
                                     Toast.makeText(CameraActivity.this, "추출된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
                                 }
                             });

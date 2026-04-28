@@ -64,6 +64,10 @@
 
         <activity android:name=".Test.TestActivity"
             android:exported="false"/>
+
+        <activity android:name=".Camera.WordSelectActivity"
+            android:exported="false"/>
+
     </application>
 
 </manifest>
