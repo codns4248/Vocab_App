@@ -1,8 +1,10 @@
 package com.example.vocaapp.VocabularyList;
 
+import android.speech.tts.TextToSpeech;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -16,20 +18,25 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
 
     private List<WordItem> wordList;
 
-    public VocabularyListAdapter(List<WordItem> wordList) {
+    private TextToSpeech tts;
+
+    public VocabularyListAdapter(List<WordItem> wordList, TextToSpeech tts) {
         this.wordList = wordList;
+        this.tts = tts;
     }
 
     // ViewHolder 정의
     public static class WordViewHolder extends RecyclerView.ViewHolder {
-        TextView wordTextView, meanTextView, pronunciationTextView, commentTextView;
+        TextView wordTextView, meanTextView, pronunciationTextView;
+
+        ImageView speakerImageView;
 
         public WordViewHolder(@NonNull View itemView) {
             super(itemView);
             wordTextView = itemView.findViewById(R.id.wordTextView);
             meanTextView = itemView.findViewById(R.id.meanTextView);
             pronunciationTextView = itemView.findViewById(R.id.pronunciationTextView);
-
+            speakerImageView = itemView.findViewById(R.id.speakerImageView);
         }
     }
 
@@ -37,7 +44,7 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
     @Override
     public WordViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_word_list, parent, false); // XML 이름에 맞게
+                .inflate(R.layout.test, parent, false); // XML 이름에 맞게
         return new WordViewHolder(view);
     }
 
@@ -50,6 +57,16 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
         holder.wordTextView.setText(item.word);
         holder.meanTextView.setText(item.meaning);
         holder.pronunciationTextView.setText("(" + item.pronunciation + ")");
+
+        // ===== 스피커 클릭 리스너 추가 =====
+        holder.speakerImageView.setOnClickListener(v -> {
+            if (tts == null) return;
+            if (item.word == null || item.word.isEmpty()) return;
+
+            tts.speak(item.word, TextToSpeech.QUEUE_FLUSH, null,
+                    "word_" + holder.getAdapterPosition());
+        });
+
     }
 
     @Override

@@ -1,13 +1,12 @@
 package com.example.vocaapp.VocabularyList;
 
 import android.content.Intent;
-import android.graphics.Canvas;
-import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
 
 import com.example.vocaapp.Camera.CameraActivity;
 
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -35,9 +34,12 @@ import com.google.firebase.firestore.QuerySnapshot;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
-public class VocabularyActivity extends AppCompatActivity {
+public class VocabularyActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
+
+    private TextToSpeech tts;
 
     private String vocabularyId;
     private boolean isStudying = false; //학습 상 태 저장용 변수 추가
@@ -61,6 +63,8 @@ public class VocabularyActivity extends AppCompatActivity {
 
         isStudying = getIntent().getBooleanExtra("isStudying", false);
         vocabularyId = getIntent().getStringExtra("vocabularyId");
+
+        tts = new TextToSpeech(this, this);
 
         // FAB 초기화
         fab = findViewById(R.id.fab);
@@ -166,7 +170,7 @@ public class VocabularyActivity extends AppCompatActivity {
 
                 // 어댑터 갱신 로직
                 if (adapter == null) {
-                    adapter = new VocabularyListAdapter(newWordList);
+                    adapter = new VocabularyListAdapter(newWordList, tts);  // ← tts 추가
                     recyclerView.setAdapter(adapter);
                     setupSwipeController(recyclerView);
                 } else {
@@ -365,4 +369,31 @@ public class VocabularyActivity extends AppCompatActivity {
             Toast.makeText(this, "등록 실패", Toast.LENGTH_SHORT).show();
         });
     }
+
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+            int result = tts.setLanguage(Locale.US);
+            if (result == TextToSpeech.LANG_MISSING_DATA
+                    || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Toast.makeText(this, "영어 음성 데이터가 없습니다",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                tts.setSpeechRate(0.9f);
+                tts.setPitch(1.0f);
+            }
+        }
+    }
+
+    // ===== onDestroy 메서드 추가 (클래스 맨 아래에 추가) =====
+    @Override
+    protected void onDestroy() {
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+        }
+        super.onDestroy();
+    }
+
 }
