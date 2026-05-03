@@ -31,7 +31,7 @@ public class FailVocaListAdapter extends RecyclerView.Adapter<FailVocaListAdapte
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         // R.layout.item_word_list 안에 단어와 뜻을 위한 TextView가 각각 있어야 합니다.
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_word_list, parent, false);
+                .inflate(R.layout.item_vocabulary, parent, false);
         return new ViewHolder(view);
     }
 

@@ -29,6 +29,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
 
     public static class UnifiedViewHolder extends RecyclerView.ViewHolder {
         TextView titleTextView;
+        TextView countTextView;
         SwitchCompat studyModeSwitch;
         View stampContainer;
         View btnStartStudy;
@@ -40,6 +41,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
             studyModeSwitch = itemView.findViewById(R.id.studyModeSwitch);
             stampContainer = itemView.findViewById(R.id.stampContainer);
             btnStartStudy = itemView.findViewById(R.id.btn_start_study);
+            countTextView = itemView.findViewById(R.id.countTextView);
 
             stamps[0] = itemView.findViewById(R.id.stamp1);
             stamps[1] = itemView.findViewById(R.id.stamp2);
@@ -55,7 +57,7 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
     public UnifiedViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         // 단일 레이아웃 인플레이트
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_integrated_vacabulary_book, parent, false);
+                .inflate(R.layout.item_vocabulary_book, parent, false);
         return new UnifiedViewHolder(view);
     }
 
@@ -68,6 +70,10 @@ public class VocabularyBookListAdapter extends RecyclerView.Adapter<VocabularyBo
         boolean isStudying = Boolean.TRUE.equals(vocab.get("isStudying")); // 스위치 상태
 
         holder.titleTextView.setText(String.valueOf(vocab.get("title")));
+
+        Object wordCountObj = vocab.get("wordCount");
+        int wordCount = (wordCountObj instanceof Number) ? ((Number) wordCountObj).intValue() : 0;
+        holder.countTextView.setText(wordCount + "개");
 
         // 2. buttonOn 값에 따라 하단 레이아웃 교체
         if (buttonOn) {

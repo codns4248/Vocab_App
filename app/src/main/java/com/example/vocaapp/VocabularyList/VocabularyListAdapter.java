@@ -44,7 +44,7 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
     @Override
     public WordViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.test, parent, false); // XML 이름에 맞게
+                .inflate(R.layout.item_vocabulary, parent, false); // XML 이름에 맞게
         return new WordViewHolder(view);
     }
 

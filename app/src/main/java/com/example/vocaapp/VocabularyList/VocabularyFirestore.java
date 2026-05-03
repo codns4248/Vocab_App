@@ -104,5 +104,4 @@ public class VocabularyFirestore {
     public interface alreadyVocabularyInterface{
         void alreadyVocabulary(boolean isAlready);
     }
-
 }

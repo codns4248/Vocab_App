@@ -455,6 +455,7 @@ public class VocabularyBookListFragment extends Fragment {
         inputVocabularyBookName.put("title", bookName);
         inputVocabularyBookName.put("stampCount", 0);
         inputVocabularyBookName.put("isStudying",false);
+        inputVocabularyBookName.put("wordCount", 0);
 
         VocabularyBookFirestore.addVocabularyBook(inputVocabularyBookName, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
             @Override
