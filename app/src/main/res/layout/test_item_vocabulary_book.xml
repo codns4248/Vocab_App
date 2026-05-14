@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cardVocabularyBook"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#E5E5E5"
+    app:strokeWidth="0.5dp"
+    app:cardBackgroundColor="#FFFFFF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
+
+        <!-- D2, D3, D4 같은 라벨 박스 -->
+        <TextView
+            android:id="@+id/tvBookLabel"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="#F5F5F4"
+            android:gravity="center"
+            android:text="D2"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#737373"
+            tools:ignore="HardcodedText" />
+
+        <!-- 단어장 제목 + 단어 개수 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
+
+            <TextView
+                android:id="@+id/tvBookTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Day 2 · 일상 회화"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/tvBookWordCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="단어 30개"
+                android:textSize="12sp"
+                android:textColor="#737373"
+                android:layout_marginTop="2dp"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <!-- 화살표 -->
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@android:drawable/ic_media_next"
+            android:contentDescription="단어장 열기"
+            android:alpha="0.4" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
