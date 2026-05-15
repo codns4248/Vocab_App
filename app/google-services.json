@@ -22,11 +22,35 @@
           }
         },
         {
+          "client_id": "211185583428-3dj789lponlt13go2efci81n635b9ndv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "ed80e5ca85652d4e6f127bc7388f879b8aece1d0"
+          }
+        },
+        {
+          "client_id": "211185583428-6fu594glv19ocb2g5clt2min35g42m3b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "528c8a5ee4ff9330bf67e4c03ce5dbfb9704689c"
+          }
+        },
+        {
           "client_id": "211185583428-9ra10k5su8sos4ohpr2jdefoiioqe2f3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.vocaapp",
             "certificate_hash": "890f6a7bb7dcdaf1ad73d669ab628398cdcf2a8c"
+          }
+        },
+        {
+          "client_id": "211185583428-i89soega6gunl7sh1phffd8jp95577bs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vocaapp",
+            "certificate_hash": "ab0a27474ab10fec6b0e6658ce076dcae52a6bcc"
           }
         },
         {
