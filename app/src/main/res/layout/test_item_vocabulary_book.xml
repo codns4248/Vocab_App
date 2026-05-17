@@ -9,20 +9,20 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="#FFFFFF"
     app:cardCornerRadius="8dp"
     app:cardElevation="0dp"
     app:strokeColor="#E5E5E5"
-    app:strokeWidth="0.5dp"
-    app:cardBackgroundColor="#FFFFFF">
+    app:strokeWidth="0.5dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="14dp"
-        android:paddingEnd="14dp"
         android:paddingTop="12dp"
+        android:paddingEnd="14dp"
         android:paddingBottom="12dp">
 
         <!-- D2, D3, D4 같은 라벨 박스 -->
@@ -33,37 +33,37 @@
             android:background="#F5F5F4"
             android:gravity="center"
             android:text="D2"
+            android:textColor="#737373"
             android:textSize="11sp"
             android:textStyle="bold"
-            android:textColor="#737373"
             tools:ignore="HardcodedText" />
 
         <!-- 단어장 제목 + 단어 개수 -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="12dp">
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tvBookTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day 2 · 일상 회화"
+                android:textColor="#1A1A1A"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
                 tools:ignore="HardcodedText" />
 
             <TextView
                 android:id="@+id/tvBookWordCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="단어 30개"
-                android:textSize="12sp"
-                android:textColor="#737373"
                 android:layout_marginTop="2dp"
+                android:text="단어 30개"
+                android:textColor="#737373"
+                android:textSize="12sp"
                 tools:ignore="HardcodedText" />
         </LinearLayout>
 
@@ -71,9 +71,9 @@
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:src="@android:drawable/ic_media_next"
+            android:alpha="0.4"
             android:contentDescription="단어장 열기"
-            android:alpha="0.4" />
+            android:src="@android:drawable/ic_media_next" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
