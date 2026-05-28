@@ -59,7 +59,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="#4A6FA5" />
+            app:tint="#3b5bdb" />
 
         <!-- 2행: 뜻 -->
         <TextView

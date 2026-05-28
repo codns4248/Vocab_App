@@ -4,7 +4,7 @@
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 
-    <color name="md_theme_primary">#f79c6c</color>
+    <color name="md_theme_primary">#3b5bdb</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
     <color name="md_theme_primaryContainer">#EADDFF</color>
     <color name="md_theme_onPrimaryContainer">#21005D</color>
