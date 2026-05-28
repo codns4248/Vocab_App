@@ -4,13 +4,39 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="24dp">
 
+    <!-- 헤더: 제목 + X 버튼 -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:text="단어장 추가"
+            android:textColor="#1A1A1A"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/closeButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="닫기"
+            android:src="@drawable/cancel" />
+    </RelativeLayout>
+
+    <!-- 단어장 이름 입력 -->
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="단어장 이름"
-        app:boxStrokeColor="@color/md_theme_primary">
+        app:boxStrokeColor="#185FA5">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/bookNameEditText"
@@ -18,13 +44,15 @@
             android:layout_height="wrap_content" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <!-- 추가 버튼 -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/registerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="등록"
-        android:textColor="@color/text_color"
-        app:backgroundTint="@color/md_theme_primary" />
+        android:layout_marginTop="20dp"
+        android:text="추가"
+        android:textColor="#FFFFFF"
+        app:backgroundTint="#185FA5"
+        app:cornerRadius="8dp" />
 
 </LinearLayout>

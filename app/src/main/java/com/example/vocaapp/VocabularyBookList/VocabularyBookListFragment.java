@@ -2,14 +2,12 @@ package com.example.vocaapp.VocabularyBookList;
 
 import static com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.deleteVocabularyBook;
 
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -24,8 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vocaapp.R;
 import com.example.vocaapp.Test.StudyManager;
 import com.example.vocaapp.VocabularyList.VocabularyFragment;
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -52,7 +49,7 @@ public class VocabularyBookListFragment extends Fragment {
     private final ArrayList<Map<String, Object>> otherList = new ArrayList<>();
 
     private String uid;
-    private BottomSheetDialog bottomSheetDialog;
+    private AlertDialog addBookDialog;
 
     @Nullable
     @Override
@@ -162,32 +159,23 @@ public class VocabularyBookListFragment extends Fragment {
     }
 
     private void showAddBookBottomSheet() {
-        bottomSheetDialog = new BottomSheetDialog(requireContext());
-        View view2 = getLayoutInflater().inflate(R.layout.vocabulary_book_register_bottom_sheet, null);
-        bottomSheetDialog.setContentView(view2);
+        View dialogView = getLayoutInflater().inflate(R.layout.vocabulary_book_register_bottom_sheet, null);
 
-        if (bottomSheetDialog.getWindow() != null) {
-            bottomSheetDialog.getWindow().setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        addBookDialog = new MaterialAlertDialogBuilder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (addBookDialog.getWindow() != null) {
+            addBookDialog.getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
-        bottomSheetDialog.setOnShowListener(dialog -> {
-            View bottomSheet = bottomSheetDialog.findViewById(
-                    com.google.android.material.R.id.design_bottom_sheet);
-            if (bottomSheet != null) {
-                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
-                behavior.setSkipCollapsed(true);
-                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            }
-        });
+        addBookDialog.show();
 
-        bottomSheetDialog.show();
-
-        Button registerButton = view2.findViewById(R.id.registerButton);
-        EditText bookNameEditText = view2.findViewById(R.id.bookNameEditText);
-
-        registerButton.setOnClickListener(v -> {
-            String bookName = bookNameEditText.getText().toString();
+        EditText bookNameEditText = dialogView.findViewById(R.id.bookNameEditText);
+        dialogView.findViewById(R.id.closeButton).setOnClickListener(v -> addBookDialog.dismiss());
+        dialogView.findViewById(R.id.registerButton).setOnClickListener(v -> {
+            String bookName = bookNameEditText.getText().toString().trim();
             if (bookName.isEmpty()) {
                 Toast.makeText(getContext(), "단어장 이름을 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
@@ -217,7 +205,7 @@ public class VocabularyBookListFragment extends Fragment {
         VocabularyBookFirestore.addVocabularyBook(input, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
             @Override
             public void onSuccess() {
-                if (bottomSheetDialog != null) bottomSheetDialog.dismiss();
+                if (addBookDialog != null) addBookDialog.dismiss();
             }
 
             @Override
