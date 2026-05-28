@@ -1,6 +1,6 @@
 package com.example.vocaapp.VocabularyList;
 
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,7 +10,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -24,14 +23,14 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.vocaapp.Camera.CameraActivity;
 import com.example.vocaapp.R;
 import com.example.vocaapp.Test.StudyManager;
 import com.example.vocaapp.Test.TestActivity;
 import com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore;
 import com.example.vocaapp.VocabularyBookList.VocabularyBookListFragment;
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
@@ -66,6 +65,13 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private MaterialButton btnStudyNow;
     private RecyclerView recyclerView;
     private FloatingActionButton fab;
+    private FloatingActionButton fabOption1;
+    private FloatingActionButton fabOption2;
+    private TextView fabOption1Label;
+    private TextView fabOption2Label;
+    private boolean isFabOpen = false;
+    private View normalContent;
+    private View emptyStateLayout;
 
     private VocabularyListAdapter adapter;
     private final List<String> wordIds = new ArrayList<>();
@@ -88,6 +94,14 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         btnStudyNow = view.findViewById(R.id.btnStudyNow);
         recyclerView = view.findViewById(R.id.recyclerViewVocabulary);
         fab = view.findViewById(R.id.vocabularyBookRegisterImageView);
+        fabOption1 = view.findViewById(R.id.fab_option1);
+        fabOption2 = view.findViewById(R.id.fab_option2);
+        fabOption1Label = view.findViewById(R.id.fab_option1_label);
+        fabOption2Label = view.findViewById(R.id.fab_option2_label);
+        normalContent = view.findViewById(R.id.normalContent);
+        emptyStateLayout = view.findViewById(R.id.emptyStateLayout);
+
+        view.findViewById(R.id.btnGoToBookList).setOnClickListener(v -> openBookList());
 
         View headerContainer = view.findViewById(R.id.headerContainer);
         headerContainer.setOnClickListener(v -> openBookList());
@@ -109,6 +123,18 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                 Toast.makeText(getContext(), "학습 모드 중에는 단어를 추가할 수 없습니다.", Toast.LENGTH_SHORT).show();
                 return;
             }
+            if (isFabOpen) closeFabMenu(); else openFabMenu();
+        });
+
+        fabOption1.setOnClickListener(v -> {
+            closeFabMenu();
+            Intent intent = new Intent(requireContext(), CameraActivity.class);
+            intent.putExtra("vocabularyId", vocabularyId);
+            startActivity(intent);
+        });
+
+        fabOption2.setOnClickListener(v -> {
+            closeFabMenu();
             showWordRegisterBottomSheet();
         });
 
@@ -155,7 +181,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             wordsListener.remove();
             wordsListener = null;
         }
-        // view가 재생성될 때 새 RecyclerView에 어댑터를 다시 붙이기 위해 초기화
+        normalContent = null;
+        emptyStateLayout = null;
         adapter = null;
         wordIds.clear();
         vocabularyId = null;
@@ -194,16 +221,47 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             saveCurrentVocabularyId(requireContext(), firstId);
                             attachBookListener(firstId);
                         } else {
-                            tvCurrentBookTitle.setText("단어장을 추가해주세요");
                             vocabularyId = null;
                             isStudying = false;
-                            updateButtonsByState();
+                            showEmptyState(true);
                         }
                     });
         }
     }
 
+    private void openFabMenu() {
+        isFabOpen = true;
+        fabOption1.setVisibility(View.VISIBLE);
+        fabOption2.setVisibility(View.VISIBLE);
+        fabOption1Label.setVisibility(View.VISIBLE);
+        fabOption2Label.setVisibility(View.VISIBLE);
+        fabOption1.animate().translationY(-200f);
+        fabOption2.animate().translationY(-400f);
+        fabOption1Label.animate().translationY(-200f);
+        fabOption2Label.animate().translationY(-400f);
+        fab.animate().rotation(45f);
+    }
+
+    private void closeFabMenu() {
+        isFabOpen = false;
+        fabOption1.animate().translationY(0).withEndAction(() -> fabOption1.setVisibility(View.GONE));
+        fabOption2.animate().translationY(0).withEndAction(() -> fabOption2.setVisibility(View.GONE));
+        fabOption1Label.animate().translationY(0).withEndAction(() -> fabOption1Label.setVisibility(View.GONE));
+        fabOption2Label.animate().translationY(0).withEndAction(() -> fabOption2Label.setVisibility(View.GONE));
+        fab.animate().rotation(0f);
+    }
+
+    private void showEmptyState(boolean isEmpty) {
+        if (normalContent == null || emptyStateLayout == null) return;
+        normalContent.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        emptyStateLayout.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        if (tvCurrentBookTitle != null) {
+            tvCurrentBookTitle.setText(isEmpty ? "단어장 없음" : "");
+        }
+    }
+
     private void attachBookListener(String newVocabId) {
+        showEmptyState(false);
         if (bookListener != null) bookListener.remove();
         if (wordsListener != null) wordsListener.remove();
 
@@ -214,6 +272,13 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                 .collection("vocabularies").document(vocabularyId)
                 .addSnapshotListener((doc, e) -> {
                     if (e != null || doc == null || !doc.exists()) {
+                        if (!isAdded() || getContext() == null) return;
+                        // 단어장이 삭제된 경우: 저장된 ID 초기화 후 재탐색
+                        saveCurrentVocabularyId(requireContext(), null);
+                        if (bookListener != null) { bookListener.remove(); bookListener = null; }
+                        if (wordsListener != null) { wordsListener.remove(); wordsListener = null; }
+                        vocabularyId = null;
+                        loadCurrentBook();
                         return;
                     }
                     String title = doc.getString("title");
@@ -356,33 +421,25 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     }
 
     private void showWordRegisterBottomSheet() {
-        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(requireContext());
-        View view = getLayoutInflater().inflate(R.layout.vocabulary_register_bottom_sheet, null);
-        bottomSheetDialog.setContentView(view);
+        View dialogView = getLayoutInflater().inflate(R.layout.vocabulary_register_bottom_sheet, null);
 
-        if (bottomSheetDialog.getWindow() != null) {
-            bottomSheetDialog.getWindow().setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        AlertDialog wordDialog = new MaterialAlertDialogBuilder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (wordDialog.getWindow() != null) {
+            wordDialog.getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
-        bottomSheetDialog.setOnShowListener(dialog -> {
-            View bottomSheet = bottomSheetDialog.findViewById(
-                    com.google.android.material.R.id.design_bottom_sheet);
-            if (bottomSheet != null) {
-                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
-                behavior.setSkipCollapsed(true);
-                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            }
-        });
+        wordDialog.show();
 
-        bottomSheetDialog.show();
+        EditText wordEditText = dialogView.findViewById(R.id.wordEditText);
+        EditText meanEditText = dialogView.findViewById(R.id.meanEditText);
+        EditText pronunciationEditText = dialogView.findViewById(R.id.pronunciationEditText);
 
-        EditText wordEditText = view.findViewById(R.id.wordEditText);
-        EditText meanEditText = view.findViewById(R.id.meanEditText);
-        EditText pronunciationEditText = view.findViewById(R.id.pronunciationEditText);
-        Button wordRegisterButton = view.findViewById(R.id.wordRegisterButton);
-
-        wordRegisterButton.setOnClickListener(v -> {
+        dialogView.findViewById(R.id.closeButton).setOnClickListener(v -> wordDialog.dismiss());
+        dialogView.findViewById(R.id.wordRegisterButton).setOnClickListener(v -> {
             String word = wordEditText.getText().toString().trim();
             String mean = meanEditText.getText().toString().trim();
             String pronunciation = pronunciationEditText.getText().toString().trim();
@@ -403,14 +460,19 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     wordData.put("timeStamp", FieldValue.serverTimestamp());
 
                     VocabularyFirestore.addWord(uid, vocabularyId, wordData,
-                            () -> Toast.makeText(getContext(), "단어가 등록되었습니다.", Toast.LENGTH_SHORT).show(),
-                            () -> Toast.makeText(getContext(), "등록 실패", Toast.LENGTH_SHORT).show());
+                            () -> {
+                                if (!isAdded()) return;
+                                Toast.makeText(getContext(), "단어가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+                                wordEditText.setText("");
+                                meanEditText.setText("");
+                                pronunciationEditText.setText("");
+                                wordEditText.requestFocus();
+                            },
+                            () -> {
+                                if (isAdded()) Toast.makeText(getContext(), "등록 실패", Toast.LENGTH_SHORT).show();
+                            });
                 }
             });
-
-            wordEditText.setText("");
-            meanEditText.setText("");
-            pronunciationEditText.setText("");
         });
     }
 
