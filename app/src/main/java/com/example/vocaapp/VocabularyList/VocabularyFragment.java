@@ -325,7 +325,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         if (btnStudyToggle == null || btnStudyNow == null) return;
 
         // ===== 학습 토글 버튼 =====
-        // 학습 시작 전: 진한 파랑 솔리드 (#185FA5)
+        // 학습 시작 전: #3b5bdb
         // 학습 진행 중: 빨강 솔리드 (#DC2626) — '학습 종료' 액션
         if (isStudying) {
             btnStudyToggle.setText("학습 종료");
@@ -342,9 +342,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             btnStudyToggle.setText("학습 시작");
             btnStudyToggle.setTextColor(0xFFFFFFFF);
             btnStudyToggle.setBackgroundTintList(
-                    android.content.res.ColorStateList.valueOf(0xFF185FA5));
+                    android.content.res.ColorStateList.valueOf(0xFF3B5BDB));
             btnStudyToggle.setStrokeColor(
-                    android.content.res.ColorStateList.valueOf(0xFF185FA5));
+                    android.content.res.ColorStateList.valueOf(0xFF3B5BDB));
             btnStudyToggle.setIcon(androidx.core.content.ContextCompat.getDrawable(
                     requireContext(), android.R.drawable.ic_media_play));
             btnStudyToggle.setIconTint(

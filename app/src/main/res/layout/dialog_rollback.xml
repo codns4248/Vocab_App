@@ -47,5 +47,5 @@
         android:layout_height="wrap_content"
         android:text="확인"
         android:textColor="#FFFFFF"
-        android:backgroundTint="#2196F3" />
+        android:backgroundTint="#3b5bdb" />
 </LinearLayout>

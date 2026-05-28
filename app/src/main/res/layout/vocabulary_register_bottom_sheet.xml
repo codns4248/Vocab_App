@@ -36,7 +36,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="단어 (필수)"
-        app:boxStrokeColor="#185FA5">
+        app:boxStrokeColor="#3b5bdb">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/wordEditText"
@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:hint="의미 (필수)"
-        app:boxStrokeColor="#185FA5">
+        app:boxStrokeColor="#3b5bdb">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/meanEditText"
@@ -64,7 +64,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:hint="발음 (선택)"
-        app:boxStrokeColor="#185FA5">
+        app:boxStrokeColor="#3b5bdb">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/pronunciationEditText"
@@ -80,7 +80,7 @@
         android:layout_marginTop="20dp"
         android:text="추가"
         android:textColor="#FFFFFF"
-        app:backgroundTint="#185FA5"
+        app:backgroundTint="#3b5bdb"
         app:cornerRadius="8dp" />
 
 </LinearLayout>
