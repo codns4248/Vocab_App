@@ -5,6 +5,7 @@ import android.util.Log;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.WriteBatch;
 
@@ -68,6 +69,7 @@ public class VocabularyFirestore {
                 .collection("vocabularies")
                 .document(vocabularyId)
                 .collection("words")
+                .orderBy("timeStamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((snapshots, e) -> {
                     if (e != null || snapshots == null) {
                         listener.onError(e);

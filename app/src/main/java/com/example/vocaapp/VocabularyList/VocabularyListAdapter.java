@@ -14,6 +14,8 @@ import com.example.vocaapp.R;
 
 import java.util.List;
 
+import android.view.View;
+
 public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAdapter.WordViewHolder> {
 
     private List<WordItem> wordList;
@@ -56,16 +58,23 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
 
         holder.wordTextView.setText(item.word);
         holder.meanTextView.setText(item.meaning);
-        holder.pronunciationTextView.setText("(" + item.pronunciation + ")");
 
-        // ===== 스피커 클릭 리스너 추가 =====
-        holder.speakerImageView.setOnClickListener(v -> {
-            if (tts == null) return;
-            if (item.word == null || item.word.isEmpty()) return;
-
-            tts.speak(item.word, TextToSpeech.QUEUE_FLUSH, null,
-                    "word_" + holder.getAdapterPosition());
-        });
+        boolean hasPronunciation = item.pronunciation != null && !item.pronunciation.isEmpty();
+        if (hasPronunciation) {
+            holder.pronunciationTextView.setVisibility(View.VISIBLE);
+            holder.speakerImageView.setVisibility(View.VISIBLE);
+            holder.pronunciationTextView.setText("(" + item.pronunciation + ")");
+            holder.speakerImageView.setOnClickListener(v -> {
+                if (tts == null) return;
+                if (item.word == null || item.word.isEmpty()) return;
+                tts.speak(item.word, TextToSpeech.QUEUE_FLUSH, null,
+                        "word_" + holder.getAdapterPosition());
+            });
+        } else {
+            holder.pronunciationTextView.setVisibility(View.GONE);
+            holder.speakerImageView.setVisibility(View.GONE);
+            holder.speakerImageView.setOnClickListener(null);
+        }
 
     }
 

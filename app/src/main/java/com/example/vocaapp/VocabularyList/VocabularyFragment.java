@@ -38,6 +38,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
@@ -74,7 +75,6 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private View emptyStateLayout;
 
     private VocabularyListAdapter adapter;
-    private final List<String> wordIds = new ArrayList<>();
 
     private ListenerRegistration bookListener;
     private ListenerRegistration wordsListener;
@@ -184,7 +184,6 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         normalContent = null;
         emptyStateLayout = null;
         adapter = null;
-        wordIds.clear();
         vocabularyId = null;
         isStudying = false;
         buttonOn = false;
@@ -221,9 +220,10 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             saveCurrentVocabularyId(requireContext(), firstId);
                             attachBookListener(firstId);
                         } else {
-                            vocabularyId = null;
-                            isStudying = false;
-                            showEmptyState(true);
+                            if (!isAdded()) return;
+                            getParentFragmentManager().beginTransaction()
+                                    .replace(R.id.fragment_container, new VocabularyBookListFragment())
+                                    .commit();
                         }
                     });
         }
@@ -298,17 +298,18 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                 .collection("users").document(uid)
                 .collection("vocabularies").document(vocabularyId)
                 .collection("words")
+                .orderBy("timeStamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((snapshots, e) -> {
                     if (e != null || snapshots == null) return;
                     List<WordItem> newList = new ArrayList<>();
-                    wordIds.clear();
                     for (QueryDocumentSnapshot d : snapshots) {
-                        wordIds.add(d.getId());
                         String word = d.getString("word");
                         String meaning = d.getString("meaning");
                         String pronunciation = d.getString("pronunciation");
                         if (word != null) {
-                            newList.add(new WordItem(word, meaning, pronunciation));
+                            WordItem item = new WordItem(word, meaning, pronunciation);
+                            item.docId = d.getId();
+                            newList.add(item);
                         }
                     }
                     if (adapter == null) {
@@ -385,16 +386,15 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
     private void setupSwipeController() {
         SwipeController swipeController = new SwipeController(position -> {
-            if (position < 0 || position >= wordIds.size()) {
+            if (adapter == null || position < 0 || position >= adapter.getItemCount()) {
                 if (adapter != null) adapter.notifyDataSetChanged();
                 return;
             }
 
-            String wordIdToDelete = wordIds.get(position);
             WordItem deletedWord = adapter.getItemAt(position);
+            String wordIdToDelete = deletedWord.docId;
             int deletedPosition = position;
 
-            wordIds.remove(position);
             adapter.removeItem(position);
 
             VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, () -> {}, null);
@@ -403,7 +403,6 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             "'" + deletedWord.word + "' 삭제됨",
                             Snackbar.LENGTH_LONG)
                     .setAction("실행 취소", v -> {
-                        wordIds.add(deletedPosition, wordIdToDelete);
                         adapter.addItem(deletedPosition, deletedWord);
 
                         Map<String, Object> wordData = new HashMap<>();
