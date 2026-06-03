@@ -55,6 +55,38 @@
             android:layout_height="match_parent"
             android:background="#FFFFFF">
 
+            <!-- 빈 상태: 단어장 없을 때 -->
+            <LinearLayout
+                android:id="@+id/emptyStateLayout"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="단어장이 없어요"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#1A1A1A"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="아래 + 버튼을 눌러 단어장을 추가해 보세요"
+                    android:textSize="14sp"
+                    android:textColor="#737373"
+                    android:gravity="center" />
+
+            </LinearLayout>
+
             <!-- 스크롤 영역: 학습 중 + 기타 단어장 -->
             <androidx.core.widget.NestedScrollView
                 android:id="@+id/scrollContainer"

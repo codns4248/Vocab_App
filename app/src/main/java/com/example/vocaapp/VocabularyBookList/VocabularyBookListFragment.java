@@ -41,6 +41,8 @@ public class VocabularyBookListFragment extends Fragment {
     private TextView tvHeaderSubtitle;
     private View currentStudySection;
     private View otherBooksSection;
+    private View emptyStateLayout;
+    private View scrollContainer;
 
     private CurrentVocabularyBookAdapter currentAdapter;
     private OtherVocabularyBookAdapter otherAdapter;
@@ -66,6 +68,8 @@ public class VocabularyBookListFragment extends Fragment {
         tvHeaderSubtitle = view.findViewById(R.id.tvHeaderSubtitle);
         currentStudySection = view.findViewById(R.id.currentStudySection);
         otherBooksSection = view.findViewById(R.id.otherBooksSection);
+        emptyStateLayout = view.findViewById(R.id.emptyStateLayout);
+        scrollContainer = view.findViewById(R.id.scrollContainer);
 
         recyclerViewCurrentStudy.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerViewOthers.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -122,6 +126,13 @@ public class VocabularyBookListFragment extends Fragment {
     }
 
     private void updateSectionVisibility() {
+        boolean isEmpty = currentList.isEmpty() && otherList.isEmpty();
+        if (emptyStateLayout != null) {
+            emptyStateLayout.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        }
+        if (scrollContainer != null) {
+            scrollContainer.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        }
         if (currentStudySection != null) {
             currentStudySection.setVisibility(currentList.isEmpty() ? View.GONE : View.VISIBLE);
         }
@@ -201,6 +212,7 @@ public class VocabularyBookListFragment extends Fragment {
         input.put("stampCount", 0);
         input.put("isStudying", false);
         input.put("wordCount", 0);
+        input.put("timeStamp", FieldValue.serverTimestamp());
 
         VocabularyBookFirestore.addVocabularyBook(input, uid, new VocabularyBookFirestore.VocabularyBookCallback() {
             @Override

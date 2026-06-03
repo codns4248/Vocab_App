@@ -8,6 +8,7 @@ public class WordItem implements Parcelable {
     public String meaning;
     public String pronunciation;
     public boolean selected = true; // 기본값: 선택됨
+    public String docId;
 
     public WordItem() {
     }
@@ -24,6 +25,7 @@ public class WordItem implements Parcelable {
         meaning = in.readString();
         pronunciation = in.readString();
         selected = in.readByte() != 0;
+        docId = in.readString();
     }
 
     // Parcel에 쓰는 메서드
@@ -33,6 +35,7 @@ public class WordItem implements Parcelable {
         dest.writeString(meaning);
         dest.writeString(pronunciation);
         dest.writeByte((byte) (selected ? 1 : 0));
+        dest.writeString(docId);
     }
 
     @Override

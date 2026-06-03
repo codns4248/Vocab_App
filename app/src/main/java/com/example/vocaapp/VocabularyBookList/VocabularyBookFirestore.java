@@ -2,6 +2,7 @@ package com.example.vocaapp.VocabularyBookList;
 
 import android.util.Log;
 
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -68,6 +69,14 @@ public class VocabularyBookFirestore {
                             vocabData.put("id", doc.getId());
                             dataList.add(vocabData);
                         }
+                        dataList.sort((a, b) -> {
+                            Timestamp tsA = (Timestamp) a.get("timeStamp");
+                            Timestamp tsB = (Timestamp) b.get("timeStamp");
+                            if (tsA == null && tsB == null) return 0;
+                            if (tsA == null) return -1;
+                            if (tsB == null) return 1;
+                            return tsA.compareTo(tsB);
+                        });
                         if (callback != null) callback.onUpdate(dataList);
                     }
                 });
