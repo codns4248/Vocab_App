@@ -62,19 +62,18 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
         boolean hasPronunciation = item.pronunciation != null && !item.pronunciation.isEmpty();
         if (hasPronunciation) {
             holder.pronunciationTextView.setVisibility(View.VISIBLE);
-            holder.speakerImageView.setVisibility(View.VISIBLE);
             holder.pronunciationTextView.setText("(" + item.pronunciation + ")");
-            holder.speakerImageView.setOnClickListener(v -> {
-                if (tts == null) return;
-                if (item.word == null || item.word.isEmpty()) return;
-                tts.speak(item.word, TextToSpeech.QUEUE_FLUSH, null,
-                        "word_" + holder.getAdapterPosition());
-            });
         } else {
             holder.pronunciationTextView.setVisibility(View.GONE);
-            holder.speakerImageView.setVisibility(View.GONE);
-            holder.speakerImageView.setOnClickListener(null);
         }
+
+        boolean hasWord = item.word != null && !item.word.isEmpty();
+        holder.speakerImageView.setVisibility(hasWord ? View.VISIBLE : View.GONE);
+        holder.speakerImageView.setOnClickListener(hasWord ? v -> {
+            if (tts == null) return;
+            tts.speak(item.word, TextToSpeech.QUEUE_FLUSH, null,
+                    "word_" + holder.getAdapterPosition());
+        } : null);
 
     }
 

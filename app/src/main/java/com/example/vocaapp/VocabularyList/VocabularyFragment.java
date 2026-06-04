@@ -62,6 +62,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private boolean buttonOn = false;
 
     private TextView tvCurrentBookTitle;
+    private TextView tvWordCountStat;
+    private TextView tvStudyRateStat;
+    private TextView tvLastStudyStat;
     private MaterialButton btnStudyToggle;
     private MaterialButton btnStudyNow;
     private RecyclerView recyclerView;
@@ -71,6 +74,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private TextView fabOption1Label;
     private TextView fabOption2Label;
     private boolean isFabOpen = false;
+    private int currentWordCount = 0;
+    private int currentStampCount = 0;
+    private Date lastStudiedAt = null;
     private View normalContent;
     private View emptyStateLayout;
 
@@ -90,6 +96,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         if (user != null) uid = user.getUid();
 
         tvCurrentBookTitle = view.findViewById(R.id.tvCurrentBookTitle);
+        tvWordCountStat = view.findViewById(R.id.tvWordCountStat);
+        tvStudyRateStat = view.findViewById(R.id.tvStudyRateStat);
+        tvLastStudyStat = view.findViewById(R.id.tvLastStudyStat);
         btnStudyToggle = view.findViewById(R.id.btnStudyToggle);
         btnStudyNow = view.findViewById(R.id.btnStudyNow);
         recyclerView = view.findViewById(R.id.recyclerViewVocabulary);
@@ -187,6 +196,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         vocabularyId = null;
         isStudying = false;
         buttonOn = false;
+        currentWordCount = 0;
+        currentStampCount = 0;
+        lastStudiedAt = null;
     }
 
     @Override
@@ -258,6 +270,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         if (tvCurrentBookTitle != null) {
             tvCurrentBookTitle.setText(isEmpty ? "단어장 없음" : "");
         }
+        if (isEmpty) {
+            currentWordCount = 0;
+            currentStampCount = 0;
+            lastStudiedAt = null;
+            updateHeaderStats();
+        }
     }
 
     private void attachBookListener(String newVocabId) {
@@ -284,9 +302,13 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     String title = doc.getString("title");
                     Boolean studying = doc.getBoolean("isStudying");
                     Boolean btnOn = doc.getBoolean("buttonOn");
+                    Object stampObj = doc.get("stampCount");
                     isStudying = Boolean.TRUE.equals(studying);
                     buttonOn = Boolean.TRUE.equals(btnOn);
+                    currentStampCount = (stampObj instanceof Number) ? ((Number) stampObj).intValue() : 0;
+                    lastStudiedAt = doc.getDate("lastStudiedAt");
                     tvCurrentBookTitle.setText(title != null ? title : "");
+                    updateHeaderStats();
                     updateButtonsByState();
                 });
 
@@ -312,6 +334,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             newList.add(item);
                         }
                     }
+                    currentWordCount = newList.size();
+                    updateHeaderStats();
                     if (adapter == null) {
                         adapter = new VocabularyListAdapter(newList, tts);
                         recyclerView.setAdapter(adapter);
@@ -335,21 +359,15 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     android.content.res.ColorStateList.valueOf(0xFFDC2626));
             btnStudyToggle.setStrokeColor(
                     android.content.res.ColorStateList.valueOf(0xFFDC2626));
-            btnStudyToggle.setIcon(androidx.core.content.ContextCompat.getDrawable(
-                    requireContext(), android.R.drawable.ic_media_pause));
-            btnStudyToggle.setIconTint(
-                    android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+            btnStudyToggle.setIcon(null);
         } else {
-            btnStudyToggle.setText("학습 시작");
+            btnStudyToggle.setText("학습시작");
             btnStudyToggle.setTextColor(0xFFFFFFFF);
             btnStudyToggle.setBackgroundTintList(
                     android.content.res.ColorStateList.valueOf(0xFF3B5BDB));
             btnStudyToggle.setStrokeColor(
                     android.content.res.ColorStateList.valueOf(0xFF3B5BDB));
-            btnStudyToggle.setIcon(androidx.core.content.ContextCompat.getDrawable(
-                    requireContext(), android.R.drawable.ic_media_play));
-            btnStudyToggle.setIconTint(
-                    android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+            btnStudyToggle.setIcon(null);
         }
 
         // ===== 공부하기 버튼 =====
@@ -366,10 +384,47 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         } else {
             btnStudyNow.setTextColor(0xFFA3A3A3);
             btnStudyNow.setBackgroundTintList(
-                    android.content.res.ColorStateList.valueOf(0x00000000));
+                    android.content.res.ColorStateList.valueOf(0xFFF0F0F4));
             btnStudyNow.setStrokeColor(
-                    android.content.res.ColorStateList.valueOf(0xFFE5E5E5));
+                    android.content.res.ColorStateList.valueOf(0x00E5E5E5));
         }
+    }
+
+    private void updateHeaderStats() {
+        if (tvWordCountStat != null) {
+            tvWordCountStat.setText(currentWordCount + "개");
+        }
+        if (tvStudyRateStat != null) {
+            int percent = Math.min(100, Math.max(0, Math.round(currentStampCount * 100f / 6f)));
+            tvStudyRateStat.setText(percent + "%");
+        }
+        if (tvLastStudyStat != null) {
+            tvLastStudyStat.setText(formatLastStudiedAt(lastStudiedAt));
+        }
+    }
+
+    private String formatLastStudiedAt(Date date) {
+        if (date == null) return "-";
+
+        Calendar target = Calendar.getInstance();
+        target.setTime(date);
+
+        Calendar today = Calendar.getInstance();
+        if (isSameDay(target, today)) return "오늘";
+
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.DAY_OF_YEAR, -1);
+        if (isSameDay(target, yesterday)) return "어제";
+
+        return String.format(Locale.KOREA,
+                "%d/%d",
+                target.get(Calendar.MONTH) + 1,
+                target.get(Calendar.DAY_OF_MONTH));
+    }
+
+    private boolean isSameDay(Calendar a, Calendar b) {
+        return a.get(Calendar.YEAR) == b.get(Calendar.YEAR)
+                && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
     }
 
     private void openBookList() {
