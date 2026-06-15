@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.ExifInterface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -12,6 +14,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
@@ -43,8 +48,11 @@ import com.google.firebase.ai.type.Schema;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.gson.Gson;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +71,21 @@ public class CameraActivity extends AppCompatActivity {
     private CameraAdapter photoAdapter;
     private List<Bitmap> photoList;
     private TextView finishTextView;
+    private ImageView galleryImageView;
+
+    // 갤러리에서 여러 장의 사진을 선택하는 런처 (Photo Picker)
+    private final ActivityResultLauncher<PickVisualMediaRequest> pickMediaLauncher =
+            registerForActivityResult(new ActivityResultContracts.PickMultipleVisualMedia(5), uris -> {
+                if (uris == null || uris.isEmpty()) {
+                    return;
+                }
+                for (Uri uri : uris) {
+                    Bitmap bitmap = loadBitmapFromUri(uri);
+                    if (bitmap != null) {
+                        photoAdapter.addPhoto(bitmap, CameraActivity.this);
+                    }
+                }
+            });
 
     private GenerativeModelFutures model;
 
@@ -71,6 +94,27 @@ public class CameraActivity extends AppCompatActivity {
     private FirebaseUser user;
 
     private View loadingOverlay;
+    private TextView loadingText;
+
+    // 로딩 문구 타자 효과용
+    private final android.os.Handler typingHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private static final String LOADING_FULL_TEXT = "단어를 추출하고 있어요...";
+    private int typingIndex = 0;
+    private final Runnable typingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            typingIndex++;
+            if (typingIndex > LOADING_FULL_TEXT.length()) {
+                // 다 입력되면 잠깐 멈췄다가 처음부터 다시 (반복)
+                typingIndex = 0;
+                loadingText.setText("");
+                typingHandler.postDelayed(this, 700);
+                return;
+            }
+            loadingText.setText(LOADING_FULL_TEXT.substring(0, typingIndex));
+            typingHandler.postDelayed(this, 120);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +133,7 @@ public class CameraActivity extends AppCompatActivity {
         backImageView = findViewById(R.id.backImageView);
         finishTextView = findViewById(R.id.finishTextView);
         loadingOverlay = findViewById(R.id.loadingOverlay);
+        loadingText = findViewById(R.id.loadingText);
 
         vocabularyId = getIntent().getStringExtra("vocabularyId");
 
@@ -110,6 +155,13 @@ public class CameraActivity extends AppCompatActivity {
         captureImageView.setOnClickListener(v -> takePhoto());
 
         backImageView.setOnClickListener(v -> finish());
+
+        // 갤러리에서 사진 가져오기 (이미지만 선택)
+        galleryImageView = findViewById(R.id.galleryImageView);
+        galleryImageView.setOnClickListener(v ->
+                pickMediaLauncher.launch(new PickVisualMediaRequest.Builder()
+                        .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                        .build()));
 
         // LayoutManager 설정 (가로 스크롤)
         LinearLayoutManager layoutManager = new LinearLayoutManager(
@@ -149,15 +201,86 @@ public class CameraActivity extends AppCompatActivity {
 
     }
 
+    // AI 단어 등록 1회당 차감되는 포인트
+    private static final int AI_EXTRACT_COST = 20;
+
     // 사진에서 단어를 추출하는 method
     private void extractData() {
-
-        loadingOverlay.setVisibility(View.VISIBLE);
 
         if (photoList.isEmpty()) {
             Toast.makeText(this, "먼저 사진을 촬영해주세요.", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // 포인트가 충분한지 먼저 확인 후 추출 진행
+        showLoading();
+        FirebaseFirestore.getInstance().collection("users").document(uid)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    long point = (snapshot.exists() && snapshot.get("point") != null)
+                            ? snapshot.getLong("point") : 0;
+                    if (point < AI_EXTRACT_COST) {
+                        hideLoading();
+                        showInsufficientPointDialog();
+                        return;
+                    }
+                    runExtraction();
+                })
+                .addOnFailureListener(e -> {
+                    hideLoading();
+                    Toast.makeText(this, "포인트 확인 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    // 로딩 오버레이 표시 + 타자 효과 시작
+    private void showLoading() {
+        loadingOverlay.setVisibility(View.VISIBLE);
+        typingHandler.removeCallbacks(typingRunnable);
+        typingIndex = 0;
+        loadingText.setText("");
+        typingHandler.post(typingRunnable);
+    }
+
+    // 로딩 오버레이 숨김 + 타자 효과 중단
+    private void hideLoading() {
+        loadingOverlay.setVisibility(View.GONE);
+        typingHandler.removeCallbacks(typingRunnable);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        typingHandler.removeCallbacks(typingRunnable);
+    }
+
+    // 포인트 부족 안내 팝업 (확인 / 결제하기)
+    private void showInsufficientPointDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_insufficient_point, null);
+
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+        // 팝업 배경을 투명하게 해서 둥근 모서리가 보이도록 처리
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        // 확인: 팝업 닫기
+        dialogView.findViewById(R.id.cancelBtn).setOnClickListener(v -> dialog.dismiss());
+
+        // 결제하기: 결제 로직은 추후 구현 예정 (현재는 닫기만)
+        dialogView.findViewById(R.id.chargeBtn).setOnClickListener(v -> {
+            // TODO: 포인트 결제/충전 로직 연결
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    // 실제 Gemini 추출을 수행하는 method
+    private void runExtraction() {
 
         Content.Builder contentBuilder = new Content.Builder();
 
@@ -190,9 +313,13 @@ public class CameraActivity extends AppCompatActivity {
 
                             // 결과 처리 (메인 스레드에서 UI 업데이트)
                             runOnUiThread(() -> {
-                                loadingOverlay.setVisibility(View.GONE);
+                                hideLoading();
 
                                 if (wordList != null && !wordList.isEmpty()) {
+                                    // AI 단어 등록 성공 시 포인트 차감
+                                    FirebaseFirestore.getInstance().collection("users").document(uid)
+                                            .update("point", FieldValue.increment(-AI_EXTRACT_COST));
+
                                     Intent intent = new Intent(CameraActivity.this, WordSelectActivity.class);
                                     intent.putParcelableArrayListExtra("wordList", new ArrayList<>(wordList));
                                     intent.putExtra("vocabularyId", vocabularyId);
@@ -211,9 +338,10 @@ public class CameraActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(Throwable t) {
                         Log.e("GeminiError", "에러 발생: " + t.getMessage());
-                        runOnUiThread(() ->
-                                Toast.makeText(CameraActivity.this, "분석 실패: " + t.getMessage(), Toast.LENGTH_SHORT).show()
-                        );
+                        runOnUiThread(() -> {
+                            hideLoading();
+                            Toast.makeText(CameraActivity.this, "분석 실패: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
                     }
                 },
                 ContextCompat.getMainExecutor(this) // 별도 변수 없이 안드로이드 메인 실행기 사용
@@ -336,6 +464,36 @@ public class CameraActivity extends AppCompatActivity {
                     }
                 }
         );
+    }
+
+    // 갤러리 Uri를 Bitmap으로 변환하는 메서드 (EXIF 회전 정보 반영)
+    private Bitmap loadBitmapFromUri(Uri uri) {
+        try {
+            // 1. 비트맵 디코딩
+            InputStream is = getContentResolver().openInputStream(uri);
+            Bitmap bitmap = BitmapFactory.decodeStream(is);
+            if (is != null) is.close();
+            if (bitmap == null) return null;
+
+            // 2. EXIF 회전 정보 읽어서 보정
+            int degrees = 0;
+            InputStream exifStream = getContentResolver().openInputStream(uri);
+            if (exifStream != null) {
+                ExifInterface exif = new ExifInterface(exifStream);
+                int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.ORIENTATION_NORMAL);
+                if (orientation == ExifInterface.ORIENTATION_ROTATE_90) degrees = 90;
+                else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) degrees = 180;
+                else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) degrees = 270;
+                exifStream.close();
+            }
+
+            return rotateBitmap(bitmap, degrees);
+        } catch (IOException e) {
+            Log.e("GalleryError", "이미지 불러오기 실패: " + e.getMessage());
+            Toast.makeText(this, "이미지를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+            return null;
+        }
     }
 
     // ImageProxy를 Bitmap으로 변환하는 메서드

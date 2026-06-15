@@ -55,6 +55,23 @@ public class StudyManager {
                 });
     }
 
+    // 신규 가입 시 기본 포인트(100P)를 지급합니다.
+    public void initNewUserPoint(String userId) {
+        DocumentReference userRef = db.collection("users").document(userId);
+        // 이미 point가 있으면 덮어쓰지 않도록 존재 여부를 먼저 확인
+        userRef.get().addOnSuccessListener(snapshot -> {
+            if (snapshot.exists() && snapshot.contains("point")) {
+                Log.d("Point", "이미 포인트가 존재하여 초기화 건너뜀");
+                return;
+            }
+            Map<String, Object> pointData = new HashMap<>();
+            pointData.put("point", 100);
+            userRef.set(pointData, com.google.firebase.firestore.SetOptions.merge())
+                    .addOnSuccessListener(aVoid -> Log.d("Point", "신규 유저 기본 포인트 100P 지급 성공"))
+                    .addOnFailureListener(e -> Log.e("Point", "기본 포인트 지급 실패: " + e.getMessage()));
+        }).addOnFailureListener(e -> Log.e("Point", "유저 문서 조회 실패: " + e.getMessage()));
+    }
+
     public void studyVocabulary(Context context, String userId, String vocabId, int nextStamp) {
         DocumentReference vocabRef = db.collection("users").document(userId)
                 .collection("vocabularies").document(vocabId);

@@ -8,6 +8,7 @@ import android.widget.Toast; //토스트 메세지 출력용
 import android.util.Log; // 로그 출력용
 
 import android.os.Bundle;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
@@ -78,6 +79,30 @@ public class MainActivity extends AppCompatActivity {
 
             return true;
         });
+
+        // 신규 가입 유저라면 환영 팝업(100P 지급 안내)을 띄움
+        if (getIntent().getBooleanExtra("isNewUser", false)) {
+            showWelcomePointDialog();
+        }
+    }
+
+    // 신규 가입 환영 팝업 (100P 지급 안내)
+    private void showWelcomePointDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_welcome_point, null);
+
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        // 팝업 배경을 투명하게 해서 둥근 모서리가 보이도록 처리
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        dialogView.findViewById(R.id.welcomeConfirmBtn).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     private void askNotificationPermission() {

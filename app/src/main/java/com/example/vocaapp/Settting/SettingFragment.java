@@ -19,6 +19,7 @@ import com.example.vocaapp.LoginActivity;
 import com.example.vocaapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class SettingFragment extends Fragment {
 
@@ -37,6 +38,7 @@ public class SettingFragment extends Fragment {
 
         //xml에 있는 이메일 글씨, 버튼 가져오기
         TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
+        TextView tvUserPoint = view.findViewById(R.id.tvUserPoint);
         TextView btnLogout = view.findViewById(R.id.logoutTextView);
         TextView unregisterTextView = view.findViewById(R.id.unregisterTextView);
         LinearLayout sendCommentLinear = view.findViewById(R.id.sendCommentLinear);
@@ -46,6 +48,18 @@ public class SettingFragment extends Fragment {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
             tvUserEmail.setText(user.getEmail());
+
+            // 잔여 포인트 불러와서 표시하기
+            FirebaseFirestore.getInstance().collection("users").document(user.getUid())
+                    .get()
+                    .addOnSuccessListener(snapshot -> {
+                        long point = 0;
+                        if (snapshot.exists() && snapshot.get("point") != null) {
+                            point = snapshot.getLong("point");
+                        }
+                        tvUserPoint.setText(point + " P");
+                    })
+                    .addOnFailureListener(e -> tvUserPoint.setText("0 P"));
         }
 
         sendCommentLinear.setOnClickListener(v -> {

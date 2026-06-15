@@ -27,7 +27,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="#FFFFFF"
-            app:labelVisibilityMode="labeled"
+            app:itemActiveIndicatorStyle="@null"
+            app:itemIconTint="@color/nav_icon_tint"
+            app:itemRippleColor="@android:color/transparent"
+            app:labelVisibilityMode="unlabeled"
             app:menu="@menu/bottom_menu" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

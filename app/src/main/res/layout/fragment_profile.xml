@@ -36,33 +36,57 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/imageView3"
-                    android:layout_width="50dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="10dp"
-                    app:srcCompat="@drawable/profile_icon" />
 
                 <TextView
                     android:id="@+id/tvUserEmail"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="10dp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="15dp"
                     android:layout_weight="1"
-                    android:gravity="bottom|top"
                     android:text="아이디 표시" />
+
+                <ImageView
+                    android:id="@+id/ivCoin"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="8dp"
+                    app:srcCompat="@drawable/coin" />
+
+                <TextView
+                    android:id="@+id/tvUserPoint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="0 P"
+                    android:textColor="#3b5bdb"
+                    android:textStyle="bold" />
 
                 <ImageView
                     android:id="@+id/imageView4"
                     android:layout_width="30dp"
                     android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
                     android:layout_marginEnd="10dp"
                     app:srcCompat="@drawable/next_icon" />
             </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            android:id="@+id/chargePointButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/round_background"
+            android:backgroundTint="#3b5bdb"
+            android:gravity="center"
+            android:text="포인트 충전"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"

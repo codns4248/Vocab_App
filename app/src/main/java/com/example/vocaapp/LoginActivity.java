@@ -133,20 +133,35 @@ public class LoginActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
 
                         FirebaseUser user = mAuth.getCurrentUser();
+
+                        // 신규 가입 유저인지 판별
+                        boolean isNewUser = user != null
+                                && task.getResult().getAdditionalUserInfo() != null
+                                && task.getResult().getAdditionalUserInfo().isNewUser();
+
                         if (user != null) {
                             // 로그인/회원가입 시점에 FCM 토큰을 Firestore에 저장합니다.
                             com.example.vocaapp.Test.StudyManager.getInstance().updateFCMToken(user.getUid());
+
+                            // 신규 가입 유저라면 기본 포인트 100P를 지급합니다.
+                            if (isNewUser) {
+                                com.example.vocaapp.Test.StudyManager.getInstance().initNewUserPoint(user.getUid());
+                            }
                         }
 
-                        runOnUiThread(() -> {
-                            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                            startActivity(intent);
-                            finish();
-                        });
+                        runOnUiThread(() -> goToMain(isNewUser));
                     } else {
                         // 실패
                         runOnUiThread(() -> Toast.makeText(LoginActivity.this, "파이어베이스 인증 실패", Toast.LENGTH_SHORT).show());
                     }
                 });
+    }
+
+    // 메인 화면으로 이동 (신규 유저면 환영 팝업을 띄우도록 플래그 전달)
+    private void goToMain(boolean isNewUser) {
+        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        intent.putExtra("isNewUser", isNewUser);
+        startActivity(intent);
+        finish();
     }
 }

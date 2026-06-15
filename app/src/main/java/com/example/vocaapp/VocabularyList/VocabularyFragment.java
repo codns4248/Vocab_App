@@ -621,7 +621,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
     @Override
     public void onInit(int status) {
-        if (status == TextToSpeech.SUCCESS) {
+        // onInit은 비동기로 호출되므로, 그 사이 프래그먼트가 정리되어 tts가 null이 됐을 수 있음
+        if (status == TextToSpeech.SUCCESS && tts != null) {
             int result = tts.setLanguage(Locale.US);
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 if (isAdded()) Toast.makeText(getContext(), "영어 음성 데이터가 없습니다", Toast.LENGTH_SHORT).show();

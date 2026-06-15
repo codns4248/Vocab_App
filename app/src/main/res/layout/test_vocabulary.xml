@@ -117,13 +117,14 @@
 
             <ImageView
                 android:id="@+id/headerNextIcon"
-                android:layout_width="22dp"
+                android:layout_width="44dp"
                 android:layout_height="42dp"
                 android:contentDescription="단어장 변경"
-                android:src="@drawable/ic_blue_next_wedge"
+                android:src="@drawable/right_arrow_icon"
                 app:layout_constraintBottom_toBottomOf="@id/statContainer"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/tvCurrentBookTitle" />
+                app:layout_constraintTop_toTopOf="@id/tvCurrentBookTitle"
+                app:tint="#3b5bdb" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- ===== 일반 콘텐츠: 단어장 있을 때 ===== -->
@@ -195,7 +196,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="16dp"
-                    android:layout_marginBottom="50dp"
+                    android:layout_marginBottom="35dp"
                     android:background="@drawable/label_background"
                     android:paddingStart="12dp"
                     android:paddingTop="6dp"
@@ -213,7 +214,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="16dp"
-                    android:layout_marginBottom="50dp"
+                    android:layout_marginBottom="35dp"
                     android:background="@drawable/label_background"
                     android:paddingStart="12dp"
                     android:paddingTop="6dp"

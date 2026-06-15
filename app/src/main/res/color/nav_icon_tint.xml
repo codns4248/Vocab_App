@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 선택된 아이콘: 블랙 -->
+    <item android:color="#000000" android:state_checked="true" />
+    <!-- 선택되지 않은 아이콘: 회색 -->
+    <item android:color="#9E9E9E" />
+</selector>
