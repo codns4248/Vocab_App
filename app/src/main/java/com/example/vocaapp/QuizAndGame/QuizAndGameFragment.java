@@ -34,51 +34,24 @@ public class QuizAndGameFragment extends Fragment {
 
 
         //  받아쓰기 버튼
-        dictationConstraintLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                QuizSettingBottomSheet bottomSheet = new QuizSettingBottomSheet();
-                Bundle args = new Bundle();
-                args.putString("quizType", "DICTATION");
-
-                args.putBoolean("isOfficial", false);
-
-                bottomSheet.setArguments(args);
-                bottomSheet.show(getChildFragmentManager(), "QuizSettingTag");
-            }
-        });
+        dictationConstraintLayout.setOnClickListener(v -> openWordbookPicker("DICTATION"));
 
         //  플래시카드(O/X) 버튼
-        flashcardConstraintLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                QuizSettingBottomSheet bottomSheet = new QuizSettingBottomSheet();
-                Bundle args = new Bundle();
-                args.putString("quizType", "FLASHCARD");
-
-                args.putBoolean("isOfficial", false);
-
-                bottomSheet.setArguments(args);
-                bottomSheet.show(getChildFragmentManager(), "QuizSettingTag");
-            }
-        });
+        flashcardConstraintLayout.setOnClickListener(v -> openWordbookPicker("FLASHCARD"));
 
         // 객관식
-        multiplechoiceConstraintLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                QuizSettingBottomSheet bottomSheet = new QuizSettingBottomSheet();
-                Bundle args = new Bundle();
-                args.putString("quizType", "MULTIPLE_CHOICE");
-
-                args.putBoolean("isOfficial", false);
-
-                bottomSheet.setArguments(args);
-                bottomSheet.show(getChildFragmentManager(), "QuizSettingTag");
-            }
-        });
+        multiplechoiceConstraintLayout.setOnClickListener(v -> openWordbookPicker("MULTIPLE_CHOICE"));
 
         return view;
 
+    }
+
+    private void openWordbookPicker(String quizType) {
+        SelectVocabularyBookBottomSheet bottomSheet = new SelectVocabularyBookBottomSheet();
+        Bundle args = new Bundle();
+        args.putString("quizType", quizType);
+        args.putBoolean("isOfficial", false);
+        bottomSheet.setArguments(args);
+        bottomSheet.show(getChildFragmentManager(), "SelectVocabularyBookTag");
     }
 }

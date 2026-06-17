@@ -1,5 +1,6 @@
 package com.example.vocaapp.QuizAndGame;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -56,49 +57,56 @@ public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
         registerTextView.setOnClickListener(v -> {
             Map<String, Object> selectedData = adapter.getSelectedWordbook();
 
-
-            if (selectedData != null) {
-                // map에서 데이터 꺼내기
-                String title = String.valueOf(selectedData.get("title"));
-                String id = String.valueOf(selectedData.get("id"));
-
-                boolean isStudying;
-                if (selectedData.get("isStudying") != null) {
-                    isStudying = (boolean) selectedData.get("isStudying");
-                } else {
-                    isStudying = false;
-                }
-
-                QuizAndGameFirestore quizAndGameFirestore = new QuizAndGameFirestore();
-                quizAndGameFirestore.getWordCount(uid, id, new QuizAndGameFirestore.OnWordCountCallback() {
-                        @Override
-                            public void onCallback(long wordCount) {
-                                // 단어장에 단어가 없는 경우를 처리
-                                if (wordCount == 0){
-                                    Toast.makeText(requireContext(), "단어장에 단어가 없습니다.", Toast.LENGTH_SHORT).show();
-                                    return;
-                                }
-                                // 단어장에 단어가 있는 경우를 처리
-                                else{
-                                    // [핵심] 부모(QuizSetting)에게 데이터를 전달합니다.
-                                    Bundle result = new Bundle();
-                                    result.putString("selectedTitle", title);
-                                    result.putString("selectedId", id);
-
-                                    result.putBoolean("isStudying", isStudying);
-
-                                    // requestKey는 부모와 맞춘 약속된 키입니다.
-                                    getParentFragmentManager().setFragmentResult("requestKey", result);
-
-                                    // 본인만 닫습니다. 그러면 아래에 있던 QuizSetting이 다시 보입니다.
-                                    dismiss();
-                                }
-                            }
-                });
-            } else {
+            if (selectedData == null) {
                 Toast.makeText(getContext(), "단어장을 선택해주세요!", Toast.LENGTH_SHORT).show();
+                return;
             }
 
+            String id = String.valueOf(selectedData.get("id"));
+
+            boolean isStudying;
+            if (selectedData.get("isStudying") != null) {
+                isStudying = (boolean) selectedData.get("isStudying");
+            } else {
+                isStudying = false;
+            }
+
+            String quizType = "DICTATION";
+            boolean isOfficial = false;
+            if (getArguments() != null) {
+                quizType = getArguments().getString("quizType", "DICTATION");
+                isOfficial = getArguments().getBoolean("isOfficial", false);
+            }
+
+            if (isOfficial && !isStudying) {
+                Toast.makeText(getContext(), "이 단어장은 학습 모드가 꺼져있습니다.\n단어장 탭에서 학습 모드를 켜주세요!", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            final String finalQuizType = quizType;
+            final boolean finalIsOfficial = isOfficial;
+
+            QuizAndGameFirestore quizAndGameFirestore = new QuizAndGameFirestore();
+            quizAndGameFirestore.getWordCount(uid, id, wordCount -> {
+                if (wordCount == 0) {
+                    Toast.makeText(requireContext(), "단어장에 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Intent intent;
+                if ("FLASHCARD".equals(finalQuizType)) {
+                    intent = new Intent(getContext(), OXTestActivity.class);
+                } else if ("MULTIPLE_CHOICE".equals(finalQuizType)) {
+                    intent = new Intent(getContext(), MultipleChoiceActivity.class);
+                } else {
+                    intent = new Intent(getContext(), DictationActivity.class);
+                }
+                intent.putExtra("vocabularyId", id);
+                intent.putExtra("isOfficial", finalIsOfficial);
+                startActivity(intent);
+
+                dismiss();
+            });
         });
 
         adapter = new WordbookAdapter(dataList);
