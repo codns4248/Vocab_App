@@ -43,6 +43,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +68,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private TextView tvLastStudyStat;
     private MaterialButton btnStudyToggle;
     private MaterialButton btnStudyNow;
+    private TextView btnSortToggle;
+    private boolean isSortedAlphabetically = false;
+    private List<WordItem> originalWordList = new ArrayList<>();
     private RecyclerView recyclerView;
     private FloatingActionButton fab;
     private FloatingActionButton fabOption1;
@@ -101,6 +105,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         tvLastStudyStat = view.findViewById(R.id.tvLastStudyStat);
         btnStudyToggle = view.findViewById(R.id.btnStudyToggle);
         btnStudyNow = view.findViewById(R.id.btnStudyNow);
+        btnSortToggle = view.findViewById(R.id.btnSortToggle);
         recyclerView = view.findViewById(R.id.recyclerViewVocabulary);
         fab = view.findViewById(R.id.vocabularyBookRegisterImageView);
         fabOption1 = view.findViewById(R.id.fab_option1);
@@ -170,6 +175,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             startActivity(intent);
         });
 
+        btnSortToggle.setOnClickListener(v -> {
+            isSortedAlphabetically = !isSortedAlphabetically;
+            btnSortToggle.setText(isSortedAlphabetically ? "알파벳 순" : "추가 순");
+            applySortToAdapter();
+        });
+
         return view;
     }
 
@@ -196,6 +207,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         vocabularyId = null;
         isStudying = false;
         buttonOn = false;
+        isSortedAlphabetically = false;
+        originalWordList = new ArrayList<>();
         currentWordCount = 0;
         currentStampCount = 0;
         lastStudiedAt = null;
@@ -241,16 +254,32 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         }
     }
 
+    private List<WordItem> getSortedList() {
+        List<WordItem> copy = new ArrayList<>(originalWordList);
+        if (isSortedAlphabetically) {
+            Collections.sort(copy, (a, b) -> a.word.compareToIgnoreCase(b.word));
+        }
+        return copy;
+    }
+
+    private void applySortToAdapter() {
+        if (adapter == null) return;
+        adapter.updateItems(getSortedList());
+    }
+
     private void openFabMenu() {
         isFabOpen = true;
         fabOption1.setVisibility(View.VISIBLE);
         fabOption2.setVisibility(View.VISIBLE);
         fabOption1Label.setVisibility(View.VISIBLE);
         fabOption2Label.setVisibility(View.VISIBLE);
-        fabOption1.animate().translationY(-200f);
-        fabOption2.animate().translationY(-400f);
-        fabOption1Label.animate().translationY(-200f);
-        fabOption2Label.animate().translationY(-400f);
+        float density = getResources().getDisplayMetrics().density;
+        float step1 = -90 * density;
+        float step2 = -160 * density;
+        fabOption1.animate().translationY(step1);
+        fabOption2.animate().translationY(step2);
+        fabOption1Label.animate().translationY(step1);
+        fabOption2Label.animate().translationY(step2);
         fab.animate().rotation(45f);
     }
 
@@ -334,14 +363,15 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             newList.add(item);
                         }
                     }
+                    originalWordList = newList;
                     currentWordCount = newList.size();
                     updateHeaderStats();
                     if (adapter == null) {
-                        adapter = new VocabularyListAdapter(newList, tts);
+                        adapter = new VocabularyListAdapter(getSortedList(), tts);
                         recyclerView.setAdapter(adapter);
                         setupSwipeController();
                     } else {
-                        adapter.updateItems(newList);
+                        applySortToAdapter();
                     }
                 });
     }

@@ -3,26 +3,31 @@ package com.example.vocaapp;
 import com.example.vocaapp.QuizAndGame.QuizAndGameFragment;
 import com.example.vocaapp.Settting.SettingFragment;
 
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
-import android.widget.Toast; //토스트 메세지 출력용
-import android.util.Log; // 로그 출력용
+import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.util.Log;
 
 import android.os.Bundle;
 import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
+import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.vocaapp.VocabularyBookList.VocabularyBookListFragment;
 import com.example.vocaapp.VocabularyList.VocabularyFragment;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -33,60 +38,125 @@ import android.os.Build;
 
 public class MainActivity extends AppCompatActivity {
 
-    BottomNavigationView bottomNavigationView;
+    private static final int COLOR_SELECTED_BG   = 0xFF3B5BDB;
+    private static final int COLOR_UNSELECTED_BG  = 0x003B5BDB;
+    private static final int COLOR_ICON_SELECTED  = 0xFFFFFFFF;
+    private static final int COLOR_ICON_UNSELECTED = 0xFF9E9E9E;
+    private static final int ANIM_DURATION_MS = 175;
+
+    private int selectedTabIndex = 0;
+    private LinearLayout[] tabs;
+    private ImageView[] tabIcons;
+    private TextView[] tabLabels;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user != null){
-            String uid = user.getUid();
-            checkRollbackOnEntry(uid);
+        if (user != null) {
+            checkRollbackOnEntry(user.getUid());
         }
 
         askNotificationPermission();
-
-        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        initCustomNav();
 
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, new VocabularyFragment())
                 .commit();
 
-        // 하단 네비게시연 선택에 따른 화면 이동
-        bottomNavigationView.setOnItemSelectedListener(item -> {
-
-            // 기본 화면을 단어 화면으로
-            Fragment selectedFragment = new VocabularyFragment();
-
-            int id = item.getItemId();
-
-            if (id == R.id.vocabularylist) {
-                selectedFragment = new VocabularyFragment();
-            } else if (id == R.id.quizandgame) {
-                selectedFragment = new QuizAndGameFragment();
-            } else if (id == R.id.setting) {
-                selectedFragment = new SettingFragment();
-            }
-
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, selectedFragment)
-                    .commit();
-
-            return true;
-        });
-
-        // 신규 가입 유저라면 환영 팝업(100P 지급 안내)을 띄움
         if (getIntent().getBooleanExtra("isNewUser", false)) {
             showWelcomePointDialog();
         }
     }
 
-    // 신규 가입 환영 팝업 (100P 지급 안내)
+    private void initCustomNav() {
+        tabs = new LinearLayout[]{
+            findViewById(R.id.tab_vocabulary),
+            findViewById(R.id.tab_quiz),
+            findViewById(R.id.tab_setting)
+        };
+        tabIcons = new ImageView[]{
+            findViewById(R.id.tab_vocabulary_icon),
+            findViewById(R.id.tab_quiz_icon),
+            findViewById(R.id.tab_setting_icon)
+        };
+        tabLabels = new TextView[]{
+            findViewById(R.id.tab_vocabulary_label),
+            findViewById(R.id.tab_quiz_label),
+            findViewById(R.id.tab_setting_label)
+        };
+
+        float cornerRadius = getResources().getDisplayMetrics().density * 24;
+        for (LinearLayout tab : tabs) {
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(cornerRadius);
+            bg.setColor(COLOR_UNSELECTED_BG);
+            tab.setBackground(bg);
+        }
+
+        // 첫 탭 즉시 선택 상태로 초기화 (애니메이션 없이)
+        applyTabColorImmediate(0, true);
+        applyTabColorImmediate(1, false);
+        applyTabColorImmediate(2, false);
+
+        for (int i = 0; i < tabs.length; i++) {
+            final int index = i;
+            tabs[i].setOnClickListener(v -> onTabSelected(index));
+        }
+    }
+
+    private void onTabSelected(int index) {
+        if (index == selectedTabIndex) return;
+
+        animateTabTransition(selectedTabIndex, false);
+        animateTabTransition(index, true);
+        selectedTabIndex = index;
+
+        Fragment fragment;
+        if (index == 0)      fragment = new VocabularyFragment();
+        else if (index == 1) fragment = new QuizAndGameFragment();
+        else                 fragment = new SettingFragment();
+
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, fragment)
+                .commit();
+    }
+
+    private void animateTabTransition(int index, boolean selecting) {
+        GradientDrawable bg = (GradientDrawable) tabs[index].getBackground();
+
+        int fromBg    = selecting ? COLOR_UNSELECTED_BG  : COLOR_SELECTED_BG;
+        int toBg      = selecting ? COLOR_SELECTED_BG    : COLOR_UNSELECTED_BG;
+        int fromColor = selecting ? COLOR_ICON_UNSELECTED : COLOR_ICON_SELECTED;
+        int toColor   = selecting ? COLOR_ICON_SELECTED  : COLOR_ICON_UNSELECTED;
+
+        ValueAnimator bgAnim = ValueAnimator.ofArgb(fromBg, toBg);
+        bgAnim.setDuration(ANIM_DURATION_MS);
+        bgAnim.addUpdateListener(a -> bg.setColor((int) a.getAnimatedValue()));
+        bgAnim.start();
+
+        ValueAnimator colorAnim = ValueAnimator.ofArgb(fromColor, toColor);
+        colorAnim.setDuration(ANIM_DURATION_MS);
+        colorAnim.addUpdateListener(a -> {
+            int color = (int) a.getAnimatedValue();
+            ImageViewCompat.setImageTintList(tabIcons[index], ColorStateList.valueOf(color));
+            tabLabels[index].setTextColor(color);
+        });
+        colorAnim.start();
+    }
+
+    private void applyTabColorImmediate(int index, boolean selected) {
+        GradientDrawable bg = (GradientDrawable) tabs[index].getBackground();
+        bg.setColor(selected ? COLOR_SELECTED_BG : COLOR_UNSELECTED_BG);
+        int color = selected ? COLOR_ICON_SELECTED : COLOR_ICON_UNSELECTED;
+        ImageViewCompat.setImageTintList(tabIcons[index], ColorStateList.valueOf(color));
+        tabLabels[index].setTextColor(color);
+    }
+
     private void showWelcomePointDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_welcome_point, null);
 
@@ -95,24 +165,19 @@ public class MainActivity extends AppCompatActivity {
                 .setCancelable(false)
                 .create();
 
-        // 팝업 배경을 투명하게 해서 둥근 모서리가 보이도록 처리
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
 
         dialogView.findViewById(R.id.welcomeConfirmBtn).setOnClickListener(v -> dialog.dismiss());
-
         dialog.show();
     }
 
     private void askNotificationPermission() {
-        // 안드로이드 13 (TIRAMISU, API 33) 이상일 때만 작동
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                // 이미 권한이 허용되어 있는 경우
                 Log.d("FCM_PERMISSION", "이미 알림 권한이 허용되어 있습니다.");
             } else {
-                // 권한이 없다면 시스템에 팝업 띄워달라고 요청
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
             }
         }
@@ -123,24 +188,21 @@ public class MainActivity extends AppCompatActivity {
                 if (isGranted) {
                     Log.d("FCM_PERMISSION", "알림 권한이 허용되었습니다");
                 } else {
-                    Log.e("FCM_PERMISSION", "알림 권한이 거부되었습니다. 알림을 받을 수 없어요 ");
+                    Log.e("FCM_PERMISSION", "알림 권한이 거부되었습니다.");
                     Toast.makeText(this, "설정에서 알림 권한을 허용해야 복습 알림을 받을 수 있습니다.", Toast.LENGTH_LONG).show();
                 }
             });
 
     private void checkRollbackOnEntry(String uid) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        // 사용자의 전체 단어장을 뒤져서 rollbackState가 true인 게 있는지 확인
-        db.collection("users").document(uid).collection("vocabularies")
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies")
                 .whereEqualTo("rollbackState", true)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                            // 롤백된 단어장이 발견됨!
-                            String title = doc.getString("title");
-                            showRollbackDialog(title, doc.getReference());
+                            showRollbackDialog(doc.getString("title"), doc.getReference());
                         }
                     }
                 });
@@ -150,10 +212,7 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("복습 시간 초과 ⚠️")
                 .setMessage("'" + title + "' 단어장의 복습 시간이 지나 진도가 초기화되었습니다.")
-                .setPositiveButton("확인", (dialog, which) -> {
-                    // [중요] 확인을 눌렀으면 다시 false로 바꿔줘야 다음에 또 안 뜹니다.
-                    docRef.update("rollbackState", false);
-                })
+                .setPositiveButton("확인", (dialog, which) -> docRef.update("rollbackState", false))
                 .setCancelable(false)
                 .show();
     }
