@@ -205,12 +205,13 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
         fabOption2.setVisibility(View.VISIBLE);
         fabOption1Label.setVisibility(View.VISIBLE);
         fabOption2Label.setVisibility(View.VISIBLE);
-
-        // 위로 펼치는 애니메이션
-        fabOption1.animate().translationY(-200f);
-        fabOption2.animate().translationY(-400f);
-        fabOption1Label.animate().translationY(-200f);
-        fabOption2Label.animate().translationY(-400f);
+        float density = getResources().getDisplayMetrics().density;
+        float step1 = -90 * density;
+        float step2 = -160 * density;
+        fabOption1.animate().translationY(step1);
+        fabOption2.animate().translationY(step2);
+        fabOption1Label.animate().translationY(step1);
+        fabOption2Label.animate().translationY(step2);
         fab.animate().rotation(45f);
     }
 
