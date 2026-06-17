@@ -7,6 +7,7 @@ import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -202,18 +203,40 @@ public class MainActivity extends AppCompatActivity {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                            showRollbackDialog(doc.getString("title"), doc.getReference());
+                            // 롤백된 단어장이 발견됨!
+                            String title = doc.getString("title");
+                            Long stampCountLong = doc.getLong("stampCount");
+                            int stampCount = stampCountLong != null ? stampCountLong.intValue() : 0;
+                            showRollbackDialog(title, stampCount, doc.getReference());
                         }
                     }
                 });
     }
 
-    private void showRollbackDialog(String title, DocumentReference docRef) {
-        new AlertDialog.Builder(this)
-                .setTitle("복습 시간 초과 ⚠️")
-                .setMessage("'" + title + "' 단어장의 복습 시간이 지나 진도가 초기화되었습니다.")
-                .setPositiveButton("확인", (dialog, which) -> docRef.update("rollbackState", false))
+    private void showRollbackDialog(String title, int stampCount, DocumentReference docRef) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_rollback, null);
+
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setView(dialogView)
                 .setCancelable(false)
-                .show();
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        TextView bookTitleView = dialogView.findViewById(R.id.tv_rollback_book_title);
+        bookTitleView.setText(title);
+
+        TextView stageView = dialogView.findViewById(R.id.tv_rollback_stage);
+        stageView.setText(stampCount + "단계로 롤백되었습니다");
+
+        Button confirmBtn = dialogView.findViewById(R.id.btn_rollback_confirm);
+        confirmBtn.setOnClickListener(v -> {
+            docRef.update("rollbackState", false);
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 }
