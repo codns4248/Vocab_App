@@ -156,7 +156,7 @@
                     android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    app:cornerRadius="8dp" />
+                    app:cornerRadius="18dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStudyNow"
@@ -173,7 +173,7 @@
                     android:textColor="#A3A3A3"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    app:cornerRadius="8dp"
+                    app:cornerRadius="18dp"
                     app:strokeWidth="0dp" />
             </LinearLayout>
 

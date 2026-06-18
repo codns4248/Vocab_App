@@ -12,8 +12,8 @@
     app:cardBackgroundColor="#FFFFFF"
     app:cardCornerRadius="8dp"
     app:cardElevation="0dp"
-    app:strokeColor="#E5E5E5"
-    app:strokeWidth="0.5dp">
+    app:strokeColor="#D0D0D0"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -73,7 +73,7 @@
             android:layout_height="20dp"
             android:alpha="0.4"
             android:contentDescription="단어장 열기"
-            android:src="@android:drawable/ic_media_next" />
+            android:src="@drawable/right_arrow_icon" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
