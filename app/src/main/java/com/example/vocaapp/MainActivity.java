@@ -179,9 +179,30 @@ public class MainActivity extends AppCompatActivity {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
                 Log.d("FCM_PERMISSION", "이미 알림 권한이 허용되어 있습니다.");
             } else {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                showNotificationPermissionRationaleDialog();
             }
         }
+    }
+
+    private void showNotificationPermissionRationaleDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_notification_permission, null);
+
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        Button confirmBtn = dialogView.findViewById(R.id.btn_notification_permission_confirm);
+        confirmBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        });
+
+        dialog.show();
     }
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
