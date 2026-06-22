@@ -10,7 +10,9 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.WriteBatch;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class VocabularyFirestore {
     // 단어 db에 추가하는 로직
@@ -112,5 +114,28 @@ public class VocabularyFirestore {
 
     public interface alreadyVocabularyInterface{
         void alreadyVocabulary(boolean isAlready);
+    }
+
+    // 단어장에 이미 등록된 단어들을 한 번에 조회 (소문자로 변환하여 대소문자 구분 없이 비교)
+    public static void getExistingWords(String uid, String vocabularyId, OnExistingWordsListener listener) {
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies").document(vocabularyId)
+                .collection("words")
+                .get()
+                .addOnCompleteListener(task -> {
+                    Set<String> existingWords = new HashSet<>();
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        for (QueryDocumentSnapshot doc : task.getResult()) {
+                            String word = doc.getString("word");
+                            if (word != null) existingWords.add(word.toLowerCase());
+                        }
+                    }
+                    listener.onResult(existingWords);
+                });
+    }
+
+    public interface OnExistingWordsListener {
+        void onResult(Set<String> existingWordsLowerCase);
     }
 }

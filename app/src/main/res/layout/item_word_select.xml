@@ -50,4 +50,15 @@
 
     </LinearLayout>
 
+    <!-- 이미 등록된 단어 표시 -->
+    <TextView
+        android:id="@+id/duplicateLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="이미 등록됨"
+        android:textSize="12sp"
+        android:textColor="#FF8A00"
+        android:textStyle="bold"
+        android:visibility="gone"/>
+
 </LinearLayout>

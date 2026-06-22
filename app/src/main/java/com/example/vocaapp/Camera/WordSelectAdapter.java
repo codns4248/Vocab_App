@@ -47,18 +47,35 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
         // 리스너 먼저 제거 (RecyclerView 재활용 이슈 방지)
         holder.checkBox.setOnCheckedChangeListener(null);
         holder.checkBox.setChecked(item.selected);
-        holder.checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            item.selected = isChecked;
-            // 전체 선택 체크박스 동기화 알림
-            if (selectionChangedListener != null) {
-                selectionChangedListener.onSelectionChanged();
-            }
-        });
+        holder.itemView.setOnClickListener(null);
 
-        // 행 전체 클릭으로도 토글되게
-        holder.itemView.setOnClickListener(v ->
-                holder.checkBox.setChecked(!holder.checkBox.isChecked())
-        );
+        if (item.isDuplicate) {
+            // 이미 등록된 단어: 선택 불가 처리 + 구분 표시
+            holder.checkBox.setEnabled(false);
+            holder.duplicateLabel.setVisibility(View.VISIBLE);
+            holder.wordText.setTextColor(0xFFAAAAAA);
+            holder.meaningText.setTextColor(0xFFAAAAAA);
+            holder.pronunciationText.setTextColor(0xFFAAAAAA);
+        } else {
+            holder.checkBox.setEnabled(true);
+            holder.duplicateLabel.setVisibility(View.GONE);
+            holder.wordText.setTextColor(0xFF000000);
+            holder.meaningText.setTextColor(0xFF555555);
+            holder.pronunciationText.setTextColor(0xFF888888);
+
+            holder.checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                item.selected = isChecked;
+                // 전체 선택 체크박스 동기화 알림
+                if (selectionChangedListener != null) {
+                    selectionChangedListener.onSelectionChanged();
+                }
+            });
+
+            // 행 전체 클릭으로도 토글되게
+            holder.itemView.setOnClickListener(v ->
+                    holder.checkBox.setChecked(!holder.checkBox.isChecked())
+            );
+        }
     }
 
     @Override
@@ -66,11 +83,11 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
         return wordList == null ? 0 : wordList.size();
     }
 
-    // 선택된 단어들만 반환
+    // 선택된 단어들만 반환 (이미 등록된 단어는 추가 대상에서 제외)
     public List<WordItem> getSelectedWords() {
         List<WordItem> selected = new ArrayList<>();
         for (WordItem item : wordList) {
-            if (item.selected) selected.add(item);
+            if (item.selected && !item.isDuplicate) selected.add(item);
         }
         return selected;
     }
@@ -80,10 +97,10 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
         return wordList;
     }
 
-    // 전체 선택/해제 (전체 선택 체크박스용)
+    // 전체 선택/해제 (전체 선택 체크박스용, 이미 등록된 단어는 제외)
     public void setAllSelected(boolean selected) {
         for (WordItem item : wordList) {
-            item.selected = selected;
+            if (!item.isDuplicate) item.selected = selected;
         }
         notifyDataSetChanged();
         if (selectionChangedListener != null) {
@@ -101,6 +118,7 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
         TextView wordText;
         TextView meaningText;
         TextView pronunciationText;
+        TextView duplicateLabel;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -108,6 +126,7 @@ public class WordSelectAdapter extends RecyclerView.Adapter<WordSelectAdapter.Vi
             wordText = itemView.findViewById(R.id.wordText);
             meaningText = itemView.findViewById(R.id.meaningText);
             pronunciationText = itemView.findViewById(R.id.pronunciationText);
+            duplicateLabel = itemView.findViewById(R.id.duplicateLabel);
         }
     }
 }

@@ -9,6 +9,7 @@ public class WordItem implements Parcelable {
     public String pronunciation;
     public boolean selected = true; // 기본값: 선택됨
     public String docId;
+    public transient boolean isDuplicate = false; // 단어장에 이미 존재하는 단어인지 여부
 
     public WordItem() {
     }

@@ -2,6 +2,7 @@ package com.example.vocaapp.Camera;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.Toast;
 
@@ -23,6 +24,7 @@ import java.util.Map;
 public class WordSelectActivity extends AppCompatActivity {
     private WordSelectAdapter adapter;
     private CheckBox selectAllCheckBox;
+    private Button saveButton;
     private String vocabularyId;
     private String uid;
 
@@ -53,14 +55,34 @@ public class WordSelectActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.saveButton).setOnClickListener(v -> saveSelectedWords());
+        saveButton = findViewById(R.id.saveButton);
+        saveButton.setOnClickListener(v -> saveSelectedWords());
+
+        // 중복 확인이 끝나기 전에는 저장하지 못하도록 비활성화
+        saveButton.setEnabled(false);
+        markDuplicateWords(wordList);
     }
 
-    // 모든 항목이 선택되어 있으면 전체 선택 체크박스도 체크
+    // 이미 단어장에 등록된 단어인지 확인하여 표시하고, 기본 선택에서 제외
+    private void markDuplicateWords(List<WordItem> wordList) {
+        VocabularyFirestore.getExistingWords(uid, vocabularyId, existingWords -> {
+            for (WordItem item : wordList) {
+                if (item.word != null && existingWords.contains(item.word.toLowerCase())) {
+                    item.isDuplicate = true;
+                    item.selected = false;
+                }
+            }
+            adapter.notifyDataSetChanged();
+            updateSelectAllCheckBox();
+            saveButton.setEnabled(true);
+        });
+    }
+
+    // 이미 등록된 단어를 제외한 나머지가 모두 선택되어 있으면 전체 선택 체크박스도 체크
     private void updateSelectAllCheckBox() {
         boolean allSelected = true;
         for (WordItem item : adapter.getAllWords()) {
-            if (!item.selected) {
+            if (!item.isDuplicate && !item.selected) {
                 allSelected = false;
                 break;
             }
@@ -74,6 +96,7 @@ public class WordSelectActivity extends AppCompatActivity {
 
         if (selected.isEmpty()) {
             Toast.makeText(this, "선택된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+            finish();
             return;
         }
 
