@@ -202,19 +202,32 @@
                 android:text="로그아웃"
                 android:textColor="#222222" />
 
-            <TextView
-                android:id="@+id/unregisterTextView"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginStart="10dp"
-                android:layout_marginTop="6dp"
-                android:layout_marginEnd="10dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:text="회원탈퇴"
-                android:textColor="#D32F2F" />
         </LinearLayout>
 
     </LinearLayout>
+
+    <View
+        android:id="@+id/unregisterDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        app:layout_constraintBottom_toTopOf="@+id/unregisterTextView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/unregisterTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="16dp"
+        android:paddingBottom="20dp"
+        android:gravity="center"
+        android:text="회원탈퇴"
+        android:textColor="#9E9E9E"
+        android:textSize="12sp"
+        android:background="?attr/selectableItemBackground"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

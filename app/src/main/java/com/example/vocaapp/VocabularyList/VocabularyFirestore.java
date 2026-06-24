@@ -138,4 +138,13 @@ public class VocabularyFirestore {
     public interface OnExistingWordsListener {
         void onResult(Set<String> existingWordsLowerCase);
     }
+
+    public static void updateStudyStatus(String uid, String vocabularyId, String wordId, int status) {
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies").document(vocabularyId)
+                .collection("words").document(wordId)
+                .update("studyStatus", status)
+                .addOnFailureListener(e -> Log.e("VocabularyFirestore", "studyStatus 업데이트 실패: " + e.getMessage()));
+    }
 }

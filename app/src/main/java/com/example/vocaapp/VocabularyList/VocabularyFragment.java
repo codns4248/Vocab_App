@@ -6,9 +6,13 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.TextView;
+import androidx.appcompat.widget.ListPopupWindow;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -52,6 +56,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     public static final String PREFS_NAME = "voca_prefs";
     public static final String KEY_CURRENT_VOCAB_ID = "currentVocabularyId";
 
+    private static final int SORT_ADDED_ASC = 0;
+    private static final int SORT_ADDED_DESC = 1;
+    private static final int SORT_ALPHA_ASC = 2;
+    private static final int SORT_ALPHA_DESC = 3;
+    private static final String[] SORT_LABELS = {"추가 순", "오래된 순", "알파벳 오름차순", "알파벳 내림차순"};
+
     private TextToSpeech tts;
 
     private String uid;
@@ -66,7 +76,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private MaterialButton btnStudyToggle;
     private MaterialButton btnStudyNow;
     private TextView btnSortToggle;
-    private boolean isSortedAlphabetically = false;
+    private int currentSortMode = SORT_ADDED_ASC;
     private List<WordItem> originalWordList = new ArrayList<>();
     private RecyclerView recyclerView;
     private FloatingActionButton fab;
@@ -172,11 +182,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             startActivity(intent);
         });
 
-        btnSortToggle.setOnClickListener(v -> {
-            isSortedAlphabetically = !isSortedAlphabetically;
-            btnSortToggle.setText(isSortedAlphabetically ? "알파벳 순" : "추가 순");
-            applySortToAdapter();
-        });
+        btnSortToggle.setOnClickListener(v -> showSortPopup());
 
         return view;
     }
@@ -204,7 +210,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         vocabularyId = null;
         isStudying = false;
         buttonOn = false;
-        isSortedAlphabetically = false;
+        currentSortMode = SORT_ADDED_ASC;
         originalWordList = new ArrayList<>();
         currentWordCount = 0;
         currentStampCount = 0;
@@ -253,8 +259,19 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
     private List<WordItem> getSortedList() {
         List<WordItem> copy = new ArrayList<>(originalWordList);
-        if (isSortedAlphabetically) {
-            Collections.sort(copy, (a, b) -> a.word.compareToIgnoreCase(b.word));
+        switch (currentSortMode) {
+            case SORT_ALPHA_ASC:
+                Collections.sort(copy, (a, b) -> a.word.compareToIgnoreCase(b.word));
+                break;
+            case SORT_ALPHA_DESC:
+                Collections.sort(copy, (a, b) -> b.word.compareToIgnoreCase(a.word));
+                break;
+            case SORT_ADDED_ASC:
+                Collections.reverse(copy);
+                break;
+            case SORT_ADDED_DESC:
+            default:
+                break;
         }
         return copy;
     }
@@ -310,6 +327,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         if (wordsListener != null) wordsListener.remove();
 
         vocabularyId = newVocabId;
+        loadSortMode();
 
         bookListener = FirebaseFirestore.getInstance()
                 .collection("users").document(uid)
@@ -354,9 +372,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                         String word = d.getString("word");
                         String meaning = d.getString("meaning");
                         String pronunciation = d.getString("pronunciation");
+                        Long statusLong = d.getLong("studyStatus");
+                        int studyStatus = statusLong != null ? statusLong.intValue() : 0;
                         if (word != null) {
                             WordItem item = new WordItem(word, meaning, pronunciation);
                             item.docId = d.getId();
+                            item.studyStatus = studyStatus;
                             newList.add(item);
                         }
                     }
@@ -364,7 +385,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     currentWordCount = newList.size();
                     updateHeaderStats();
                     if (adapter == null) {
-                        adapter = new VocabularyListAdapter(getSortedList(), tts);
+                        adapter = new VocabularyListAdapter(getSortedList(), tts, uid, vocabularyId);
                         recyclerView.setAdapter(adapter);
                         setupSwipeController();
                     } else {
@@ -454,6 +475,63 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                 && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
     }
 
+    private void showSortPopup() {
+        int vPad = Math.round(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 10, getResources().getDisplayMetrics()));
+        int hPad = Math.round(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()));
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(), 0, SORT_LABELS) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+                TextView tv = convertView instanceof TextView
+                        ? (TextView) convertView : new TextView(getContext());
+                tv.setText(SORT_LABELS[position]);
+                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                tv.setTextColor(0xFF222222);
+                tv.setPadding(hPad, vPad, hPad, vPad);
+                return tv;
+            }
+        };
+
+        android.graphics.Paint paint = new android.graphics.Paint();
+        paint.setTextSize(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP, 12, getResources().getDisplayMetrics()));
+        float maxTextWidth = 0;
+        for (String label : SORT_LABELS) {
+            maxTextWidth = Math.max(maxTextWidth, paint.measureText(label));
+        }
+        int popupWidth = Math.round(maxTextWidth) + hPad * 2;
+
+        ListPopupWindow popup = new ListPopupWindow(requireContext());
+        popup.setAdapter(adapter);
+        popup.setAnchorView(btnSortToggle);
+        popup.setModal(true);
+        popup.setWidth(popupWidth);
+        popup.setOnItemClickListener((parent, view, position, id) -> {
+            currentSortMode = position;
+            btnSortToggle.setText(SORT_LABELS[currentSortMode]);
+            applySortToAdapter();
+            saveSortMode();
+            popup.dismiss();
+        });
+        popup.show();
+    }
+
+    private void saveSortMode() {
+        if (vocabularyId == null) return;
+        requireContext().getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                .edit().putInt("sortMode_" + vocabularyId, currentSortMode).apply();
+    }
+
+    private void loadSortMode() {
+        if (vocabularyId == null) return;
+        currentSortMode = requireContext().getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                .getInt("sortMode_" + vocabularyId, SORT_ADDED_ASC);
+        if (btnSortToggle != null) btnSortToggle.setText(SORT_LABELS[currentSortMode]);
+    }
+
     private void openBookList() {
         getParentFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, new VocabularyBookListFragment())
@@ -521,7 +599,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
         dialogView.findViewById(R.id.closeButton).setOnClickListener(v -> wordDialog.dismiss());
         dialogView.findViewById(R.id.wordRegisterButton).setOnClickListener(v -> {
-            String word = wordEditText.getText().toString().trim();
+            String word = wordEditText.getText().toString().trim().toLowerCase(java.util.Locale.ENGLISH);
             String mean = meanEditText.getText().toString().trim();
             String pronunciation = pronunciationEditText.getText().toString().trim();
 

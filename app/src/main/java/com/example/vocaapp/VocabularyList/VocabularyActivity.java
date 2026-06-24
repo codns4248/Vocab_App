@@ -162,15 +162,20 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
                     String word = document.getString("word");
                     String meaning = document.getString("meaning");
                     String pronunciation = document.getString("pronunciation");
+                    Long statusLong = document.getLong("studyStatus");
+                    int studyStatus = statusLong != null ? statusLong.intValue() : 0;
 
                     if (word != null) {
-                        newWordList.add(new WordItem(word, meaning, pronunciation));
+                        WordItem item = new WordItem(word, meaning, pronunciation);
+                        item.docId = document.getId();
+                        item.studyStatus = studyStatus;
+                        newWordList.add(item);
                     }
                 }
 
                 // 어댑터 갱신 로직
                 if (adapter == null) {
-                    adapter = new VocabularyListAdapter(newWordList, tts);  // ← tts 추가
+                    adapter = new VocabularyListAdapter(newWordList, tts, uid, vocabularyId);
                     recyclerView.setAdapter(adapter);
                     setupSwipeController(recyclerView);
                 } else {
@@ -276,7 +281,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
         // 단어 등록 처리
         wordRegisterButton.setOnClickListener(v -> {
             // 입력 단어 가져오기
-            String word = wordEditText.getText().toString().trim();
+            String word = wordEditText.getText().toString().trim().toLowerCase(java.util.Locale.ENGLISH);
             String mean = meanEditText.getText().toString().trim();
             String pronunciation = pronunciationEditText.getText().toString().trim();
 
