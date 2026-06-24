@@ -27,7 +27,7 @@
             android:layout_marginEnd="10dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/speakerImageView"
+            app:layout_constraintEnd_toStartOf="@id/statusButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -73,6 +73,36 @@
                 android:textSize="15sp" />
         </LinearLayout>
 
+        <!-- 상태 버튼 -->
+        <LinearLayout
+            android:id="@+id/statusButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="6dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/speakerImageView">
+
+            <ImageView
+                android:id="@+id/statusIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_status_unknown" />
+
+            <TextView
+                android:id="@+id/statusLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="미확인"
+                android:textColor="#9E9E9E"
+                android:textSize="9sp" />
+        </LinearLayout>
+
         <!-- 우측 스피커 -->
         <ImageView
             android:id="@+id/speakerImageView"
@@ -87,7 +117,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="#9E9E9E" />
+            app:tint="#444444" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

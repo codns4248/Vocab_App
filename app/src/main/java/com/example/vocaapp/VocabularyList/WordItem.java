@@ -10,6 +10,7 @@ public class WordItem implements Parcelable {
     public boolean selected = true; // 기본값: 선택됨
     public String docId;
     public transient boolean isDuplicate = false; // 단어장에 이미 존재하는 단어인지 여부
+    public int studyStatus = 0; // 0=미확인, 1=헷갈림, 2=암기함
 
     public WordItem() {
     }
@@ -27,6 +28,7 @@ public class WordItem implements Parcelable {
         pronunciation = in.readString();
         selected = in.readByte() != 0;
         docId = in.readString();
+        studyStatus = in.readInt();
     }
 
     // Parcel에 쓰는 메서드
@@ -37,6 +39,7 @@ public class WordItem implements Parcelable {
         dest.writeString(pronunciation);
         dest.writeByte((byte) (selected ? 1 : 0));
         dest.writeString(docId);
+        dest.writeInt(studyStatus);
     }
 
     @Override

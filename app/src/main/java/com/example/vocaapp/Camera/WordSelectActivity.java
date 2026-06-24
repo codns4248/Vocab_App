@@ -105,7 +105,7 @@ public class WordSelectActivity extends AppCompatActivity {
 
         for (WordItem item : selected) {
             Map<String, Object> wordData = new HashMap<>();
-            wordData.put("word", item.word);
+            wordData.put("word", item.word != null ? item.word.trim().toLowerCase(java.util.Locale.ENGLISH) : "");
             wordData.put("meaning", item.meaning);
             wordData.put("pronunciation", item.pronunciation);
             wordData.put("timeStamp", FieldValue.serverTimestamp());
