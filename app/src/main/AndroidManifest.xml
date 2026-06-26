@@ -10,6 +10,7 @@
         android:maxSdkVersion="28" />
 
     <application
+        android:name=".ApplicationClass"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -66,6 +67,12 @@
             android:exported="false"/>
 
         <activity android:name=".Camera.WordSelectActivity"
+            android:exported="false"/>
+
+        <activity android:name=".Settting.NoticeActivity"
+            android:exported="false"/>
+
+        <activity android:name=".Settting.NoticeDetailActivity"
             android:exported="false"/>
 
     </application>

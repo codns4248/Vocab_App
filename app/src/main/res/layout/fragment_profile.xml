@@ -88,6 +88,7 @@
             android:textColor="#FFFFFF"
             android:textStyle="bold" />
 
+        <!-- 고객지원 섹션 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -106,6 +107,34 @@
                 android:layout_marginTop="10dp"
                 android:text="고객지원"
                 android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/checkNoticeLinear"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="25dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    app:srcCompat="@drawable/bell_alt_svgrepo_com" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="5dp"
+                    android:layout_weight="1"
+                    android:text="공지사항" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:srcCompat="@drawable/next_icon" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/sendCommentLinear"

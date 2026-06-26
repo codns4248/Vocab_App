@@ -15,6 +15,7 @@ import com.google.firebase.auth.FirebaseUser;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,25 +60,27 @@ public class OXTestActivity extends AppCompatActivity {
             userId = user.getUid();
         }
 
-        quizAndGameFirestore.getWordCount(userId, vocabularyId, new QuizAndGameFirestore.OnWordCountCallback() {
-            @Override
-            public void onCallback(long wordCount) {
-                totalPageTextView.setText(String.valueOf(wordCount));
-            }
-        });
+        @SuppressWarnings("unchecked")
+        ArrayList<HashMap<String, Object>> preloaded =
+                (ArrayList<HashMap<String, Object>>) getIntent().getSerializableExtra("preloadedWords");
 
+        if (preloaded != null && !preloaded.isEmpty()) {
+            wordList.addAll(preloaded);
+            totalPageTextView.setText(String.valueOf(wordList.size()));
+            displayWord();
+        } else {
+            quizAndGameFirestore.getWordCount(userId, vocabularyId, wordCount ->
+                    totalPageTextView.setText(String.valueOf(wordCount)));
 
-        quizAndGameFirestore.loadWordsFromFirestore(userId, vocabularyId, wordList, new QuizAndGameFirestore.loadWordsFromFirestoreCallback(){
-            @Override
-            public void onCallback(List<Map<String, Object>> wordList) {
-                if (wordList.size() > 0) {
+            quizAndGameFirestore.loadWordsFromFirestore(userId, vocabularyId, wordList, loadedList -> {
+                if (!loadedList.isEmpty()) {
                     displayWord();
                 } else {
                     Toast.makeText(OXTestActivity.this, "단어장에 단어가 없습니다.", Toast.LENGTH_SHORT).show();
                     finish();
                 }
-            }
-        });
+            });
+        }
 
         // X 버튼 클릭 리스너
         failImageView.setOnClickListener(v -> {

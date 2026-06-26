@@ -41,6 +41,7 @@ public class SettingFragment extends Fragment {
         TextView tvUserPoint = view.findViewById(R.id.tvUserPoint);
         TextView btnLogout = view.findViewById(R.id.logoutTextView);
         TextView unregisterTextView = view.findViewById(R.id.unregisterTextView);
+        LinearLayout checkNoticeLinear = view.findViewById(R.id.checkNoticeLinear);
         LinearLayout sendCommentLinear = view.findViewById(R.id.sendCommentLinear);
         LinearLayout checkPolicyLinear = view.findViewById(R.id.checkPolicyLinear);
 
@@ -61,6 +62,11 @@ public class SettingFragment extends Fragment {
                     })
                     .addOnFailureListener(e -> tvUserPoint.setText("0 P"));
         }
+
+        checkNoticeLinear.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), NoticeActivity.class);
+            startActivity(intent);
+        });
 
         sendCommentLinear.setOnClickListener(v -> {
             String commentUrl = "https://docs.google.com/forms/d/e/1FAIpQLSefi_zWPR3Lry12_PVikiCkDr7e6s19GGj_kTORSLWUGE1Egg/viewform?usp=dialog";

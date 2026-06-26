@@ -14,6 +14,7 @@ import com.example.vocaapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,49 +61,23 @@ public class DictationActivity extends AppCompatActivity {
 
         boolean isOfficial = intent.getBooleanExtra("isOfficial", false);
 
-        // Firestore 메서드 실행
         QuizAndGameFirestore quizAndGameFirestore = new QuizAndGameFirestore();
-        // 메서드 호출 시 세 번째 인자로 콜백 구현
-        quizAndGameFirestore.getWordCount(userId, vocabularyId, new QuizAndGameFirestore.OnWordCountCallback() {
-            @Override
-            public void onCallback(long wordCount) {
 
+        @SuppressWarnings("unchecked")
+        ArrayList<HashMap<String, Object>> preloaded =
+                (ArrayList<HashMap<String, Object>>) getIntent().getSerializableExtra("preloadedWords");
+
+        if (preloaded != null && !preloaded.isEmpty()) {
+            loadWords(new ArrayList<>(preloaded));
+        } else {
+            quizAndGameFirestore.getWordCount(userId, vocabularyId, wordCount -> {
                 currentPage = 1;
+                currentPageTextView.setText(String.valueOf(currentPage));
+                totalPageTextView.setText(String.valueOf(wordCount));
+            });
 
-                String currentPageToString = String.valueOf(currentPage);
-                currentPageTextView.setText(currentPageToString);
-
-                // 전체 단어 수 표시
-                String wordCountToString = String.valueOf(wordCount);
-                totalPageTextView.setText(wordCountToString);
-            }
-        });
-
-        // 단어장 안에 있는 단어들 가져오기
-        quizAndGameFirestore.getAllWords(userId, vocabularyId, new QuizAndGameFirestore.OnWordsLoadedCallback(){
-            @Override
-            public void onCallback(List<Map<String, Object>> words) {
-
-                originWordsList = new ArrayList<>(words);
-
-                // 데이터 저장
-                for (Map<String, Object> data : words) {
-                    wordsAndMeanings.put((String) data.get("meaning"), (String) data.get("word"));
-                }
-
-                if (wordsAndMeanings.isEmpty()) return;
-
-                // 초기화
-                keyList = new ArrayList<>(wordsAndMeanings.keySet());
-                currentIndex = 0; // 시작 인덱스
-                pass = 0;
-                fail = 0;
-                currentPage = 1;
-
-                // 첫 번째 문제 표시 함수 호출
-                updateUI();
-            }
-        });
+            quizAndGameFirestore.getAllWords(userId, vocabularyId, words -> loadWords(words));
+        }
 
         nextConstraintLayout.setOnClickListener(v -> {
             if (keyList == null || currentIndex >= keyList.size()) return;
@@ -151,6 +126,22 @@ public class DictationActivity extends AppCompatActivity {
             finish();
         });
     }
+    private void loadWords(List<Map<String, Object>> words) {
+        originWordsList = new ArrayList<>(words);
+        for (Map<String, Object> data : words) {
+            wordsAndMeanings.put((String) data.get("meaning"), (String) data.get("word"));
+        }
+        if (wordsAndMeanings.isEmpty()) return;
+        keyList = new ArrayList<>(wordsAndMeanings.keySet());
+        currentIndex = 0;
+        pass = 0;
+        fail = 0;
+        currentPage = 1;
+        currentPageTextView.setText(String.valueOf(currentPage));
+        totalPageTextView.setText(String.valueOf(keyList.size()));
+        updateUI();
+    }
+
     private void updateUI() {
         String currentMean = keyList.get(currentIndex);
         displayedMeanTextView.setText(currentMean);

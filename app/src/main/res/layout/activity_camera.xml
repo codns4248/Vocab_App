@@ -121,14 +121,31 @@
             app:lottie_autoPlay="true"
             app:lottie_loop="true" />
 
-        <TextView
-            android:id="@+id/loadingText"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginTop="120dp"
-            android:text="단어를 추출하고 있어요..."
-            android:textColor="#FFFFFF"/>
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/loadingText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="단어를 추출하고 있어요..."
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="단어가 많을 경우 시간이 더 걸릴 수 있어요."
+                android:textColor="#AAFFFFFF"
+                android:textSize="12sp"/>
+
+        </LinearLayout>
     </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -93,17 +93,13 @@ public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
                     return;
                 }
 
-                Intent intent;
-                if ("FLASHCARD".equals(finalQuizType)) {
-                    intent = new Intent(getContext(), OXTestActivity.class);
-                } else if ("MULTIPLE_CHOICE".equals(finalQuizType)) {
-                    intent = new Intent(getContext(), MultipleChoiceActivity.class);
-                } else {
-                    intent = new Intent(getContext(), DictationActivity.class);
-                }
-                intent.putExtra("vocabularyId", id);
-                intent.putExtra("isOfficial", finalIsOfficial);
-                startActivity(intent);
+                WordStatusFilterBottomSheet filterSheet = new WordStatusFilterBottomSheet();
+                Bundle filterArgs = new Bundle();
+                filterArgs.putString("vocabularyId", id);
+                filterArgs.putString("quizType", finalQuizType);
+                filterArgs.putBoolean("isOfficial", finalIsOfficial);
+                filterSheet.setArguments(filterArgs);
+                filterSheet.show(getParentFragmentManager(), "WordStatusFilterTag");
 
                 dismiss();
             });

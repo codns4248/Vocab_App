@@ -117,6 +117,36 @@ public class QuizAndGameFirestore {
         void onCallback(List<Map<String, Object>> words);
     }
 
+    // studyStatus 기준으로 단어를 필터링해서 가져오는 메서드
+    public void getWordsByStatus(String userId, String vocabularyId, List<Integer> statuses, OnWordsLoadedCallback callback) {
+        FirebaseFirestore.getInstance()
+                .collection("users").document(userId)
+                .collection("vocabularies").document(vocabularyId)
+                .collection("words")
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        List<Map<String, Object>> wordList = new ArrayList<>();
+                        for (QueryDocumentSnapshot document : task.getResult()) {
+                            Long statusLong = document.getLong("studyStatus");
+                            int status = statusLong != null ? statusLong.intValue() : 0;
+                            if (statuses.contains(status)) {
+                                Map<String, Object> wordData = new HashMap<>();
+                                wordData.put("word", document.getString("word"));
+                                wordData.put("meaning", document.getString("meaning"));
+                                wordData.put("pronunciation", document.getString("pronunciation"));
+                                wordData.put("studyStatus", (long) status);
+                                wordList.add(wordData);
+                            }
+                        }
+                        callback.onCallback(wordList);
+                    } else {
+                        Log.d("Firestore", "Error filtering words by status: ", task.getException());
+                        callback.onCallback(new ArrayList<>());
+                    }
+                });
+    }
+
     public void loadWordsFromFirestore(String userId, String vocabularyId, List<Map<String, Object>> wordList, loadWordsFromFirestoreCallback callback) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();

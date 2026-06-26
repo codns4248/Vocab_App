@@ -4,9 +4,11 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.example.vocaapp.QuizAndGame.BarChartView;
+import com.google.android.material.button.MaterialButton;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -50,9 +52,8 @@ public class TestResultActivity extends AppCompatActivity {
         // 뷰 연결
         TextView passTextView = findViewById(R.id.passTextView);
         TextView failTextView = findViewById(R.id.failTextView);
-        ProgressBar circularProgressBar = findViewById(R.id.circularProgressBar);
-        TextView tvProgress = findViewById(R.id.tvProgress);
-        TextView finishTextView = findViewById(R.id.finishTextView);
+        BarChartView barChartView = findViewById(R.id.barChartView);
+        MaterialButton finishButton = findViewById(R.id.finishButton);
         TextView resultTextView = findViewById(R.id.resultTextView);
         RecyclerView recycler = findViewById(R.id.failVocaRecyclerView);
 
@@ -67,11 +68,10 @@ public class TestResultActivity extends AppCompatActivity {
         passTextView.setText(String.valueOf(pass));
         failTextView.setText(String.valueOf(fail));
 
+        barChartView.setValues(pass, fail);
+
         int total = pass + fail;
         int progress = (total > 0) ? (int) ((double) pass / total * 100) : 0;
-
-        circularProgressBar.setProgress(progress);
-        tvProgress.setText(String.valueOf(progress));
 
         // 합격 조건에 부합 처리
         if (progress >= 80) {
@@ -118,8 +118,6 @@ public class TestResultActivity extends AppCompatActivity {
             resultTextView.setText("흑흑.. 아쉽게도 불합격이에요..");
         }
 
-        finishTextView.setOnClickListener(v -> {
-            finish();
-        });
+        finishButton.setOnClickListener(v -> finish());
     }
 }

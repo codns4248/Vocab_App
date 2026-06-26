@@ -3,7 +3,6 @@ package com.example.vocaapp.QuizAndGame;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -44,8 +43,7 @@ public class QuizAndGameResultActivity extends AppCompatActivity {
 
         TextView passTextView = findViewById(R.id.passTextView);
         TextView failTextView = findViewById(R.id.failTextView);
-        ProgressBar circularProgressBar = findViewById(R.id.circularProgressBar);
-        TextView tvProgress = findViewById(R.id.tvProgress);
+        BarChartView barChartView = findViewById(R.id.barChartView);
         MaterialButton finishButton = findViewById(R.id.finishButton);
         TextView resultTextView = findViewById(R.id.resultTextView);
         RecyclerView recycler = findViewById(R.id.failVocaRecyclerView);
@@ -64,11 +62,10 @@ public class QuizAndGameResultActivity extends AppCompatActivity {
         passTextView.setText(String.valueOf(pass));
         failTextView.setText(String.valueOf(fail));
 
+        barChartView.setValues(pass, fail);
+
         int total = pass + fail;
         int progress = (total > 0) ? (int) ((double) pass / total * 100) : 0;
-
-        circularProgressBar.setProgress(progress);
-        tvProgress.setText(String.valueOf(progress));
 
         if (progress > 80) {
             resultTextView.setText("축하해요! 합격이에요. 더욱 노력해봐요!");

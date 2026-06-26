@@ -13,21 +13,51 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#000000"
-        android:padding="16dp"
-        android:gravity="center"/>
-
-    <!-- 전체 선택 체크박스 -->
-    <CheckBox
-        android:id="@+id/selectAllCheckBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="전체 선택"
-        android:textSize="14sp"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:checked="true"/>
+        android:paddingTop="16dp"
+        android:paddingBottom="4dp"
+        android:gravity="center"/>
+
+    <!-- 추출 단어 수 표시 -->
+    <TextView
+        android:id="@+id/tvWordCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#666666"
+        android:paddingBottom="12dp"
+        android:gravity="center"/>
+
+    <!-- 전체 선택 + 선택 수 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingEnd="16dp">
+
+        <CheckBox
+            android:id="@+id/selectAllCheckBox"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="전체 선택"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:checked="true"/>
+
+        <TextView
+            android:id="@+id/tvSelectedCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="#3b5bdb"/>
+
+    </LinearLayout>
 
     <!-- 구분선 -->
     <View

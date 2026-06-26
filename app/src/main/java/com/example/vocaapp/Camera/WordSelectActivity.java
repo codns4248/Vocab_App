@@ -25,6 +25,8 @@ public class WordSelectActivity extends AppCompatActivity {
     private WordSelectAdapter adapter;
     private CheckBox selectAllCheckBox;
     private Button saveButton;
+    private android.widget.TextView tvWordCount;
+    private android.widget.TextView tvSelectedCount;
     private String vocabularyId;
     private String uid;
 
@@ -39,13 +41,21 @@ public class WordSelectActivity extends AppCompatActivity {
 
         RecyclerView recyclerView = findViewById(R.id.wordRecyclerView);
         selectAllCheckBox = findViewById(R.id.selectAllCheckBox);
+        tvWordCount = findViewById(R.id.tvWordCount);
+        tvSelectedCount = findViewById(R.id.tvSelectedCount);
+
+        int totalCount = wordList != null ? wordList.size() : 0;
+        tvWordCount.setText("총 " + totalCount + "개 단어 추출됨");
 
         adapter = new WordSelectAdapter(wordList);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
-        // 개별 항목 체크 변경 시 → 전체 선택 체크박스 동기화
-        adapter.setOnSelectionChangedListener(() -> updateSelectAllCheckBox());
+        // 개별 항목 체크 변경 시 → 전체 선택 체크박스 + 선택 수 동기화
+        adapter.setOnSelectionChangedListener(() -> {
+            updateSelectAllCheckBox();
+            updateSelectedCount();
+        });
 
         // 전체 선택 체크박스 토글
         selectAllCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -74,8 +84,15 @@ public class WordSelectActivity extends AppCompatActivity {
             }
             adapter.notifyDataSetChanged();
             updateSelectAllCheckBox();
+            updateSelectedCount();
             saveButton.setEnabled(true);
         });
+    }
+
+    private void updateSelectedCount() {
+        int selected = adapter.getSelectedWords().size();
+        int total = adapter.getAllWords().size();
+        tvSelectedCount.setText(selected + " / " + total + " 선택");
     }
 
     // 이미 등록된 단어를 제외한 나머지가 모두 선택되어 있으면 전체 선택 체크박스도 체크

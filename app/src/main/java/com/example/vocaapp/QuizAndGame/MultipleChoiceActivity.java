@@ -13,7 +13,9 @@ import com.example.vocaapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,19 +57,25 @@ public class MultipleChoiceActivity extends AppCompatActivity {
         String vocabularyId = intent.getStringExtra("vocabularyId");
         isOfficial = intent.getBooleanExtra("isOfficial", false);
 
+        @SuppressWarnings("unchecked")
+        ArrayList<HashMap<String, Object>> preloaded =
+                (ArrayList<HashMap<String, Object>>) getIntent().getSerializableExtra("preloadedWords");
+
         QuizAndGameFirestore quizAndGameFirestore = new QuizAndGameFirestore();
 
-        // 단어장 안에 있는 단어들 가져오기
-        quizAndGameFirestore.getAllWords(userId, vocabularyId, new QuizAndGameFirestore.OnWordsLoadedCallback() {
-            @Override
-            public void onCallback(List<Map<String, Object>> words) {
+        if (preloaded != null && !preloaded.isEmpty()) {
+            allWords = new ArrayList<>(preloaded);
+            totalPageTextView.setText(String.valueOf(allWords.size()));
+            showNextQuiz();
+        } else {
+            quizAndGameFirestore.getAllWords(userId, vocabularyId, words -> {
                 if (words != null && !words.isEmpty()) {
-                    allWords = words; // 데이터를 전역 변수에 보관
+                    allWords = words;
                     totalPageTextView.setText(String.valueOf(allWords.size()));
-                    showNextQuiz(); // 첫 번째 퀴즈 표시
+                    showNextQuiz();
                 }
-            }
-        });
+            });
+        }
 
         // 각 선택지 클릭 리스너 설정
         setOptionClickListeners();
