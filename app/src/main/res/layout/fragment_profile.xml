@@ -200,63 +200,6 @@
 
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginEnd="10dp"
-            android:background="@drawable/round_background"
-            android:orientation="vertical"
-            android:paddingBottom="15dp">
-
-            <TextView
-                android:id="@+id/textViewAccount"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:layout_marginTop="10dp"
-                android:text="계정"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/logoutTextView"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginStart="10dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginEnd="10dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:text="로그아웃"
-                android:textColor="#222222" />
-
-        </LinearLayout>
-
     </LinearLayout>
-
-    <View
-        android:id="@+id/unregisterDivider"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#E0E0E0"
-        app:layout_constraintBottom_toTopOf="@+id/unregisterTextView"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <TextView
-        android:id="@+id/unregisterTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="16dp"
-        android:paddingBottom="20dp"
-        android:gravity="center"
-        android:text="회원탈퇴"
-        android:textColor="#9E9E9E"
-        android:textSize="12sp"
-        android:background="?attr/selectableItemBackground"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -75,6 +75,9 @@
         <activity android:name=".Settting.NoticeDetailActivity"
             android:exported="false"/>
 
+        <activity android:name=".Settting.AccountSettingActivity"
+            android:exported="false"/>
+
     </application>
 
 </manifest>
