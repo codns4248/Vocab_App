@@ -3,17 +3,21 @@ package com.example.vocaapp.VocabularyBookList;
 import static com.example.vocaapp.VocabularyBookList.VocabularyBookFirestore.deleteVocabularyBook;
 
 import androidx.appcompat.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.ListPopupWindow;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,15 +32,24 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class VocabularyBookListFragment extends Fragment {
 
+    private static final String PREFS_NAME = "voca_prefs";
+    private static final int SORT_ADDED_ASC = 0;
+    private static final int SORT_ADDED_DESC = 1;
+    private static final int SORT_ALPHA_ASC = 2;
+    private static final int SORT_ALPHA_DESC = 3;
+    private static final String[] SORT_LABELS = {"추가 순", "오래된 순", "알파벳 오름차순", "알파벳 내림차순"};
+
     private RecyclerView recyclerViewCurrentStudy;
     private RecyclerView recyclerViewOthers;
     private TextView tvHeaderSubtitle;
+    private TextView btnSortToggle;
     private View currentStudySection;
     private View otherBooksSection;
     private View emptyStateLayout;
@@ -48,6 +61,7 @@ public class VocabularyBookListFragment extends Fragment {
     private final ArrayList<Map<String, Object>> currentList = new ArrayList<>();
     private final ArrayList<Map<String, Object>> otherList = new ArrayList<>();
 
+    private int currentSortMode = SORT_ADDED_ASC;
     private String uid;
     private AlertDialog addBookDialog;
 
@@ -64,10 +78,14 @@ public class VocabularyBookListFragment extends Fragment {
         recyclerViewCurrentStudy = view.findViewById(R.id.recyclerViewCurrentStudy);
         recyclerViewOthers = view.findViewById(R.id.recyclerViewVocabulary);
         tvHeaderSubtitle = view.findViewById(R.id.tvHeaderSubtitle);
+        btnSortToggle = view.findViewById(R.id.btnSortToggle);
         currentStudySection = view.findViewById(R.id.currentStudySection);
         otherBooksSection = view.findViewById(R.id.otherBooksSection);
         emptyStateLayout = view.findViewById(R.id.emptyStateLayout);
         scrollContainer = view.findViewById(R.id.scrollContainer);
+
+        loadSortMode();
+        btnSortToggle.setOnClickListener(v -> showSortPopup());
 
         recyclerViewCurrentStudy.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerViewOthers.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -102,8 +120,7 @@ public class VocabularyBookListFragment extends Fragment {
                         otherList.add(book);
                     }
                 }
-                if (currentAdapter != null) currentAdapter.notifyDataSetChanged();
-                if (otherAdapter != null) otherAdapter.notifyDataSetChanged();
+                applySortToAdapters();
                 updateHeaderSubtitle(newDataList.size(), currentList.size());
                 updateSectionVisibility();
             }
@@ -202,6 +219,103 @@ public class VocabularyBookListFragment extends Fragment {
                 saveBookToFirestore(bookName);
             }
         });
+    }
+
+    private void showSortPopup() {
+        int vPad = Math.round(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 10, getResources().getDisplayMetrics()));
+        int hPad = Math.round(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()));
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(), 0, SORT_LABELS) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+                TextView tv = convertView instanceof TextView
+                        ? (TextView) convertView : new TextView(getContext());
+                tv.setText(SORT_LABELS[position]);
+                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                tv.setTextColor(0xFF222222);
+                tv.setPadding(hPad, vPad, hPad, vPad);
+                return tv;
+            }
+        };
+
+        android.graphics.Paint paint = new android.graphics.Paint();
+        paint.setTextSize(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP, 12, getResources().getDisplayMetrics()));
+        float maxTextWidth = 0;
+        for (String label : SORT_LABELS) {
+            maxTextWidth = Math.max(maxTextWidth, paint.measureText(label));
+        }
+        int popupWidth = Math.round(maxTextWidth) + hPad * 2;
+
+        ListPopupWindow popup = new ListPopupWindow(requireContext());
+        popup.setAdapter(adapter);
+        popup.setAnchorView(btnSortToggle);
+        popup.setModal(true);
+        popup.setWidth(popupWidth);
+        popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor("#f3f4f5")));
+        popup.setOnItemClickListener((parent, view, position, id) -> {
+            currentSortMode = position;
+            btnSortToggle.setText(SORT_LABELS[currentSortMode]);
+            applySortToAdapters();
+            saveSortMode();
+            popup.dismiss();
+        });
+        popup.show();
+    }
+
+    private void applySortToAdapters() {
+        sortList(currentList);
+        sortList(otherList);
+        if (currentAdapter != null) currentAdapter.notifyDataSetChanged();
+        if (otherAdapter != null) otherAdapter.notifyDataSetChanged();
+    }
+
+    private void sortList(List<Map<String, Object>> list) {
+        switch (currentSortMode) {
+            case SORT_ALPHA_ASC:
+                Collections.sort(list, (a, b) ->
+                        String.valueOf(a.get("title")).compareToIgnoreCase(String.valueOf(b.get("title"))));
+                break;
+            case SORT_ALPHA_DESC:
+                Collections.sort(list, (a, b) ->
+                        String.valueOf(b.get("title")).compareToIgnoreCase(String.valueOf(a.get("title"))));
+                break;
+            case SORT_ADDED_DESC:
+                Collections.sort(list, (a, b) -> {
+                    com.google.firebase.Timestamp ta = (com.google.firebase.Timestamp) a.get("timeStamp");
+                    com.google.firebase.Timestamp tb = (com.google.firebase.Timestamp) b.get("timeStamp");
+                    if (ta == null && tb == null) return 0;
+                    if (ta == null) return 1;
+                    if (tb == null) return -1;
+                    return ta.compareTo(tb);
+                });
+                break;
+            case SORT_ADDED_ASC:
+            default:
+                Collections.sort(list, (a, b) -> {
+                    com.google.firebase.Timestamp ta = (com.google.firebase.Timestamp) a.get("timeStamp");
+                    com.google.firebase.Timestamp tb = (com.google.firebase.Timestamp) b.get("timeStamp");
+                    if (ta == null && tb == null) return 0;
+                    if (ta == null) return 1;
+                    if (tb == null) return -1;
+                    return tb.compareTo(ta);
+                });
+                break;
+        }
+    }
+
+    private void saveSortMode() {
+        requireContext().getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                .edit().putInt("bookSortMode", currentSortMode).apply();
+    }
+
+    private void loadSortMode() {
+        SharedPreferences prefs = requireContext().getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE);
+        currentSortMode = prefs.getInt("bookSortMode", SORT_ADDED_ASC);
+        if (btnSortToggle != null) btnSortToggle.setText(SORT_LABELS[currentSortMode]);
     }
 
     private void saveBookToFirestore(String bookName) {

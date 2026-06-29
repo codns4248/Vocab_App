@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+
 public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitListener {
 
     public static final String PREFS_NAME = "voca_prefs";
@@ -509,6 +510,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         popup.setAnchorView(btnSortToggle);
         popup.setModal(true);
         popup.setWidth(popupWidth);
+        popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor("#f3f4f5")));
         popup.setOnItemClickListener((parent, view, position, id) -> {
             currentSortMode = position;
             btnSortToggle.setText(SORT_LABELS[currentSortMode]);
