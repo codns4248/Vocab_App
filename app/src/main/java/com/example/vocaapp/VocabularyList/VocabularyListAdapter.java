@@ -117,14 +117,14 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
                 bg.setColor(Color.parseColor("#E8EAF6"));
                 holder.statusIcon.setImageResource(R.drawable.ic_status_memorized);
                 holder.statusIcon.setColorFilter(Color.parseColor("#3b5bdb"));
-                holder.statusLabel.setText("암기함");
+                holder.statusLabel.setText("암기");
                 holder.statusLabel.setTextColor(Color.parseColor("#3b5bdb"));
                 break;
             default: // 미확인 (0)
                 bg.setColor(Color.parseColor("#F5F5F5"));
                 holder.statusIcon.setImageResource(R.drawable.ic_status_unknown);
                 holder.statusIcon.setColorFilter(Color.parseColor("#9E9E9E"));
-                holder.statusLabel.setText("미확인");
+                holder.statusLabel.setText("미학습");
                 holder.statusLabel.setTextColor(Color.parseColor("#9E9E9E"));
                 break;
         }
