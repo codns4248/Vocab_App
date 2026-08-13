@@ -61,21 +61,14 @@ public class TestActivity extends AppCompatActivity {
             userId = user.getUid();
         }
 
-        quizAndGameFirestore.getWordCount(userId, vocabularyId, new QuizAndGameFirestore.OnWordCountCallback() {
-            @Override
-            public void onCallback(long wordCount) {
-                totalPageTextView.setText(String.valueOf(wordCount));
-            }
-        });
-
-
         quizAndGameFirestore.loadWordsFromFirestore(userId, vocabularyId, wordList, new QuizAndGameFirestore.loadWordsFromFirestoreCallback(){
             @Override
             public void onCallback(List<Map<String, Object>> wordList) {
+                totalPageTextView.setText(String.valueOf(wordList.size()));
                 if (wordList.size() > 0) {
                     displayWord();
                 } else {
-                    Toast.makeText(TestActivity.this, "단어장에 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(TestActivity.this, "암기 완료되지 않은 단어가 없습니다.", Toast.LENGTH_SHORT).show();
                     finish();
                 }
             }

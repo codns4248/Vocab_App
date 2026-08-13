@@ -3,9 +3,13 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-android {  //이거 줄 왜 안없어짐>?
+android {
     namespace = "com.example.vocaapp"
-    compileSdk = 36 //36 -> 34
+    compileSdk = 36
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     defaultConfig {
         applicationId = "com.example.vocaapp"
@@ -44,7 +48,8 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore:24.10.0")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-ai")
 
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
@@ -60,9 +65,6 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:${camerax_version}")
     implementation("androidx.camera:camera-view:${camerax_version}")
 
-    implementation(platform("com.google.firebase:firebase-bom:33.8.0"))
-    implementation("com.google.firebase:firebase-ai")
-
     // JSON 파싱을 위한 GSON
     implementation("com.google.code.gson:gson:2.10.1")
 
@@ -70,7 +72,7 @@ dependencies {
     implementation("com.google.guava:guava:31.1-android")
 
     // FCM 라이브러리 추가
-    implementation("com.google.firebase:firebase-messaging:23.4.1")
+    implementation("com.google.firebase:firebase-messaging")
 
     implementation("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
 
@@ -80,4 +82,7 @@ dependencies {
 
     // lottie
     implementation("com.airbnb.android:lottie:6.1.0")
+
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-debug")  // 디버그 빌드용
 }

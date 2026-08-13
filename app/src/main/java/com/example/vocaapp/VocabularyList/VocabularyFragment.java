@@ -4,6 +4,10 @@ import androidx.appcompat.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.util.TypedValue;
@@ -11,11 +15,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.TextView;
-import androidx.appcompat.widget.ListPopupWindow;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.widget.ListPopupWindow;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -47,9 +50,11 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 
 public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitListener {
@@ -62,6 +67,10 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private static final int SORT_ALPHA_ASC = 2;
     private static final int SORT_ALPHA_DESC = 3;
     private static final String[] SORT_LABELS = {"추가 순", "오래된 순", "알파벳 오름차순", "알파벳 내림차순"};
+
+    private static final int FILTER_UNLEARNED = 0;
+    private static final int FILTER_CONFUSED = 1;
+    private static final int FILTER_LEARNED = 2;
 
     private TextToSpeech tts;
 
@@ -78,6 +87,11 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private MaterialButton btnStudyNow;
     private TextView btnSortToggle;
     private int currentSortMode = SORT_ADDED_ASC;
+    private Set<Integer> activeFilters = new HashSet<>();
+    private TextView btnFilterAll;
+    private TextView btnFilterUnlearned;
+    private TextView btnFilterConfused;
+    private TextView btnFilterLearned;
     private List<WordItem> originalWordList = new ArrayList<>();
     private RecyclerView recyclerView;
     private FloatingActionButton fab;
@@ -114,6 +128,10 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         btnStudyToggle = view.findViewById(R.id.btnStudyToggle);
         btnStudyNow = view.findViewById(R.id.btnStudyNow);
         btnSortToggle = view.findViewById(R.id.btnSortToggle);
+        btnFilterAll = view.findViewById(R.id.btnFilterAll);
+        btnFilterUnlearned = view.findViewById(R.id.btnFilterUnlearned);
+        btnFilterConfused = view.findViewById(R.id.btnFilterConfused);
+        btnFilterLearned = view.findViewById(R.id.btnFilterLearned);
         recyclerView = view.findViewById(R.id.recyclerViewVocabulary);
         fab = view.findViewById(R.id.vocabularyBookRegisterImageView);
         fabOption1 = view.findViewById(R.id.fab_option1);
@@ -185,6 +203,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
         btnSortToggle.setOnClickListener(v -> showSortPopup());
 
+        btnFilterAll.setOnClickListener(v -> { activeFilters.clear(); updateFilterButtons(); applySortToAdapter(); });
+        btnFilterUnlearned.setOnClickListener(v -> toggleFilter(FILTER_UNLEARNED));
+        btnFilterConfused.setOnClickListener(v -> toggleFilter(FILTER_CONFUSED));
+        btnFilterLearned.setOnClickListener(v -> toggleFilter(FILTER_LEARNED));
+        updateFilterButtons();
+
         return view;
     }
 
@@ -212,6 +236,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         isStudying = false;
         buttonOn = false;
         currentSortMode = SORT_ADDED_ASC;
+        activeFilters = new HashSet<>();
         originalWordList = new ArrayList<>();
         currentWordCount = 0;
         currentStampCount = 0;
@@ -277,9 +302,57 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         return copy;
     }
 
+    private void toggleFilter(int filter) {
+        if (activeFilters.contains(filter)) {
+            activeFilters.remove(filter);
+        } else {
+            activeFilters.add(filter);
+        }
+        if (activeFilters.size() == 3) activeFilters.clear();
+        updateFilterButtons();
+        applySortToAdapter();
+    }
+
+    private List<WordItem> getFilteredAndSortedList() {
+        List<WordItem> sorted = getSortedList();
+        if (activeFilters.isEmpty()) return sorted;
+        List<WordItem> filtered = new ArrayList<>();
+        for (WordItem item : sorted) {
+            if (activeFilters.contains(item.studyStatus)) filtered.add(item);
+        }
+        return filtered;
+    }
+
     private void applySortToAdapter() {
         if (adapter == null) return;
-        adapter.updateItems(getSortedList());
+        adapter.updateItems(getFilteredAndSortedList());
+    }
+
+    private void updateFilterButtons() {
+        applyFilterChipStyle(btnFilterAll, activeFilters.isEmpty());
+        applyFilterChipStyle(btnFilterUnlearned, activeFilters.contains(FILTER_UNLEARNED));
+        applyFilterChipStyle(btnFilterConfused, activeFilters.contains(FILTER_CONFUSED));
+        applyFilterChipStyle(btnFilterLearned, activeFilters.contains(FILTER_LEARNED));
+    }
+
+    private void applyFilterChipStyle(TextView btn, boolean selected) {
+        if (btn == null) return;
+        if (selected) {
+            btn.setTextColor(Color.parseColor("#3b5bdb"));
+            btn.setTypeface(null, android.graphics.Typeface.BOLD);
+            float density = getResources().getDisplayMetrics().density;
+            int totalH = Math.round(32 * density);
+            int lineH  = Math.round(2 * density);
+            GradientDrawable line = new GradientDrawable();
+            line.setColor(Color.parseColor("#3b5bdb"));
+            LayerDrawable ld = new LayerDrawable(new Drawable[]{line});
+            ld.setLayerInset(0, 0, totalH - lineH, 0, 0);
+            btn.setBackground(ld);
+        } else {
+            btn.setTextColor(Color.parseColor("#AAAAAA"));
+            btn.setTypeface(null, android.graphics.Typeface.NORMAL);
+            btn.setBackground(null);
+        }
     }
 
     private void openFabMenu() {
@@ -386,7 +459,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     currentWordCount = newList.size();
                     updateHeaderStats();
                     if (adapter == null) {
-                        adapter = new VocabularyListAdapter(getSortedList(), tts, uid, vocabularyId);
+                        adapter = new VocabularyListAdapter(getFilteredAndSortedList(), tts, uid, vocabularyId);
                         recyclerView.setAdapter(adapter);
                         setupSwipeController();
                     } else {

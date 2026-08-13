@@ -193,7 +193,7 @@ public class CameraActivity extends AppCompatActivity {
 
         // 3. 모델 초기화 (Vertex AI Backend 사용)
         GenerativeModel ai = FirebaseAI.getInstance(GenerativeBackend.vertexAI("global"))
-                .generativeModel("gemini-2.5-flash", generationConfig);
+                .generativeModel("gemini-3.5-flash", generationConfig);
 
         model = GenerativeModelFutures.from(ai);
 

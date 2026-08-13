@@ -151,7 +151,7 @@ public class QuizAndGameFirestore {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
-        userId = user.getUid(); // [추가] 유저 ID 저장
+        userId = user.getUid();
 
         db.collection("users")
                 .document(userId)
@@ -162,11 +162,13 @@ public class QuizAndGameFirestore {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     wordList.clear();
                     for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        wordList.add(doc.getData());
+                        Long statusLong = doc.getLong("studyStatus");
+                        int status = statusLong != null ? statusLong.intValue() : 0;
+                        if (status != 2) {
+                            wordList.add(doc.getData());
+                        }
                     }
                     callback.onCallback(wordList);
-
-
                 })
                 .addOnFailureListener(e -> {
                     Log.e("OXTest", "Firestore 연결 에러", e);
