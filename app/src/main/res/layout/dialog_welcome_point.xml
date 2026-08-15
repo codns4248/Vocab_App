@@ -42,7 +42,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:gravity="center"
-        android:text="이 포인트는 AI 단어 등록에\n사용할 수 있어요"
+        android:text="이 포인트는 AI 단어 등록에\n사용할 수 있어요."
         android:textColor="#666666"
         android:textSize="14sp" />
 

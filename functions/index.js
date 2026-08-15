@@ -1,6 +1,8 @@
-const { onCall, onRequest } = require("firebase-functions/v2/https"); // v2 필수
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https"); // v2 필수
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
+const Anthropic = require("@anthropic-ai/sdk");
 
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -9,13 +11,117 @@ if (!admin.apps.length) {
 const client = new CloudTasksClient();
 
 const PROJECT_ID = "vocaapp-bf580";
-const LOCATION = "asia-northeast3"; 
+const LOCATION = "asia-northeast3";
 const QUEUE_NAME = "voca-review-queue";
+
+// Claude API 키는 앱이 아닌 서버(Secret Manager)에만 존재합니다.
+// 설정: firebase functions:secrets:set ANTHROPIC_API_KEY
+const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+
+const AI_MODEL = "claude-haiku-4-5";
+const MAX_IMAGES = 5; // 갤러리 선택 상한(PickMultipleVisualMedia)과 동일
+
+// 구조화된 출력 스키마 — 기존 Gemini responseSchema와 동일한 형태
+const WORD_LIST_SCHEMA = {
+    type: "object",
+    properties: {
+        words: {
+            type: "array",
+            description: "추출된 단어 리스트",
+            items: {
+                type: "object",
+                properties: {
+                    word: { type: "string", description: "추출된 단어" },
+                    meaning: { type: "string", description: "단어의 뜻" },
+                    pronunciation: { type: "string", description: "단어의 발음을 한국어로" },
+                },
+                required: ["word", "meaning", "pronunciation"],
+                additionalProperties: false,
+            },
+        },
+    },
+    required: ["words"],
+    additionalProperties: false,
+};
+
+const EXTRACT_PROMPT =
+    "이미지에서 영어 단어들을 추출하고, 한국어 뜻과 한국어 발음을 적어줘. 만약 전문 용어라면 가장 대중적인 뜻을 선택해줘.";
 
 function getTaskPath(uid, docId) {
     const uniqueSuffix = Date.now();
     return client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `task_${uid}_${docId}_${uniqueSuffix}`);
 }
+
+// 사진에서 단어를 추출하는 함수 (Claude API 호출은 전부 서버에서만 이뤄집니다)
+exports.extractWordsFromImages = onCall(
+    {
+        region: "asia-northeast3",
+        secrets: [ANTHROPIC_API_KEY],
+        memory: "512MiB",
+        timeoutSeconds: 180,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+        }
+
+        const images = request.data?.images;
+        if (!Array.isArray(images) || images.length === 0) {
+            throw new HttpsError("invalid-argument", "이미지가 없습니다.");
+        }
+        if (images.length > MAX_IMAGES) {
+            throw new HttpsError("invalid-argument", `이미지는 최대 ${MAX_IMAGES}장까지 가능합니다.`);
+        }
+
+        // 앱은 JPEG로 압축한 base64 문자열을 보냅니다.
+        const content = images.map((data) => ({
+            type: "image",
+            source: { type: "base64", media_type: "image/jpeg", data },
+        }));
+        content.push({ type: "text", text: EXTRACT_PROMPT });
+
+        const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
+
+        let response;
+        try {
+            response = await anthropic.messages.create({
+                model: AI_MODEL,
+                max_tokens: 16000,
+                output_config: {
+                    format: { type: "json_schema", schema: WORD_LIST_SCHEMA },
+                },
+                messages: [{ role: "user", content }],
+            });
+        } catch (error) {
+            console.error("Claude 호출 실패:", error);
+            throw new HttpsError("internal", "단어 분석에 실패했습니다.");
+        }
+
+        // 안전 거부 / 토큰 초과는 스키마를 만족하지 않을 수 있으므로 먼저 확인
+        if (response.stop_reason === "refusal") {
+            throw new HttpsError("invalid-argument", "이 이미지는 분석할 수 없습니다.");
+        }
+        if (response.stop_reason === "max_tokens") {
+            throw new HttpsError("resource-exhausted", "단어가 너무 많습니다. 사진 수를 줄여주세요.");
+        }
+
+        const textBlock = response.content.find((block) => block.type === "text");
+        if (!textBlock) {
+            console.error("텍스트 블록 없음:", JSON.stringify(response.content));
+            throw new HttpsError("internal", "분석 결과를 읽지 못했습니다.");
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(textBlock.text);
+        } catch (error) {
+            console.error("파싱 실패:", textBlock.text);
+            throw new HttpsError("internal", "분석 결과를 읽지 못했습니다.");
+        }
+
+        return { words: parsed.words ?? [] };
+    }
+);
 
 exports.scheduleReviewNotification = onCall({ region: "asia-northeast3" }, async (request) => {
     const { data, auth } = request;

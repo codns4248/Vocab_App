@@ -8,6 +8,7 @@ import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
@@ -34,23 +35,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vocaapp.R;
 import com.example.vocaapp.VocabularyList.VocabularyFirestore;
 import com.example.vocaapp.VocabularyList.WordItem;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.firebase.ai.FirebaseAI;
-import com.google.firebase.ai.GenerativeModel;
-import com.google.firebase.ai.java.GenerativeModelFutures;
-import com.google.firebase.ai.type.Content;
-import com.google.firebase.ai.type.GenerateContentResponse;
-import com.google.firebase.ai.type.GenerationConfig;
-import com.google.firebase.ai.type.GenerativeBackend;
-import com.google.firebase.ai.type.Schema;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.functions.FirebaseFunctions;
 import com.google.gson.Gson;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -87,7 +80,7 @@ public class CameraActivity extends AppCompatActivity {
                 }
             });
 
-    private GenerativeModelFutures model;
+    private final FirebaseFunctions mFunctions = FirebaseFunctions.getInstance("asia-northeast3");
 
     private String vocabularyId;
     private String uid;
@@ -173,29 +166,8 @@ public class CameraActivity extends AppCompatActivity {
         photoRecyclerView.setLayoutManager(layoutManager);
         photoRecyclerView.setAdapter(photoAdapter);
 
-        // 출력 schema 구조
-        Schema wordSchema = Schema.obj(
-                Map.of(
-                        "word", Schema.str("추출된 단어"),
-                        "meaning", Schema.str("단어의 뜻"),
-                        "pronunciation", Schema.str("단어의 발음을 한국어로")
-                ),
-                List.of("word", "meaning", "pronunciation") // 필수 필드 지정
-        );
-
-        Schema responseSchema = Schema.array(wordSchema, "추출된 단어 리스트");
-
-        // 2. GenerationConfig 설정
-        GenerationConfig.Builder configBuilder = new GenerationConfig.Builder();
-        configBuilder.responseMimeType = "application/json";
-        configBuilder.responseSchema = responseSchema;
-        GenerationConfig generationConfig = configBuilder.build();
-
-        // 3. 모델 초기화 (Vertex AI Backend 사용)
-        GenerativeModel ai = FirebaseAI.getInstance(GenerativeBackend.vertexAI("global"))
-                .generativeModel("gemini-3.5-flash", generationConfig);
-
-        model = GenerativeModelFutures.from(ai);
+        // 단어 추출(Claude 호출)은 extractWordsFromImages Cloud Function이 담당합니다.
+        // API 키를 앱에 두지 않기 위한 구조이며, 출력 스키마도 함수 쪽에 정의돼 있습니다.
 
         finishTextView.setOnClickListener(v -> extractData());
 
@@ -279,73 +251,75 @@ public class CameraActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    // 실제 Gemini 추출을 수행하는 method
+    // 실제 추출을 수행하는 method (이미지 인코딩 → Cloud Function 호출)
     private void runExtraction() {
+        // 리사이즈 + JPEG 압축 + Base64 인코딩은 무거우므로 백그라운드에서 처리
+        new Thread(() -> {
+            ArrayList<String> encodedImages = new ArrayList<>();
+            try {
+                for (Bitmap photo : photoList) {
+                    Bitmap resized = getResizedBitmap(photo, 1024);
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    resized.compress(Bitmap.CompressFormat.JPEG, 80, out);
+                    encodedImages.add(Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP));
+                }
+            } catch (Exception e) {
+                Log.e("EncodeError", "이미지 인코딩 실패: " + e.getMessage());
+                runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(CameraActivity.this, "사진 처리에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                });
+                return;
+            }
+            runOnUiThread(() -> requestWordExtraction(encodedImages));
+        }).start();
+    }
 
-        Content.Builder contentBuilder = new Content.Builder();
+    // extractWordsFromImages 함수 호출 (Claude 호출은 서버에서 이뤄짐)
+    private void requestWordExtraction(ArrayList<String> encodedImages) {
+        Map<String, Object> funcData = new HashMap<>();
+        funcData.put("images", encodedImages);
 
-        for (Bitmap photo : photoList) {
-            Bitmap resized = getResizedBitmap(photo, 1024);
-            contentBuilder.addImage(resized);
-        }
-
-        contentBuilder.addText("이미지에서 영어 단어들을 추출하고, 한국어 뜻과 한국어 발음을 적어줘. 만약 전문 용어라면 가장 대중적인 뜻을 선택해줘.");
-
-        Content content = contentBuilder.build();
-
-        // Gemini 호출
-        ListenableFuture<GenerateContentResponse> response = model.generateContent(content);
-
-        // 콜백 설정 (executor 에러 해결을 위해 ContextCompat 사용)
-        Futures.addCallback(
-                response,
-                new FutureCallback<GenerateContentResponse>() {
-                    @Override
-                    public void onSuccess(GenerateContentResponse result) {
-                        String resultText = result.getText();
-                        Log.d("GeminiResult", "응답 JSON: " + resultText);
-
-                        try {
-                            // GSON을 사용하여 JSON 문자열을 List<WordItem>으로 변환
-                            Gson gson = new Gson();
-                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<WordItem>>(){}.getType();
-                            List<WordItem> wordList = gson.fromJson(resultText, listType);
-
-                            // 결과 처리 (메인 스레드에서 UI 업데이트)
-                            runOnUiThread(() -> {
-                                hideLoading();
-
-                                if (wordList != null && !wordList.isEmpty()) {
-                                    // AI 단어 등록 성공 시 포인트 차감
-                                    FirebaseFirestore.getInstance().collection("users").document(uid)
-                                            .update("point", FieldValue.increment(-AI_EXTRACT_COST));
-
-                                    Intent intent = new Intent(CameraActivity.this, WordSelectActivity.class);
-                                    intent.putParcelableArrayListExtra("wordList", new ArrayList<>(wordList));
-                                    intent.putExtra("vocabularyId", vocabularyId);
-                                    startActivity(intent);
-                                    finish();
-                                } else {
-                                    Toast.makeText(CameraActivity.this, "추출된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-
-                        } catch (Exception e) {
-                            Log.e("ParsingError", "파싱 실패: " + e.getMessage());
-                        }
+        mFunctions.getHttpsCallable("extractWordsFromImages")
+                .call(funcData)
+                .addOnSuccessListener(result -> {
+                    List<WordItem> wordList;
+                    try {
+                        // 응답은 { "words": [ {word, meaning, pronunciation}, ... ] } 형태
+                        Map<?, ?> data = (Map<?, ?>) result.getData();
+                        Gson gson = new Gson();
+                        String wordsJson = gson.toJson(data.get("words"));
+                        java.lang.reflect.Type listType =
+                                new com.google.gson.reflect.TypeToken<ArrayList<WordItem>>(){}.getType();
+                        wordList = gson.fromJson(wordsJson, listType);
+                    } catch (Exception e) {
+                        Log.e("ParsingError", "파싱 실패: " + e.getMessage());
+                        hideLoading();
+                        Toast.makeText(CameraActivity.this, "분석 결과를 읽지 못했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show();
+                        return;
                     }
 
-                    @Override
-                    public void onFailure(Throwable t) {
-                        Log.e("GeminiError", "에러 발생: " + t.getMessage());
-                        runOnUiThread(() -> {
-                            hideLoading();
-                            Toast.makeText(CameraActivity.this, "분석 실패: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
+                    hideLoading();
+
+                    if (wordList != null && !wordList.isEmpty()) {
+                        // AI 단어 등록 성공 시 포인트 차감
+                        FirebaseFirestore.getInstance().collection("users").document(uid)
+                                .update("point", FieldValue.increment(-AI_EXTRACT_COST));
+
+                        Intent intent = new Intent(CameraActivity.this, WordSelectActivity.class);
+                        intent.putParcelableArrayListExtra("wordList", new ArrayList<>(wordList));
+                        intent.putExtra("vocabularyId", vocabularyId);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(CameraActivity.this, "추출된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
                     }
-                },
-                ContextCompat.getMainExecutor(this) // 별도 변수 없이 안드로이드 메인 실행기 사용
-        );
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("ExtractError", "에러 발생: " + e.getMessage());
+                    hideLoading();
+                    Toast.makeText(CameraActivity.this, "분석 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
     }
 
     private Bitmap getResizedBitmap(Bitmap image, int maxSize) {
