@@ -3,6 +3,7 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
 const Anthropic = require("@anthropic-ai/sdk");
+const { base64ByteLength, classifyError, logApiUsage } = require("./usageLogger");
 
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -44,8 +45,146 @@ const WORD_LIST_SCHEMA = {
     additionalProperties: false,
 };
 
-const EXTRACT_PROMPT =
-    "이미지에서 영어 단어들을 추출하고, 한국어 뜻과 한국어 발음을 적어줘. 만약 전문 용어라면 가장 대중적인 뜻을 선택해줘.";
+// 이미지는 장별로 따로 호출합니다. 여러 장을 한 호출에 넣으면
+// (1) 모델이 전체를 한 장면처럼 훑고 중간에 끝내 단어를 빠뜨리고
+// (2) 출력 토큰과 소요 시간이 장수만큼 누적돼 max_tokens / 함수 타임아웃에 걸립니다.
+const EXTRACT_PROMPT = `이 이미지에 있는 영어 단어를 하나도 빠짐없이 추출하고, 단어마다 한국어 뜻과 한국어 발음을 적어줘.
+만약 전문 용어라면 가장 대중적인 뜻을 선택해줘.
+
+반드시 지켜야 할 규칙:
+- 이미지를 위에서 아래로 훑으면서 모든 단어를 포함해. 중간을 생략하거나 "이하 생략" 같은 식으로 요약하지 마.
+- 같은 단어가 여러 번 나오면 한 번만 포함해.`;
+
+// 실패 종류에 따라 사용자에게 보여줄 메시지를 정합니다.
+const ERROR_RESPONSES = {
+    refusal: ["invalid-argument", "이 이미지는 분석할 수 없습니다."],
+    max_tokens: ["resource-exhausted", "단어가 너무 많습니다. 사진을 나눠서 시도해주세요."],
+};
+
+/**
+ * 실패 종류를 클라이언트에 던질 HttpsError로 바꿉니다.
+ * @param {string|null} errorType 실패 종류
+ * @return {HttpsError} 클라이언트에 던질 에러
+ */
+function toHttpsError(errorType) {
+    const mapped = ERROR_RESPONSES[errorType];
+    if (mapped) {
+        return new HttpsError(mapped[0], mapped[1]);
+    }
+    return new HttpsError("internal", "단어 분석에 실패했습니다.");
+}
+
+/**
+ * 여러 호출에서 모인 단어를 합치고 중복을 제거합니다.
+ * 호출이 나뉘면 모델이 장 간 중복을 잡지 못하므로 서버에서 걸러야 합니다.
+ *
+ * @param {object[]} words 단어 객체 배열
+ * @return {object[]} 중복이 제거된 단어 배열(처음 등장한 것을 유지)
+ */
+function dedupeWords(words) {
+    const seen = new Set();
+    const merged = [];
+    for (const item of words) {
+        if (!item || typeof item.word !== "string") {
+            continue;
+        }
+        const key = item.word.trim().toLowerCase();
+        if (key === "" || seen.has(key)) {
+            continue;
+        }
+        seen.add(key);
+        merged.push(item);
+    }
+    return merged;
+}
+
+/**
+ * 이미지 한 장에서 단어를 추출합니다. 이 함수는 예외를 던지지 않고
+ * 성공/실패를 결과 객체로 돌려주며, 어느 쪽이든 사용량을 기록합니다.
+ *
+ * @param {object} anthropic Anthropic 클라이언트
+ * @param {string} imageData base64 JPEG 문자열
+ * @param {string|null} uid Firebase Auth UID
+ * @return {Promise<{ok: boolean, words?: object[], errorType?: string}>} 추출 결과
+ */
+async function extractFromSingleImage(anthropic, imageData, uid) {
+    const imageBytes = base64ByteLength(imageData);
+
+    const startedAt = Date.now();
+    let response = null;
+    let apiError = null;
+    try {
+        response = await anthropic.messages.create({
+            model: AI_MODEL,
+            max_tokens: 16000,
+            output_config: {
+                format: { type: "json_schema", schema: WORD_LIST_SCHEMA },
+            },
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageData } },
+                        { type: "text", text: EXTRACT_PROMPT },
+                    ],
+                },
+            ],
+        });
+    } catch (error) {
+        apiError = error;
+    }
+    const latencyMs = Date.now() - startedAt;
+
+    // 성공/실패 양쪽 모두, 결과를 돌려주기 전에 기록합니다.
+    const logUsage = (success, errorType, extractedWordCount) =>
+        logApiUsage({
+            uid,
+            model: AI_MODEL,
+            response,
+            latencyMs,
+            imageCount: 1,
+            imageBytes,
+            extractedWordCount,
+            success,
+            errorType,
+        });
+
+    const fail = (errorType) => {
+        logUsage(false, errorType, 0);
+        return { ok: false, errorType };
+    };
+
+    if (apiError) {
+        console.error("Claude 호출 실패:", apiError);
+        return fail(classifyError(apiError));
+    }
+
+    // 안전 거부 / 토큰 초과는 스키마를 만족하지 않을 수 있으므로 먼저 확인
+    if (response.stop_reason === "refusal") {
+        return fail("refusal");
+    }
+    if (response.stop_reason === "max_tokens") {
+        return fail("max_tokens");
+    }
+
+    const textBlock = (response.content || []).find((block) => block.type === "text");
+    if (!textBlock) {
+        console.error("텍스트 블록 없음:", JSON.stringify(response.content));
+        return fail("no_text_block");
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(textBlock.text);
+    } catch (error) {
+        console.error("파싱 실패:", textBlock.text);
+        return fail("json_parse_error");
+    }
+
+    const words = Array.isArray(parsed.words) ? parsed.words : [];
+    logUsage(true, null, words.length);
+    return { ok: true, words };
+}
 
 function getTaskPath(uid, docId) {
     const uniqueSuffix = Date.now();
@@ -73,53 +212,46 @@ exports.extractWordsFromImages = onCall(
             throw new HttpsError("invalid-argument", `이미지는 최대 ${MAX_IMAGES}장까지 가능합니다.`);
         }
 
-        // 앱은 JPEG로 압축한 base64 문자열을 보냅니다.
-        const content = images.map((data) => ({
-            type: "image",
-            source: { type: "base64", media_type: "image/jpeg", data },
-        }));
-        content.push({ type: "text", text: EXTRACT_PROMPT });
-
+        const uid = request.auth?.uid ?? null;
         const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
 
-        let response;
-        try {
-            response = await anthropic.messages.create({
-                model: AI_MODEL,
-                max_tokens: 16000,
-                output_config: {
-                    format: { type: "json_schema", schema: WORD_LIST_SCHEMA },
-                },
-                messages: [{ role: "user", content }],
-            });
-        } catch (error) {
-            console.error("Claude 호출 실패:", error);
-            throw new HttpsError("internal", "단어 분석에 실패했습니다.");
+        // 장별로 병렬 호출합니다. 한 호출에 몰아넣으면 출력 토큰과 소요 시간이
+        // 장수만큼 누적되지만, 나누면 각 호출이 자기 몫만 쓰고 전체 시간도
+        // 합이 아니라 가장 느린 한 장이 됩니다.
+        const settled = await Promise.allSettled(
+            images.map((imageData) => extractFromSingleImage(anthropic, imageData, uid))
+        );
+
+        const succeeded = [];
+        const failedTypes = [];
+        settled.forEach((outcome, index) => {
+            if (outcome.status === "rejected") {
+                // extractFromSingleImage는 예외를 던지지 않도록 만들었지만, 만약을 대비합니다.
+                console.error(`${index + 1}번째 이미지 처리 중 예외:`, outcome.reason);
+                failedTypes.push(classifyError(outcome.reason));
+                return;
+            }
+            if (outcome.value.ok) {
+                succeeded.push(outcome.value);
+            } else {
+                failedTypes.push(outcome.value.errorType);
+            }
+        });
+
+        // 전부 실패했을 때만 사용자에게 에러를 돌려줍니다.
+        if (succeeded.length === 0) {
+            throw toHttpsError(failedTypes[0]);
         }
 
-        // 안전 거부 / 토큰 초과는 스키마를 만족하지 않을 수 있으므로 먼저 확인
-        if (response.stop_reason === "refusal") {
-            throw new HttpsError("invalid-argument", "이 이미지는 분석할 수 없습니다.");
-        }
-        if (response.stop_reason === "max_tokens") {
-            throw new HttpsError("resource-exhausted", "단어가 너무 많습니다. 사진 수를 줄여주세요.");
+        if (failedTypes.length > 0) {
+            console.warn(`이미지 ${images.length}장 중 ${failedTypes.length}장 실패:`, failedTypes.join(", "));
         }
 
-        const textBlock = response.content.find((block) => block.type === "text");
-        if (!textBlock) {
-            console.error("텍스트 블록 없음:", JSON.stringify(response.content));
-            throw new HttpsError("internal", "분석 결과를 읽지 못했습니다.");
-        }
+        const words = dedupeWords(succeeded.flatMap((result) => result.words));
 
-        let parsed;
-        try {
-            parsed = JSON.parse(textBlock.text);
-        } catch (error) {
-            console.error("파싱 실패:", textBlock.text);
-            throw new HttpsError("internal", "분석 결과를 읽지 못했습니다.");
-        }
-
-        return { words: parsed.words ?? [] };
+        // failedImageCount는 기존 앱이 무시하는 추가 필드입니다.
+        // 일부만 성공했을 때 사용자에게 알려주려면 앱에서 이 값을 읽으면 됩니다.
+        return { words, failedImageCount: failedTypes.length };
     }
 );
 
