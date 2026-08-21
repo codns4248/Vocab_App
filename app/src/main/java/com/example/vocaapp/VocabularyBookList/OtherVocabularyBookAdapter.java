@@ -32,12 +32,14 @@ public class OtherVocabularyBookAdapter extends RecyclerView.Adapter<OtherVocabu
         TextView tvBookLabel;
         TextView tvBookTitle;
         TextView tvBookWordCount;
+        TextView tvWordStatusCounts;
 
         public VH(@NonNull View itemView) {
             super(itemView);
             tvBookLabel = itemView.findViewById(R.id.tvBookLabel);
             tvBookTitle = itemView.findViewById(R.id.tvBookTitle);
             tvBookWordCount = itemView.findViewById(R.id.tvBookWordCount);
+            tvWordStatusCounts = itemView.findViewById(R.id.tvWordStatusCounts);
         }
     }
 
@@ -58,6 +60,10 @@ public class OtherVocabularyBookAdapter extends RecyclerView.Adapter<OtherVocabu
 
         int wordCount = toInt(book.get("wordCount"));
         h.tvBookWordCount.setText("단어 " + wordCount + "개");
+
+        if (h.tvWordStatusCounts != null) {
+            h.tvWordStatusCounts.setText(BookStatusCounts.format(book, false));
+        }
 
         String label = title != null && !title.isEmpty()
                 ? title.substring(0, Math.min(2, title.length())).toUpperCase()

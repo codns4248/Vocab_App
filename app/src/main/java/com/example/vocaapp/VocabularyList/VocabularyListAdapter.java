@@ -24,6 +24,12 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
     private TextToSpeech tts;
     private String uid;
     private String vocabularyId;
+    private OnStatusChangedListener statusChangedListener;
+
+    // 학습 상태가 바뀌면 화면 상단의 개수 표시도 다시 계산해야 한다.
+    public interface OnStatusChangedListener {
+        void onStatusChanged();
+    }
 
     public VocabularyListAdapter(List<WordItem> wordList, TextToSpeech tts,
                                  String uid, String vocabularyId) {
@@ -31,6 +37,10 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
         this.tts = tts;
         this.uid = uid;
         this.vocabularyId = vocabularyId;
+    }
+
+    public void setOnStatusChangedListener(OnStatusChangedListener listener) {
+        this.statusChangedListener = listener;
     }
 
     public static class WordViewHolder extends RecyclerView.ViewHolder {
@@ -88,11 +98,14 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
         applyStatus(holder, item);
 
         holder.statusButton.setOnClickListener(v -> {
-            item.studyStatus = (item.studyStatus + 1) % 3;
+            int oldStatus = item.studyStatus;
+            item.studyStatus = (oldStatus + 1) % 3;
             applyStatus(holder, item);
             if (uid != null && vocabularyId != null && item.docId != null) {
-                VocabularyFirestore.updateStudyStatus(uid, vocabularyId, item.docId, item.studyStatus);
+                VocabularyFirestore.updateStudyStatus(uid, vocabularyId, item.docId,
+                        oldStatus, item.studyStatus);
             }
+            if (statusChangedListener != null) statusChangedListener.onStatusChanged();
         });
     }
 

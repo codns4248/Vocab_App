@@ -33,6 +33,7 @@ public class CurrentVocabularyBookAdapter extends RecyclerView.Adapter<CurrentVo
         TextView tvProgressFraction;
         TextView tvProgressPercent;
         TextView tvContinueStudy;
+        TextView tvWordStatusCounts;
         ProgressBar progressBarStudy;
 
         public VH(@NonNull View itemView) {
@@ -41,6 +42,7 @@ public class CurrentVocabularyBookAdapter extends RecyclerView.Adapter<CurrentVo
             tvProgressFraction = itemView.findViewById(R.id.tvProgressFraction);
             tvProgressPercent = itemView.findViewById(R.id.tvProgressPercent);
             tvContinueStudy = itemView.findViewById(R.id.tvContinueStudy);
+            tvWordStatusCounts = itemView.findViewById(R.id.tvWordStatusCounts);
             progressBarStudy = itemView.findViewById(R.id.progressBarStudy);
         }
     }
@@ -68,6 +70,10 @@ public class CurrentVocabularyBookAdapter extends RecyclerView.Adapter<CurrentVo
         h.tvProgressPercent.setText(percent + "% 완료");
         h.progressBarStudy.setMax(100);
         h.progressBarStudy.setProgress(percent);
+
+        if (h.tvWordStatusCounts != null) {
+            h.tvWordStatusCounts.setText(BookStatusCounts.format(book, true));
+        }
 
         h.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onBookClick(book);

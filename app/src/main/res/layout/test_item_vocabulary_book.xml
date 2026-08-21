@@ -65,6 +65,16 @@
                 android:textColor="#737373"
                 android:textSize="12sp"
                 tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/tvWordStatusCounts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="미학습 0 · 헷갈림 0 · 학습 0"
+                android:textColor="#A3A3A3"
+                android:textSize="11sp"
+                tools:ignore="HardcodedText" />
         </LinearLayout>
 
         <!-- 화살표 -->

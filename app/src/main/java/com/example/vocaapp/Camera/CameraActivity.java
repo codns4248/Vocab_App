@@ -88,6 +88,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private View loadingOverlay;
     private TextView loadingText;
+    private TextView loadingSubText;
 
     // 로딩 문구 타자 효과용
     private final android.os.Handler typingHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -109,6 +110,30 @@ public class CameraActivity extends AppCompatActivity {
         }
     };
 
+    // 로딩 중 보조 안내. 한 줄만 두고 번갈아 보여준다.
+    // 여러 줄을 동시에 띄우면 화면이 지저분해진다.
+    private static final String[] LOADING_TIPS = {
+            "단어가 많을 경우 시간이 더 걸릴 수 있어요.",
+            "AI가 모든 단어를 찾지 못할 수 있어요.",
+            "빠진 단어는 다음 화면에서 직접 추가할 수 있어요.",
+    };
+    private static final long TIP_INTERVAL_MS = 3000;
+    private int tipIndex = 0;
+    private final Runnable tipRunnable = new Runnable() {
+        @Override
+        public void run() {
+            tipIndex = (tipIndex + 1) % LOADING_TIPS.length;
+            if (loadingSubText != null) {
+                // 툭 바뀌지 않도록 페이드 아웃 후 교체하고 페이드 인
+                loadingSubText.animate().alpha(0f).setDuration(250).withEndAction(() -> {
+                    loadingSubText.setText(LOADING_TIPS[tipIndex]);
+                    loadingSubText.animate().alpha(1f).setDuration(250).start();
+                }).start();
+            }
+            typingHandler.postDelayed(this, TIP_INTERVAL_MS);
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -127,6 +152,7 @@ public class CameraActivity extends AppCompatActivity {
         finishTextView = findViewById(R.id.finishTextView);
         loadingOverlay = findViewById(R.id.loadingOverlay);
         loadingText = findViewById(R.id.loadingText);
+        loadingSubText = findViewById(R.id.loadingSubText);
 
         vocabularyId = getIntent().getStringExtra("vocabularyId");
 
@@ -173,8 +199,10 @@ public class CameraActivity extends AppCompatActivity {
 
     }
 
-    // AI 단어 등록 1회당 차감되는 포인트
-    private static final int AI_EXTRACT_COST = 20;
+    // AI 단어 등록 시 사진 1장당 차감되는 포인트.
+    // 서버는 사진을 장별로 나눠 Claude API를 호출하므로 원가가 장수에 비례한다.
+    // 요청당 고정으로 두면 5장 올리는 사용자가 1장 사용자의 5배를 쓰고도 같은 값을 낸다.
+    private static final int AI_EXTRACT_COST_PER_PHOTO = 20;
 
     // 사진에서 단어를 추출하는 method
     private void extractData() {
@@ -184,16 +212,18 @@ public class CameraActivity extends AppCompatActivity {
             return;
         }
 
-        // 포인트가 충분한지 먼저 확인 후 추출 진행
+        // 사진 장수만큼의 포인트가 있는지 먼저 확인 후 추출 진행
+        final int requiredPoint = AI_EXTRACT_COST_PER_PHOTO * photoList.size();
+
         showLoading();
         FirebaseFirestore.getInstance().collection("users").document(uid)
                 .get()
                 .addOnSuccessListener(snapshot -> {
                     long point = (snapshot.exists() && snapshot.get("point") != null)
                             ? snapshot.getLong("point") : 0;
-                    if (point < AI_EXTRACT_COST) {
+                    if (point < requiredPoint) {
                         hideLoading();
-                        showInsufficientPointDialog();
+                        showInsufficientPointDialog(requiredPoint, point);
                         return;
                     }
                     runExtraction();
@@ -211,23 +241,46 @@ public class CameraActivity extends AppCompatActivity {
         typingIndex = 0;
         loadingText.setText("");
         typingHandler.post(typingRunnable);
+
+        // 보조 안내는 첫 문구를 보여준 뒤 일정 간격으로 넘긴다.
+        typingHandler.removeCallbacks(tipRunnable);
+        tipIndex = 0;
+        if (loadingSubText != null) {
+            loadingSubText.setAlpha(1f);
+            loadingSubText.setText(LOADING_TIPS[0]);
+        }
+        typingHandler.postDelayed(tipRunnable, TIP_INTERVAL_MS);
     }
 
-    // 로딩 오버레이 숨김 + 타자 효과 중단
+    // 로딩 오버레이 숨김 + 타자 효과/안내 순환 중단
     private void hideLoading() {
         loadingOverlay.setVisibility(View.GONE);
         typingHandler.removeCallbacks(typingRunnable);
+        typingHandler.removeCallbacks(tipRunnable);
+        if (loadingSubText != null) {
+            // 페이드 도중에 멈출 수 있으므로 다음 표시를 위해 알파를 되돌린다.
+            loadingSubText.animate().cancel();
+            loadingSubText.setAlpha(1f);
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         typingHandler.removeCallbacks(typingRunnable);
+        typingHandler.removeCallbacks(tipRunnable);
     }
 
     // 포인트 부족 안내 팝업 (확인 / 결제하기)
-    private void showInsufficientPointDialog() {
+    private void showInsufficientPointDialog(int requiredPoint, long currentPoint) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_insufficient_point, null);
+
+        // 사진 장수에 따라 필요 포인트가 달라지므로 얼마가 왜 필요한지 알려준다.
+        TextView messageText = dialogView.findViewById(R.id.messageText);
+        if (messageText != null) {
+            messageText.setText("사진 " + photoList.size() + "장 분석에 " + requiredPoint + "P가 필요해요.\n"
+                    + "보유 포인트는 " + currentPoint + "P입니다.");
+        }
 
         androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -284,14 +337,21 @@ public class CameraActivity extends AppCompatActivity {
                 .call(funcData)
                 .addOnSuccessListener(result -> {
                     List<WordItem> wordList;
+                    int failedImages;
                     try {
-                        // 응답은 { "words": [ {word, meaning, pronunciation}, ... ] } 형태
+                        // 응답은 { "words": [ {word, meaning, pronunciation}, ... ],
+                        //          "failedImageCount": n } 형태
                         Map<?, ?> data = (Map<?, ?>) result.getData();
                         Gson gson = new Gson();
                         String wordsJson = gson.toJson(data.get("words"));
                         java.lang.reflect.Type listType =
                                 new com.google.gson.reflect.TypeToken<ArrayList<WordItem>>(){}.getType();
                         wordList = gson.fromJson(wordsJson, listType);
+
+                        // 서버가 장별로 호출하므로 일부만 실패할 수 있다.
+                        // 실패한 장은 결과가 없으니 포인트도 받지 않는다.
+                        Object failedRaw = data.get("failedImageCount");
+                        failedImages = (failedRaw instanceof Number) ? ((Number) failedRaw).intValue() : 0;
                     } catch (Exception e) {
                         Log.e("ParsingError", "파싱 실패: " + e.getMessage());
                         hideLoading();
@@ -302,9 +362,19 @@ public class CameraActivity extends AppCompatActivity {
                     hideLoading();
 
                     if (wordList != null && !wordList.isEmpty()) {
-                        // AI 단어 등록 성공 시 포인트 차감
-                        FirebaseFirestore.getInstance().collection("users").document(uid)
-                                .update("point", FieldValue.increment(-AI_EXTRACT_COST));
+                        // 성공한 사진 장수만큼만 차감한다.
+                        int chargedPhotos = Math.max(photoList.size() - failedImages, 0);
+                        if (chargedPhotos > 0) {
+                            FirebaseFirestore.getInstance().collection("users").document(uid)
+                                    .update("point", FieldValue.increment(
+                                            (long) -AI_EXTRACT_COST_PER_PHOTO * chargedPhotos));
+                        }
+
+                        if (failedImages > 0) {
+                            Toast.makeText(CameraActivity.this,
+                                    "사진 " + failedImages + "장은 분석하지 못했습니다. 해당 사진의 포인트는 차감되지 않았습니다.",
+                                    Toast.LENGTH_LONG).show();
+                        }
 
                         Intent intent = new Intent(CameraActivity.this, WordSelectActivity.class);
                         intent.putParcelableArrayListExtra("wordList", new ArrayList<>(wordList));

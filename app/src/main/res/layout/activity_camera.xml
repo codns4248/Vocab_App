@@ -138,9 +138,11 @@
                 android:textSize="15sp"/>
 
             <TextView
+                android:id="@+id/loadingSubText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
+                android:gravity="center"
                 android:text="단어가 많을 경우 시간이 더 걸릴 수 있어요."
                 android:textColor="#AAFFFFFF"
                 android:textSize="12sp"/>
