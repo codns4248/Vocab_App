@@ -27,6 +27,9 @@ import java.util.Map;
 
 public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
 
+    public static final String REQUEST_KEY = "vocabularySelectionRequestKey";
+    public static final String RESULT_SELECTED_ID = "selectedId";
+
     private RecyclerView recyclerView;
     private WordbookAdapter adapter;
     private List<Map<String, Object>> dataList = new ArrayList<>();
@@ -63,6 +66,15 @@ public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
             }
 
             String id = String.valueOf(selectedData.get("id"));
+
+            boolean selectOnly = getArguments() != null && getArguments().getBoolean("selectOnly", false);
+            if (selectOnly) {
+                Bundle result = new Bundle();
+                result.putString(RESULT_SELECTED_ID, id);
+                getParentFragmentManager().setFragmentResult(REQUEST_KEY, result);
+                dismiss();
+                return;
+            }
 
             boolean isStudying;
             if (selectedData.get("isStudying") != null) {
