@@ -21,6 +21,17 @@ import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.kakao.sdk.auth.model.OAuthToken;
+import com.kakao.sdk.common.model.ClientError;
+import com.kakao.sdk.common.model.ClientErrorCause;
+import com.kakao.sdk.user.UserApiClient;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import kotlin.Unit;
+import kotlin.jvm.functions.Function2;
 
 // 안드로이드 구버전 호환성을 위해 추가
 import java.util.concurrent.Executor;
@@ -58,6 +69,9 @@ public class LoginActivity extends AppCompatActivity {
                 signInWithGoogle(); // 신식 로그인 함수 실행
             }
         });
+
+        Button kakaoBtn = findViewById(R.id.kakaoBtn);
+        kakaoBtn.setOnClickListener(v -> signInWithKakao());
     }
 
     // 구글 로그인 요청 함수
@@ -154,6 +168,95 @@ public class LoginActivity extends AppCompatActivity {
                         // 실패
                         runOnUiThread(() -> Toast.makeText(LoginActivity.this, "파이어베이스 인증 실패", Toast.LENGTH_SHORT).show());
                     }
+                });
+    }
+
+    // ------------------------------------------------------------------
+    // 카카오 로그인
+    //
+    // Firebase Auth에는 카카오 제공자가 없어서 커스텀 토큰을 거친다.
+    //   카카오 SDK 로그인 -> 액세스 토큰
+    //   -> kakaoCustomToken 함수가 토큰을 카카오 서버에 검증하고 Firebase 토큰 발급
+    //   -> signInWithCustomToken
+    // 이후로는 구글 로그인과 완전히 같은 Firebase 유저다.
+    // ------------------------------------------------------------------
+    private void signInWithKakao() {
+        Function2<OAuthToken, Throwable, Unit> callback = (token, error) -> {
+            if (error != null) {
+                // 사용자가 로그인 창을 닫은 경우는 오류로 알리지 않는다.
+                if (error instanceof ClientError
+                        && ((ClientError) error).getReason() == ClientErrorCause.Cancelled) {
+                    return Unit.INSTANCE;
+                }
+                Log.e("KakaoLogin", "카카오 로그인 실패", error);
+                runOnUiThread(() -> Toast.makeText(this,
+                        "카카오 로그인에 실패했습니다.", Toast.LENGTH_SHORT).show());
+                return Unit.INSTANCE;
+            }
+            if (token == null) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        "카카오 로그인에 실패했습니다.", Toast.LENGTH_SHORT).show());
+                return Unit.INSTANCE;
+            }
+            exchangeKakaoTokenForFirebase(token.getAccessToken());
+            return Unit.INSTANCE;
+        };
+
+        // 카카오톡이 깔려 있으면 앱으로, 아니면 웹(카카오계정)으로 로그인한다.
+        UserApiClient client = UserApiClient.getInstance();
+        if (client.isKakaoTalkLoginAvailable(this)) {
+            client.loginWithKakaoTalk(this, callback);
+        } else {
+            client.loginWithKakaoAccount(this, callback);
+        }
+    }
+
+    // 카카오 액세스 토큰을 서버로 보내 Firebase 커스텀 토큰으로 바꾼다.
+    // 클라이언트가 카카오 ID를 직접 주장하지 않고, 서버가 카카오에 물어본다.
+    private void exchangeKakaoTokenForFirebase(String kakaoAccessToken) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("accessToken", kakaoAccessToken);
+
+        FirebaseFunctions.getInstance("asia-northeast3")
+                .getHttpsCallable("kakaoCustomToken")
+                .call(data)
+                .addOnSuccessListener(result -> {
+                    Map<?, ?> body = (Map<?, ?>) result.getData();
+                    String customToken = body == null ? null : (String) body.get("customToken");
+                    boolean isNewUser = body != null && Boolean.TRUE.equals(body.get("isNewUser"));
+
+                    if (customToken == null) {
+                        Toast.makeText(this, "로그인에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    firebaseAuthWithCustomToken(customToken, isNewUser);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("KakaoLogin", "커스텀 토큰 발급 실패", e);
+                    Toast.makeText(this, "로그인에 실패했습니다: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void firebaseAuthWithCustomToken(String customToken, boolean isNewUser) {
+        mAuth.signInWithCustomToken(customToken)
+                .addOnCompleteListener(this, task -> {
+                    if (!task.isSuccessful()) {
+                        Log.e("KakaoLogin", "Firebase 인증 실패", task.getException());
+                        Toast.makeText(this, "파이어베이스 인증 실패", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    FirebaseUser user = mAuth.getCurrentUser();
+                    if (user != null) {
+                        com.example.vocaapp.Test.StudyManager.getInstance().updateFCMToken(user.getUid());
+                        // 커스텀 토큰 로그인은 getAdditionalUserInfo()를 믿을 수 없어
+                        // 서버가 알려준 isNewUser를 쓴다.
+                        if (isNewUser) {
+                            com.example.vocaapp.Test.StudyManager.getInstance().initNewUserPoint(user.getUid());
+                        }
+                    }
+                    runOnUiThread(() -> goToMain(isNewUser));
                 });
     }
 

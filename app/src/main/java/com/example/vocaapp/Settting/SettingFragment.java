@@ -14,6 +14,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import androidx.appcompat.app.AlertDialog;
+
+import com.example.vocaapp.LoginActivity;
 import com.example.vocaapp.R;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.firebase.auth.FirebaseAuth;
@@ -42,11 +45,19 @@ public class SettingFragment extends Fragment {
         LinearLayout sendCommentLinear = view.findViewById(R.id.sendCommentLinear);
         LinearLayout checkPolicyLinear = view.findViewById(R.id.checkPolicyLinear);
         MaterialSwitch switchMarketingPush = view.findViewById(R.id.switchMarketingPush);
+        LinearLayout logoutLinear = view.findViewById(R.id.logoutLinear);
+        LinearLayout unregisterLinear = view.findViewById(R.id.unregisterLinear);
 
         //로그인 한 유저 이메일 보여주기
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
-            tvUserEmail.setText(user.getEmail());
+            // 카카오 계정은 이메일이 선택 동의라 없을 수 있다.
+            // 빈칸으로 두면 화면이 비어 보이므로 식별자(uid)를 대신 보여준다.
+            if (SettingFirebase.isKakaoAccount(user)) {
+                tvUserEmail.setText(user.getUid());
+            } else {
+                tvUserEmail.setText(user.getEmail());
+            }
 
             // 잔여 포인트 불러와서 표시하기
             FirebaseFirestore.getInstance().collection("users").document(user.getUid())
@@ -89,11 +100,59 @@ public class SettingFragment extends Fragment {
             startActivity(intent);
         });
 
-        view.findViewById(R.id.imageView4).setOnClickListener(v -> {
-            Intent intent = new Intent(getActivity(), AccountSettingActivity.class);
-            startActivity(intent);
-        });
+        logoutLinear.setOnClickListener(v -> showLogoutDialog());
+        unregisterLinear.setOnClickListener(v -> showUnregisterDialog());
 
         return view;
+    }
+
+    private void showLogoutDialog() {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("로그아웃")
+                .setMessage("로그아웃 하시겠습니까?")
+                .setPositiveButton("로그아웃", (dialog, which) -> {
+                    mAuth.signOut();
+                    goToLogin();
+                })
+                .setNegativeButton("취소", (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
+    private void showUnregisterDialog() {
+        // 재인증 방식이 제공자마다 달라서 안내 문구도 나눈다.
+        boolean isKakao = SettingFirebase.isKakaoAccount(mAuth.getCurrentUser());
+        String reauthNotice = isKakao
+                ? "\n탈퇴를 위해 카카오 로그인을 다시 진행해야 합니다.\n탈퇴 시 카카오 계정과의 연결도 해제됩니다."
+                : "\n탈퇴를 위해 구글 로그인을 다시 진행해야 합니다.";
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("회원 탈퇴")
+                .setMessage("정말로 탈퇴하시겠습니까?\n탈퇴 시 작성하신 단어장과 학습 기록이 모두 삭제되며 복구할 수 없습니다." + reauthNotice)
+                .setPositiveButton("탈퇴", (dialog, which) -> {
+                    SettingFirebase settingFirebase = new SettingFirebase(requireContext(),
+                            new SettingFirebase.OnUnregisterListener() {
+                                @Override
+                                public void onSuccess() {
+                                    if (isAdded()) goToLogin();
+                                }
+
+                                @Override
+                                public void onFailure(String errorMsg) {
+                                    if (isAdded()) {
+                                        Toast.makeText(getContext(), "탈퇴 실패: " + errorMsg,
+                                                Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                    settingFirebase.performUnregister();
+                })
+                .setNegativeButton("취소", (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
+    private void goToLogin() {
+        Intent intent = new Intent(getActivity(), LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
     }
 }

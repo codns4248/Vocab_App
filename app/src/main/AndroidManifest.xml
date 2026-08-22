@@ -20,6 +20,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VocaApp">
 
+        <!-- 카카오 로그인 리다이렉트.
+             SDK가 AuthCodeHandlerActivity 자체는 넣어주지만 스킴은 앱이 정해야 한다.
+             kakao{네이티브 앱 키}://oauth 형식이며 키는 build.gradle.kts의 placeholder에서 온다. -->
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".Test.MyFirebaseMessagingService"
             android:exported="false">
@@ -75,8 +91,6 @@
         <activity android:name=".Settting.NoticeDetailActivity"
             android:exported="false"/>
 
-        <activity android:name=".Settting.AccountSettingActivity"
-            android:exported="false"/>
 
     </application>
 

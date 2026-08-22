@@ -19,13 +19,20 @@ import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.kakao.sdk.auth.model.OAuthToken;
+import com.kakao.sdk.user.UserApiClient;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import kotlin.Unit;
+import kotlin.jvm.functions.Function2;
 
 public class SettingFirebase {
 
     private final Context context;
     private final FirebaseAuth auth;
-    private final FirebaseFirestore db;
     private final OnUnregisterListener listener; // 콜백 리스너 추가
 
     // 1. 성공/실패 처리를 위한 인터페이스 정의
@@ -38,18 +45,35 @@ public class SettingFirebase {
     public SettingFirebase(Context context, OnUnregisterListener listener) {
         this.context = context;
         this.auth = FirebaseAuth.getInstance();
-        this.db = FirebaseFirestore.getInstance();
         this.listener = listener;
     }
 
+    /** 카카오로 만든 계정인지. 커스텀 토큰 uid를 kakao:{회원번호} 형태로 발급한다. */
+    public static boolean isKakaoAccount(FirebaseUser user) {
+        return user != null && user.getUid() != null && user.getUid().startsWith("kakao:");
+    }
+
     public void performUnregister() {
-        CredentialManager credentialManager = CredentialManager.create(context);
         FirebaseUser user = auth.getCurrentUser();
 
         if (user == null) {
             if (listener != null) listener.onFailure("로그인된 사용자가 없습니다.");
             return;
         }
+
+        if (isKakaoAccount(user)) {
+            // 카카오는 Firebase 재인증(reauthenticate)이 불가능하다. 커스텀 토큰이라
+            // 재인증에 쓸 AuthCredential이 없다. 대신 카카오 로그인을 다시 시켜
+            // 그 액세스 토큰을 서버가 검증하게 한다.
+            reauthenticateWithKakaoThenDelete();
+            return;
+        }
+
+        performGoogleUnregister(user);
+    }
+
+    private void performGoogleUnregister(FirebaseUser user) {
+        CredentialManager credentialManager = CredentialManager.create(context);
 
         GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(true)
@@ -73,7 +97,7 @@ public class SettingFirebase {
 
                                 user.reauthenticate(authCredential).addOnCompleteListener(reauthTask -> {
                                     if (reauthTask.isSuccessful()) {
-                                        deleteUserAndData(user, credentialManager);
+                                        callDeleteAccount(null, credentialManager);
                                     } else {
                                         if (listener != null) listener.onFailure("재인증에 실패했습니다.");
                                     }
@@ -81,6 +105,9 @@ public class SettingFirebase {
                             } catch (Exception e) {
                                 if (listener != null) listener.onFailure("토큰 처리 중 오류가 발생했습니다.");
                             }
+                        } else {
+                            // 구글 자격 증명이 아니면 여기서 끝나버려 아무 반응이 없었다.
+                            if (listener != null) listener.onFailure("재인증에 실패했습니다.");
                         }
                     }
 
@@ -91,33 +118,68 @@ public class SettingFirebase {
                 });
     }
 
-    private void deleteUserAndData(FirebaseUser user, CredentialManager credentialManager) {
-        String uid = user.getUid();
+    // 카카오 재인증: 로그인 창을 다시 띄워 받은 액세스 토큰을 서버로 넘긴다.
+    private void reauthenticateWithKakaoThenDelete() {
+        Function2<OAuthToken, Throwable, Unit> callback = (token, error) -> {
+            if (error != null || token == null) {
+                if (listener != null) listener.onFailure("카카오 재인증에 실패했습니다.");
+                return Unit.INSTANCE;
+            }
+            callDeleteAccount(token.getAccessToken(), null);
+            return Unit.INSTANCE;
+        };
 
-        db.collection("users").document(uid).delete()
-                .addOnSuccessListener(aVoid -> {
-                    user.delete().addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
-                            credentialManager.clearCredentialStateAsync(new ClearCredentialStateRequest(), null, Runnable::run,
-                                    new CredentialManagerCallback<Void, ClearCredentialException>() {
-                                        @Override
-                                        public void onResult(Void result) {
-                                            // 3. 최종 성공 시 콜백 호출
-                                            if (listener != null) listener.onSuccess();
-                                        }
+        UserApiClient client = UserApiClient.getInstance();
+        if (client.isKakaoTalkLoginAvailable(context)) {
+            client.loginWithKakaoTalk(context, callback);
+        } else {
+            client.loginWithKakaoAccount(context, callback);
+        }
+    }
 
-                                        @Override
-                                        public void onError(@NonNull ClearCredentialException e) {
-                                            if (listener != null) listener.onFailure("로그아웃 상태 초기화 실패");
-                                        }
-                                    });
-                        } else {
-                            if (listener != null) listener.onFailure("계정 삭제에 실패했습니다.");
-                        }
-                    });
+    /**
+     * 서버에서 탈퇴를 처리한다.
+     * 하위 컬렉션까지 지우려면 서버가 필요하고(Firestore는 연쇄 삭제를 안 한다),
+     * 카카오 연결 해제도 REST API 키가 있는 서버에서만 가능하다.
+     *
+     * @param kakaoAccessToken 카카오 계정이면 재인증용 토큰, 구글이면 null
+     * @param credentialManager 구글 자격 증명 정리용, 카카오면 null
+     */
+    private void callDeleteAccount(String kakaoAccessToken, CredentialManager credentialManager) {
+        Map<String, Object> data = new HashMap<>();
+        if (kakaoAccessToken != null) {
+            data.put("kakaoAccessToken", kakaoAccessToken);
+        }
+
+        FirebaseFunctions.getInstance("asia-northeast3")
+                .getHttpsCallable("deleteAccount")
+                .call(data)
+                .addOnSuccessListener(result -> {
+                    // 서버가 계정을 지웠으므로 로컬 세션도 정리한다.
+                    auth.signOut();
+
+                    if (credentialManager == null) {
+                        if (listener != null) listener.onSuccess();
+                        return;
+                    }
+                    credentialManager.clearCredentialStateAsync(new ClearCredentialStateRequest(), null, Runnable::run,
+                            new CredentialManagerCallback<Void, ClearCredentialException>() {
+                                @Override
+                                public void onResult(Void result) {
+                                    if (listener != null) listener.onSuccess();
+                                }
+
+                                @Override
+                                public void onError(@NonNull ClearCredentialException e) {
+                                    // 계정은 이미 지워졌으니 탈퇴 자체는 성공으로 본다.
+                                    Log.w("SettingFirebase", "자격 증명 정리 실패: " + e.getMessage());
+                                    if (listener != null) listener.onSuccess();
+                                }
+                            });
                 })
                 .addOnFailureListener(e -> {
-                    if (listener != null) listener.onFailure("사용자 데이터 삭제 실패");
+                    Log.e("SettingFirebase", "탈퇴 실패", e);
+                    if (listener != null) listener.onFailure(e.getMessage());
                 });
     }
 }
