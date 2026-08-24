@@ -20,32 +20,14 @@
             android:paddingBottom="32dp">
 
             <!-- ===== 1. 상단 타이틀 ===== -->
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="20dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="학습"
-                    android:textColor="#111111"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
-
-                <ImageView
-                    android:id="@+id/kebabMenuImageView"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="더보기"
-                    android:padding="3dp"
-                    app:srcCompat="@drawable/ic_kebab_menu"
-                    app:tint="#111111" />
-            </LinearLayout>
+                android:text="학습"
+                android:textColor="#111111"
+                android:textSize="24sp"
+                android:textStyle="bold" />
 
             <!-- ===== 2. 단어장 참조 카드 ===== -->
             <com.google.android.material.card.MaterialCardView
@@ -92,6 +74,7 @@
                         android:id="@+id/tvSelectedBookInfo"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
                         android:layout_marginTop="4dp"
                         android:ellipsize="end"
                         android:maxLines="1"
@@ -136,7 +119,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:text="안 외운 0"
+                    android:text="미학습 0"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -149,7 +132,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:text="헷갈리는 0"
+                    android:text="헷갈림 0"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -161,7 +144,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:text="외운 0"
+                    android:text="학습 0"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -246,7 +229,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="약 0분"
+                            android:text="약 0분 소요"
                             android:textColor="#9E9E9E"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -312,7 +295,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="약 0분 · 정답률 0%"
+                            android:text="약 0분 소요"
                             android:textColor="#9E9E9E"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -377,7 +360,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="약 0분 · 난이도 -"
+                            android:text="약 0분 소요"
                             android:textColor="#9E9E9E"
                             android:textSize="12sp" />
                     </LinearLayout>
