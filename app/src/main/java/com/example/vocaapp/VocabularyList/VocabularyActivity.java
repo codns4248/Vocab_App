@@ -319,7 +319,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
                     adapter.removeItem(position);
                 }
 
-                VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete,
+                VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, deletedWord.studyStatus,
                         () -> {},
                         null
                 );
@@ -335,6 +335,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
                             wordData.put("word", deletedWord.word);                  // ✅ 변경
                             wordData.put("meaning", deletedWord.meaning);            // ✅ 변경
                             wordData.put("pronunciation", deletedWord.pronunciation); // ✅ 변경
+                            wordData.put("studyStatus", deletedWord.studyStatus);
                             wordData.put("timeStamp", FieldValue.serverTimestamp());
 
                             VocabularyFirestore.addWord(uid, vocabularyId, wordData,

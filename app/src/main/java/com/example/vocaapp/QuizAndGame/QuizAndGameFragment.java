@@ -15,13 +15,11 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.vocaapp.R;
-import com.example.vocaapp.VocabularyBookList.VocabularyBookListFragment;
 import com.example.vocaapp.VocabularyList.VocabularyFragment;
 import com.example.vocaapp.VocabularyList.WordItem;
 import com.google.android.material.card.MaterialCardView;
@@ -42,8 +40,6 @@ public class QuizAndGameFragment extends Fragment {
     private static final int STATUS_UNKNOWN = 0;
     private static final int STATUS_CONFUSED = 1;
     private static final int STATUS_MEMORIZED = 2;
-
-    private ImageView kebabMenuImageView;
 
     private TextView tvSelectedBookInfo;
     private TextView btnChangeBook;
@@ -86,7 +82,6 @@ public class QuizAndGameFragment extends Fragment {
         selectedStatuses.add(STATUS_UNKNOWN);
         selectedStatuses.add(STATUS_CONFUSED);
 
-        kebabMenuImageView = view.findViewById(R.id.kebabMenuImageView);
         tvSelectedBookInfo = view.findViewById(R.id.tvSelectedBookInfo);
         btnChangeBook = view.findViewById(R.id.btnChangeBook);
 
@@ -115,7 +110,6 @@ public class QuizAndGameFragment extends Fragment {
         styleModeIcon(ivMultipleChoiceIcon, Color.parseColor("#E1F5E6"), Color.parseColor("#16A34A"));
         styleModeIcon(ivDictationIcon, Color.parseColor("#FFE9D6"), Color.parseColor("#F57C00"));
 
-        kebabMenuImageView.setOnClickListener(this::showKebabMenu);
         btnChangeBook.setOnClickListener(v -> openWordbookPicker());
 
         chipUnknown.setOnClickListener(v -> toggleStatus(STATUS_UNKNOWN));
@@ -267,9 +261,9 @@ public class QuizAndGameFragment extends Fragment {
         int confusedCount = countByStatus(STATUS_CONFUSED);
         int memorizedCount = countByStatus(STATUS_MEMORIZED);
 
-        chipUnknown.setText("안 외운 " + unknownCount);
-        chipConfused.setText("헷갈리는 " + confusedCount);
-        chipMemorized.setText("외운 " + memorizedCount);
+        chipUnknown.setText("미학습 " + unknownCount);
+        chipConfused.setText("헷갈림 " + confusedCount);
+        chipMemorized.setText("학습 " + memorizedCount);
 
         applyChipStyle(chipUnknown, selectedStatuses.contains(STATUS_UNKNOWN));
         applyChipStyle(chipConfused, selectedStatuses.contains(STATUS_CONFUSED));
@@ -278,31 +272,14 @@ public class QuizAndGameFragment extends Fragment {
         int targetCount = getTargetWordItems().size();
         tvTargetCount.setText("대상 " + targetCount + "개");
 
-        tvFlashcardSubtitle.setText("약 " + estimateMinutes(targetCount, 4f) + "분");
-        tvMultipleChoiceSubtitle.setText("약 " + estimateMinutes(targetCount, 6f) + "분 · 정답률 "
-                + estimateMasteryRate(memorizedCount) + "%");
-        tvDictationSubtitle.setText("약 " + estimateMinutes(targetCount, 8f) + "분 · 난이도 "
-                + estimateDifficulty(confusedCount));
+        tvFlashcardSubtitle.setText("약 " + estimateMinutes(targetCount, 4f) + "분 소요");
+        tvMultipleChoiceSubtitle.setText("약 " + estimateMinutes(targetCount, 6f) + "분 소요");
+        tvDictationSubtitle.setText("약 " + estimateMinutes(targetCount, 8f) + "분 소요");
     }
 
     private int estimateMinutes(int count, float secondsPerWord) {
         if (count <= 0) return 0;
         return Math.max(1, Math.round(count * secondsPerWord / 60f));
-    }
-
-    private int estimateMasteryRate(int memorizedCount) {
-        int total = originalWordList.size();
-        if (total == 0) return 0;
-        return Math.round(memorizedCount * 100f / total);
-    }
-
-    private String estimateDifficulty(int confusedCount) {
-        int total = originalWordList.size();
-        if (total == 0) return "-";
-        float confusedRatio = confusedCount / (float) total;
-        if (confusedRatio >= 0.4f) return "상";
-        if (confusedRatio >= 0.15f) return "중";
-        return "하";
     }
 
     private void applyChipStyle(TextView chip, boolean selected) {
@@ -334,19 +311,6 @@ public class QuizAndGameFragment extends Fragment {
         args.putBoolean("selectOnly", true);
         bottomSheet.setArguments(args);
         bottomSheet.show(getChildFragmentManager(), "SelectVocabularyBookTag");
-    }
-
-    private void showKebabMenu(View anchor) {
-        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
-        popupMenu.getMenu().add("단어장 목록 보기");
-        popupMenu.setOnMenuItemClickListener(item -> {
-            getParentFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, new VocabularyBookListFragment())
-                    .addToBackStack(null)
-                    .commit();
-            return true;
-        });
-        popupMenu.show();
     }
 
     private void launchMode(String quizType) {

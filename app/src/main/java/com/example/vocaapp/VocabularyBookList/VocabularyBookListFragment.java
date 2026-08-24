@@ -324,6 +324,9 @@ public class VocabularyBookListFragment extends Fragment {
         input.put("stampCount", 0);
         input.put("isStudying", false);
         input.put("wordCount", 0);
+        input.put("unknownCount", 0);
+        input.put("confusedCount", 0);
+        input.put("memorizedCount", 0);
         input.put("timeStamp", FieldValue.serverTimestamp());
 
         VocabularyBookFirestore.addVocabularyBook(input, uid, new VocabularyBookFirestore.VocabularyBookCallback() {

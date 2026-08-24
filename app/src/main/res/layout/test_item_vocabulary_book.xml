@@ -58,10 +58,10 @@
 
             <TextView
                 android:id="@+id/tvBookWordCount"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="단어 30개"
+                android:text="단어 30개 · 미학습 12 · 헷갈림 5 · 학습 13"
                 android:textColor="#737373"
                 android:textSize="12sp"
                 tools:ignore="HardcodedText" />

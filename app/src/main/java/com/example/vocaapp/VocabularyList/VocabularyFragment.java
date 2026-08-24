@@ -632,7 +632,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
             adapter.removeItem(position);
 
-            VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, () -> {}, null);
+            VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, deletedWord.studyStatus, () -> {}, null);
 
             Snackbar.make(recyclerView,
                             "'" + deletedWord.word + "' 삭제됨",
@@ -644,6 +644,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                         wordData.put("word", deletedWord.word);
                         wordData.put("meaning", deletedWord.meaning);
                         wordData.put("pronunciation", deletedWord.pronunciation);
+                        wordData.put("studyStatus", deletedWord.studyStatus);
                         wordData.put("timeStamp", FieldValue.serverTimestamp());
 
                         VocabularyFirestore.addWord(uid, vocabularyId, wordData, () -> {}, () -> {});

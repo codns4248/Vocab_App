@@ -88,10 +88,11 @@ public class VocabularyListAdapter extends RecyclerView.Adapter<VocabularyListAd
         applyStatus(holder, item);
 
         holder.statusButton.setOnClickListener(v -> {
+            int oldStatus = item.studyStatus;
             item.studyStatus = (item.studyStatus + 1) % 3;
             applyStatus(holder, item);
             if (uid != null && vocabularyId != null && item.docId != null) {
-                VocabularyFirestore.updateStudyStatus(uid, vocabularyId, item.docId, item.studyStatus);
+                VocabularyFirestore.updateStudyStatus(uid, vocabularyId, item.docId, item.studyStatus, oldStatus);
             }
         });
     }
