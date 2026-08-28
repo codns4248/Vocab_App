@@ -16,17 +16,17 @@ import java.util.Map;
 import java.util.Set;
 
 public class VocabularyFirestore {
-
-    // studyStatus 값과 단어장 문서의 카운터 필드 대응
-    // 0 = 미학습, 1 = 헷갈림, 2 = 암기
-    public static final int STATUS_UNLEARNED = 0;
+    public static final int STATUS_UNKNOWN = 0;
     public static final int STATUS_CONFUSED = 1;
-    public static final int STATUS_LEARNED = 2;
-    public static final String[] STATUS_FIELDS = {"unlearnedCount", "confusedCount", "learnedCount"};
+    public static final int STATUS_MEMORIZED = 2;
 
-    private static String statusField(int status) {
-        if (status < 0 || status >= STATUS_FIELDS.length) return STATUS_FIELDS[STATUS_UNLEARNED];
-        return STATUS_FIELDS[status];
+    private static String statusCountField(int status) {
+        switch (status) {
+            case STATUS_CONFUSED: return "confusedCount";
+            case STATUS_MEMORIZED: return "memorizedCount";
+            case STATUS_UNKNOWN:
+            default: return "unknownCount";
+        }
     }
 
     // 단어 db에 추가하는 로직
@@ -43,14 +43,18 @@ public class VocabularyFirestore {
         // 2. 단어 추가를 위한 새 문서 참조 생성
         DocumentReference wordRef = vocabRef.collection("words").document();
 
-        // 3. 작업 예약: 단어 추가 & 개수 필드 1 증가
+        Object statusValue = wordData.get("studyStatus");
+        int initialStatus = statusValue instanceof Number ? ((Number) statusValue).intValue() : STATUS_UNKNOWN;
+
+        // 3. 작업 예약: 단어 추가 & 개수 필드, 학습 상태별 개수 필드 1 증가
+        // 주의: 같은 문서(vocabRef)에 대한 update()는 배치 내에서 마지막 호출만 반영되므로
+        // 반드시 하나의 Map으로 합쳐서 한 번만 호출해야 한다.
+        Map<String, Object> vocabUpdates = new HashMap<>();
+        vocabUpdates.put("wordCount", FieldValue.increment(1));
+        vocabUpdates.put(statusCountField(initialStatus), FieldValue.increment(1));
+
         batch.set(wordRef, wordData);
-        // 보통은 미학습으로 시작하지만, 삭제 취소로 되살릴 때는 원래 상태가 실려온다.
-        Object rawStatus = wordData.get("studyStatus");
-        int status = (rawStatus instanceof Number) ? ((Number) rawStatus).intValue() : STATUS_UNLEARNED;
-        batch.update(vocabRef,
-                "wordCount", FieldValue.increment(1),
-                statusField(status), FieldValue.increment(1));
+        batch.update(vocabRef, vocabUpdates);
 
         // 4. 한 번에 실행
         batch.commit()
@@ -62,9 +66,7 @@ public class VocabularyFirestore {
                 });
     }
     // 단어 db에서 삭제하는 로직
-    // studyStatus를 함께 받아 해당 상태의 카운터도 줄인다.
-    public static void deleteWord(String uid, String vocabularyId, String wordId, int studyStatus,
-                                  Runnable onSuccess, Runnable onFailure) {
+    public static void deleteWord(String uid, String vocabularyId, String wordId, int studyStatus, Runnable onSuccess, Runnable onFailure) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         WriteBatch batch = db.batch();
 
@@ -75,11 +77,13 @@ public class VocabularyFirestore {
         // 2. 삭제할 단어 문서 참조
         DocumentReference wordRef = vocabRef.collection("words").document(wordId);
 
-        // 3. 작업 예약: 단어 삭제 & 개수 필드 1 감소
+        // 3. 작업 예약: 단어 삭제 & 개수 필드, 학습 상태별 개수 필드 1 감소
+        Map<String, Object> vocabUpdates = new HashMap<>();
+        vocabUpdates.put("wordCount", FieldValue.increment(-1));
+        vocabUpdates.put(statusCountField(studyStatus), FieldValue.increment(-1));
+
         batch.delete(wordRef);
-        batch.update(vocabRef,
-                "wordCount", FieldValue.increment(-1),
-                statusField(studyStatus), FieldValue.increment(-1));
+        batch.update(vocabRef, vocabUpdates);
 
         // 4. 실행
         batch.commit()
@@ -162,27 +166,7 @@ public class VocabularyFirestore {
         void onResult(Set<String> existingWordsLowerCase);
     }
 
-    // 학습 상태를 바꾸면서 단어장의 상태별 카운터도 함께 옮긴다.
-    // 이전 상태를 알아야 어느 카운터를 줄일지 정할 수 있다.
-    public static void updateStudyStatus(String uid, String vocabularyId, String wordId,
-                                         int oldStatus, int newStatus) {
-        if (oldStatus == newStatus) return;
-
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        DocumentReference vocabRef = db.collection("users").document(uid)
-                .collection("vocabularies").document(vocabularyId);
-
-        WriteBatch batch = db.batch();
-        batch.update(vocabRef.collection("words").document(wordId), "studyStatus", newStatus);
-        batch.update(vocabRef,
-                statusField(oldStatus), FieldValue.increment(-1),
-                statusField(newStatus), FieldValue.increment(1));
-
-        batch.commit().addOnFailureListener(e ->
-                Log.e("VocabularyFirestore", "studyStatus 업데이트 실패: " + e.getMessage()));
-    }
-
-    // 단어 내용 수정 (학습 상태와 카운터는 건드리지 않는다)
+    // 단어 내용 수정. 학습 상태와 카운터는 건드리지 않는다.
     public static void updateWord(String uid, String vocabularyId, String wordId,
                                   String word, String meaning, String pronunciation,
                                   Runnable onSuccess, Runnable onFailure) {
@@ -203,22 +187,21 @@ public class VocabularyFirestore {
                 });
     }
 
-    // 실제 단어들로부터 센 값을 단어장 문서에 되돌려 쓴다.
-    // 카운터는 증감으로 유지하지만 어긋날 수 있고, 기존 단어장에는 필드 자체가 없다.
-    // 단어 목록을 여는 시점에 한 번 맞춰주면 그 두 경우가 모두 해결된다.
-    public static void syncStatusCounts(String uid, String vocabularyId,
-                                        int total, int unlearned, int confused, int learned) {
-        Map<String, Object> counts = new HashMap<>();
-        counts.put("wordCount", total);
-        counts.put(STATUS_FIELDS[STATUS_UNLEARNED], unlearned);
-        counts.put(STATUS_FIELDS[STATUS_CONFUSED], confused);
-        counts.put(STATUS_FIELDS[STATUS_LEARNED], learned);
+    public static void updateStudyStatus(String uid, String vocabularyId, String wordId, int newStatus, int oldStatus) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        DocumentReference vocabRef = db.collection("users").document(uid)
+                .collection("vocabularies").document(vocabularyId);
+        DocumentReference wordRef = vocabRef.collection("words").document(wordId);
 
-        FirebaseFirestore.getInstance()
-                .collection("users").document(uid)
-                .collection("vocabularies").document(vocabularyId)
-                .update(counts)
-                .addOnFailureListener(e ->
-                        Log.e("VocabularyFirestore", "상태 카운트 동기화 실패: " + e.getMessage()));
+        WriteBatch batch = db.batch();
+        batch.update(wordRef, "studyStatus", newStatus);
+        if (newStatus != oldStatus) {
+            Map<String, Object> vocabUpdates = new HashMap<>();
+            vocabUpdates.put(statusCountField(newStatus), FieldValue.increment(1));
+            vocabUpdates.put(statusCountField(oldStatus), FieldValue.increment(-1));
+            batch.update(vocabRef, vocabUpdates);
+        }
+        batch.commit()
+                .addOnFailureListener(e -> Log.e("VocabularyFirestore", "studyStatus 업데이트 실패: " + e.getMessage()));
     }
 }

@@ -324,10 +324,9 @@ public class VocabularyBookListFragment extends Fragment {
         input.put("stampCount", 0);
         input.put("isStudying", false);
         input.put("wordCount", 0);
-        // 상태별 카운터도 함께 만들어 둔다. 없으면 목록에서 총 개수를 미학습으로 추정해야 한다.
-        input.put("unlearnedCount", 0);
+        input.put("unknownCount", 0);
         input.put("confusedCount", 0);
-        input.put("learnedCount", 0);
+        input.put("memorizedCount", 0);
         input.put("timeStamp", FieldValue.serverTimestamp());
 
         VocabularyBookFirestore.addVocabularyBook(input, uid, new VocabularyBookFirestore.VocabularyBookCallback() {

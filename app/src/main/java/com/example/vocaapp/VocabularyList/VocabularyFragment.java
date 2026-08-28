@@ -110,10 +110,6 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private int unlearnedCount = 0;
     private int confusedCount = 0;
     private int learnedCount = 0;
-    // 단어장 문서에 저장돼 있는 카운터. 실제로 센 값과 다를 때만 되돌려 쓴다.
-    private int storedUnlearned = -1;
-    private int storedConfused = -1;
-    private int storedLearned = -1;
     private int currentStampCount = 0;
     private Date lastStudiedAt = null;
     private View normalContent;
@@ -258,9 +254,6 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         unlearnedCount = 0;
         confusedCount = 0;
         learnedCount = 0;
-        storedUnlearned = -1;
-        storedConfused = -1;
-        storedLearned = -1;
         lastStudiedAt = null;
     }
 
@@ -349,22 +342,19 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         adapter.updateItems(getFilteredAndSortedList());
     }
 
-    // 현재 단어 목록에서 상태별 개수를 다시 세고 칩 문구와 헤더를 갱신한다.
-    // 세는 김에 단어장 문서의 카운터도 맞춰준다(기존 단어장에는 필드가 없다).
-    private void recountStatuses(boolean syncToServer) {
+    // 화면의 단어 목록에서 상태별 개수를 세어 칩 문구를 갱신한다.
+    // 단어장 문서의 카운터는 VocabularyFirestore가 증감으로 유지하고,
+    // 어긋난 기존 데이터는 VocabularyCounterBackfill이 한 번 바로잡는다.
+    // 여기서 되쓰면 그 둘과 충돌하므로 화면 갱신만 한다.
+    private void recountStatuses() {
         int unlearned = 0, confused = 0, learned = 0;
         for (WordItem item : originalWordList) {
             switch (item.studyStatus) {
                 case VocabularyFirestore.STATUS_CONFUSED: confused++; break;
-                case VocabularyFirestore.STATUS_LEARNED: learned++; break;
+                case VocabularyFirestore.STATUS_MEMORIZED: learned++; break;
                 default: unlearned++; break;
             }
         }
-
-        // 저장된 값과 어긋날 때만 쓴다. 매번 쓰면 화면을 열 때마다 불필요한 쓰기가 생긴다.
-        boolean stale = unlearned != storedUnlearned
-                || confused != storedConfused
-                || learned != storedLearned;
 
         unlearnedCount = unlearned;
         confusedCount = confused;
@@ -373,18 +363,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         updateFilterButtons();
         updateHeaderStats();
 
-        if (syncToServer && stale && uid != null && vocabularyId != null) {
-            storedUnlearned = unlearned;
-            storedConfused = confused;
-            storedLearned = learned;
-            VocabularyFirestore.syncStatusCounts(uid, vocabularyId,
-                    originalWordList.size(), unlearned, confused, learned);
-        }
     }
 
-    private static int intOf(Object o) {
-        return (o instanceof Number) ? ((Number) o).intValue() : -1;
-    }
 
     private void updateFilterButtons() {
         int total = unlearnedCount + confusedCount + learnedCount;
@@ -493,9 +473,6 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     buttonOn = Boolean.TRUE.equals(btnOn);
                     currentStampCount = (stampObj instanceof Number) ? ((Number) stampObj).intValue() : 0;
                     lastStudiedAt = doc.getDate("lastStudiedAt");
-                    storedUnlearned = intOf(doc.get(VocabularyFirestore.STATUS_FIELDS[0]));
-                    storedConfused = intOf(doc.get(VocabularyFirestore.STATUS_FIELDS[1]));
-                    storedLearned = intOf(doc.get(VocabularyFirestore.STATUS_FIELDS[2]));
                     tvCurrentBookTitle.setText(title != null ? title : "");
                     updateHeaderStats();
                     updateButtonsByState();
@@ -529,11 +506,11 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     originalWordList = newList;
                     currentWordCount = newList.size();
                     // 서버에서 받은 실제 단어들이 기준이므로 여기서 카운터를 맞춘다.
-                    recountStatuses(true);
+                    recountStatuses();
                     if (adapter == null) {
                         adapter = new VocabularyListAdapter(getFilteredAndSortedList(), tts, uid, vocabularyId);
                         // 상태 버튼을 눌러 학습 상태가 바뀌면 개수 표시도 따라가야 한다.
-                        adapter.setOnStatusChangedListener(() -> recountStatuses(false));
+                        adapter.setOnStatusChangedListener(() -> recountStatuses());
                         recyclerView.setAdapter(adapter);
                         setupSwipeController();
                     } else {
@@ -724,8 +701,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
             adapter.removeItem(position);
 
-            VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete,
-                    deletedWord.studyStatus, () -> {}, null);
+            VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, deletedWord.studyStatus, () -> {}, null);
 
             Snackbar.make(recyclerView,
                             "'" + deletedWord.word + "' 삭제됨",
@@ -737,6 +713,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                         wordData.put("word", deletedWord.word);
                         wordData.put("meaning", deletedWord.meaning);
                         wordData.put("pronunciation", deletedWord.pronunciation);
+                        wordData.put("studyStatus", deletedWord.studyStatus);
                         wordData.put("timeStamp", FieldValue.serverTimestamp());
                         // 학습 상태까지 되돌린다. 넣지 않으면 되살린 단어가 미학습으로 초기화된다.
                         wordData.put("studyStatus", deletedWord.studyStatus);

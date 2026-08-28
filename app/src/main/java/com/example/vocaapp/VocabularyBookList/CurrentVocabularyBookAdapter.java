@@ -72,7 +72,10 @@ public class CurrentVocabularyBookAdapter extends RecyclerView.Adapter<CurrentVo
         h.progressBarStudy.setProgress(percent);
 
         if (h.tvWordStatusCounts != null) {
-            h.tvWordStatusCounts.setText(BookStatusCounts.format(book, true));
+            int wordCount = toInt(book.get("wordCount"));
+            h.tvWordStatusCounts.setText("단어 " + wordCount + "개 · 미학습 " + toInt(book.get("unknownCount"))
+                    + " · 헷갈림 " + toInt(book.get("confusedCount"))
+                    + " · 학습 " + toInt(book.get("memorizedCount")));
         }
 
         h.itemView.setOnClickListener(v -> {

@@ -337,8 +337,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
                     adapter.removeItem(position);
                 }
 
-                VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete,
-                        deletedWord.studyStatus,
+                VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, deletedWord.studyStatus,
                         () -> {},
                         null
                 );
@@ -354,6 +353,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
                             wordData.put("word", deletedWord.word);                  // ✅ 변경
                             wordData.put("meaning", deletedWord.meaning);            // ✅ 변경
                             wordData.put("pronunciation", deletedWord.pronunciation); // ✅ 변경
+                            wordData.put("studyStatus", deletedWord.studyStatus);
                             wordData.put("timeStamp", FieldValue.serverTimestamp());
                             // 학습 상태까지 되돌린다. 넣지 않으면 되살린 단어가 미학습으로 초기화된다.
                             wordData.put("studyStatus", deletedWord.studyStatus);

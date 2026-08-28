@@ -24,6 +24,7 @@ import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.vocaapp.VocabularyBookList.VocabularyBookListFragment;
+import com.example.vocaapp.VocabularyBookList.VocabularyCounterBackfill;
 import com.example.vocaapp.VocabularyList.VocabularyFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -55,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
             checkRollbackOnEntry(user.getUid());
+            VocabularyCounterBackfill.runIfNeeded(this, user.getUid());
         }
 
         initCustomNav();
