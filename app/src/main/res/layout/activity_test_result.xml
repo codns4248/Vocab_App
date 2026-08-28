@@ -36,7 +36,7 @@
         android:paddingTop="8dp">
 
             <!-- 막대 그래프 -->
-            <com.example.vocaapp.QuizAndGame.BarChartView
+            <com.forevermemory.vocaapp.QuizAndGame.BarChartView
                 android:id="@+id/barChartView"
                 android:layout_width="match_parent"
                 android:layout_height="180dp"

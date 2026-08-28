@@ -89,6 +89,43 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211185583428:android:7f36285685f3bf18160311",
+        "android_client_info": {
+          "package_name": "com.forevermemory.vocaapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "211185583428-vndgniikcrn528sks70m1okudm4ut8od.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.forevermemory.vocaapp",
+            "certificate_hash": "ed80e5ca85652d4e6f127bc7388f879b8aece1d0"
+          }
+        },
+        {
+          "client_id": "211185583428-b8jvrel36olutnuiakphpibrofcge2j6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVtPc7SlIA4aGKpfTKvSaUfa3hU9PJIvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "211185583428-b8jvrel36olutnuiakphpibrofcge2j6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

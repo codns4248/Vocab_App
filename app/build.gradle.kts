@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.vocaapp"
+    namespace = "com.forevermemory.vocaapp"
     compileSdk = 36
 
     buildFeatures {
@@ -12,7 +12,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.vocaapp"
+        applicationId = "com.forevermemory.vocaapp"
 
         // 카카오 네이티브 앱 키.
         // 클라이언트에 내장되는 값이라 APK를 뜯으면 보이는 게 정상이다(비밀키가 아님).
