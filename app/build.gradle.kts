@@ -13,6 +13,12 @@ android {
 
     defaultConfig {
         applicationId = "com.example.vocaapp"
+
+        // 카카오 네이티브 앱 키.
+        // 클라이언트에 내장되는 값이라 APK를 뜯으면 보이는 게 정상이다(비밀키가 아님).
+        // 매니페스트의 리다이렉트 스킴(kakao{키})과 SDK 초기화에서 함께 쓴다.
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "6b7b94d7164896d9d5c25cac29d18fc7"
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"6b7b94d7164896d9d5c25cac29d18fc7\"")
         minSdk = 26 //36 -> 26
         targetSdk = 36  //36 -> 34
         versionCode = 1
@@ -74,6 +80,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging")
 
     implementation("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
+    implementation("com.kakao.sdk:v2-user:2.24.0")
 
     implementation("androidx.core:core-splashscreen:1.0.1")
 

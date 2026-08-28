@@ -65,6 +65,7 @@
                 android:textColor="#737373"
                 android:textSize="12sp"
                 tools:ignore="HardcodedText" />
+
         </LinearLayout>
 
         <!-- 화살표 -->

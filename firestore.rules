@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 토큰 사용량 로그: 클라이언트는 읽기/쓰기 모두 차단.
+    // Admin SDK(Cloud Functions, 집계 스크립트)는 보안 규칙을 우회하므로 그대로 동작합니다.
+    match /apiUsageLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    // 사용자 본인 데이터(단어장, 단어 등)만 접근 가능
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // 복습/롤백 시간 설정: 읽기 전용
+    match /reviewAndRollbackTimeSetting/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 공지사항: 읽기 전용
+    match /notices/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 그 외는 전부 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

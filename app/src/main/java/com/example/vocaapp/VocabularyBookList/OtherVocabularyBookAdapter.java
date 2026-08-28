@@ -63,6 +63,7 @@ public class OtherVocabularyBookAdapter extends RecyclerView.Adapter<OtherVocabu
         h.tvBookWordCount.setText("단어 " + wordCount + "개 · 미학습 " + unknownCount
                 + " · 헷갈림 " + confusedCount + " · 학습 " + memorizedCount);
 
+
         String label = title != null && !title.isEmpty()
                 ? title.substring(0, Math.min(2, title.length())).toUpperCase()
                 : "";

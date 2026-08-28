@@ -44,6 +44,8 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
     private String vocabularyId;
     private boolean isStudying = false; //학습 상 태 저장용 변수 추가
     VocabularyListAdapter adapter;
+    private ItemTouchHelper swipeTouchHelper;
+    private RecyclerView swipeRecyclerView;
 
     List<String> words = new ArrayList<>();
     List<String> meanings = new ArrayList<>();
@@ -304,6 +306,22 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
     private void setupSwipeController(RecyclerView recyclerView) {
         SwipeController swipeController = new SwipeController(new SwipeController.SwipeControllerActions() {
             @Override
+            public void onEditRequested(int position) {
+                if (adapter == null || position < 0 || position >= adapter.getItemCount()) {
+                    if (adapter != null) adapter.notifyDataSetChanged();
+                    return;
+                }
+                WordItem target = adapter.getItemAt(position);
+                // 밀린 행을 원위치시킨다.
+                // ItemTouchHelper는 스와이프가 끝나면 그 행이 목록에서 사라진다고 보고
+                // 위치를 잡고 있어서, notifyItemChanged만으로는 되돌아오지 않는다.
+                // 헬퍼를 뗐다 다시 붙여 내부 상태를 비운다.
+                recyclerView.post(VocabularyActivity.this::resetSwipeState);
+                WordEditDialog.show(VocabularyActivity.this, getLayoutInflater(), uid, vocabularyId,
+                        target, (w, m, pr) -> adapter.notifyItemChanged(position));
+            }
+
+            @Override
             public void onRightClicked(int position) {
                 if (position < 0 || position >= wordIds.size()) {
                     if (adapter != null) adapter.notifyDataSetChanged();
@@ -337,6 +355,8 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
                             wordData.put("pronunciation", deletedWord.pronunciation); // ✅ 변경
                             wordData.put("studyStatus", deletedWord.studyStatus);
                             wordData.put("timeStamp", FieldValue.serverTimestamp());
+                            // 학습 상태까지 되돌린다. 넣지 않으면 되살린 단어가 미학습으로 초기화된다.
+                            wordData.put("studyStatus", deletedWord.studyStatus);
 
                             VocabularyFirestore.addWord(uid, vocabularyId, wordData,
                                     () -> {}, () -> {});
@@ -345,8 +365,17 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
             }
         });
 
-        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(swipeController);
-        itemTouchHelper.attachToRecyclerView(recyclerView);
+        swipeRecyclerView = recyclerView;
+        swipeTouchHelper = new ItemTouchHelper(swipeController);
+        swipeTouchHelper.attachToRecyclerView(recyclerView);
+    }
+
+    // 스와이프로 밀려난 행을 제자리로 돌린다.
+    private void resetSwipeState() {
+        if (swipeTouchHelper == null || swipeRecyclerView == null) return;
+        swipeTouchHelper.attachToRecyclerView(null);
+        swipeTouchHelper.attachToRecyclerView(swipeRecyclerView);
+        if (adapter != null) adapter.notifyDataSetChanged();
     }
 
     // 이미 존재하는 단어 검사하는 메서드

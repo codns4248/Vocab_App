@@ -1,6 +1,7 @@
 package com.example.vocaapp;
 
 import com.example.vocaapp.QuizAndGame.QuizAndGameFragment;
+import com.example.vocaapp.Settting.MarketingPushPrefs;
 import com.example.vocaapp.Settting.SettingFragment;
 
 import android.animation.ValueAnimator;
@@ -31,12 +32,6 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.core.content.ContextCompat;
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Build;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -64,15 +59,19 @@ public class MainActivity extends AppCompatActivity {
             VocabularyCounterBackfill.runIfNeeded(this, user.getUid());
         }
 
-        askNotificationPermission();
         initCustomNav();
 
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, new VocabularyFragment())
                 .commit();
 
+        // 첫 진입에는 마케팅 수신 동의만 묻는다.
+        // 복습 알림 권한은 알림을 실제로 예약하는 '학습시작' 시점에 요청한다.
+        // 신규 가입자는 환영 팝업이 먼저 뜨므로, 그게 닫힌 다음에 물어본다.
         if (getIntent().getBooleanExtra("isNewUser", false)) {
-            showWelcomePointDialog();
+            showWelcomePointDialog(this::askMarketingConsentIfNeeded);
+        } else if (user != null) {
+            askMarketingConsentIfNeeded();
         }
     }
 
@@ -160,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
         tabLabels[index].setTextColor(color);
     }
 
-    private void showWelcomePointDialog() {
+    private void showWelcomePointDialog(Runnable onDismissed) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_welcome_point, null);
 
         androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -173,21 +172,17 @@ public class MainActivity extends AppCompatActivity {
         }
 
         dialogView.findViewById(R.id.welcomeConfirmBtn).setOnClickListener(v -> dialog.dismiss());
+        dialog.setOnDismissListener(d -> {
+            if (onDismissed != null) onDismissed.run();
+        });
         dialog.show();
     }
 
-    private void askNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                Log.d("FCM_PERMISSION", "이미 알림 권한이 허용되어 있습니다.");
-            } else {
-                showNotificationPermissionRationaleDialog();
-            }
-        }
-    }
+    // 마케팅 수신 동의를 한 번만 묻는다. 광고성 정보라 기본값은 '받지 않음'이다.
+    private void askMarketingConsentIfNeeded() {
+        if (MarketingPushPrefs.hasAsked(this)) return;
 
-    private void showNotificationPermissionRationaleDialog() {
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_notification_permission, null);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_marketing_consent, null);
 
         androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -198,24 +193,19 @@ public class MainActivity extends AppCompatActivity {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
 
-        Button confirmBtn = dialogView.findViewById(R.id.btn_notification_permission_confirm);
-        confirmBtn.setOnClickListener(v -> {
+        dialogView.findViewById(R.id.btn_marketing_allow).setOnClickListener(v -> {
+            MarketingPushPrefs.setEnabled(this, true);
             dialog.dismiss();
-            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            Toast.makeText(this, "마케팅 정보 수신에 동의했습니다.", Toast.LENGTH_SHORT).show();
+        });
+
+        dialogView.findViewById(R.id.btn_marketing_deny).setOnClickListener(v -> {
+            MarketingPushPrefs.setEnabled(this, false);
+            dialog.dismiss();
         });
 
         dialog.show();
     }
-
-    private final ActivityResultLauncher<String> requestPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-                if (isGranted) {
-                    Log.d("FCM_PERMISSION", "알림 권한이 허용되었습니다");
-                } else {
-                    Log.e("FCM_PERMISSION", "알림 권한이 거부되었습니다.");
-                    Toast.makeText(this, "설정에서 알림 권한을 허용해야 복습 알림을 받을 수 있습니다.", Toast.LENGTH_LONG).show();
-                }
-            });
 
     private void checkRollbackOnEntry(String uid) {
         FirebaseFirestore.getInstance()

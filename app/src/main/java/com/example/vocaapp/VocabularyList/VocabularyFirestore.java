@@ -166,6 +166,27 @@ public class VocabularyFirestore {
         void onResult(Set<String> existingWordsLowerCase);
     }
 
+    // 단어 내용 수정. 학습 상태와 카운터는 건드리지 않는다.
+    public static void updateWord(String uid, String vocabularyId, String wordId,
+                                  String word, String meaning, String pronunciation,
+                                  Runnable onSuccess, Runnable onFailure) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("word", word);
+        updates.put("meaning", meaning);
+        updates.put("pronunciation", pronunciation);
+
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies").document(vocabularyId)
+                .collection("words").document(wordId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> { if (onSuccess != null) onSuccess.run(); })
+                .addOnFailureListener(e -> {
+                    Log.e("VocabularyFirestore", "단어 수정 실패: " + e.getMessage());
+                    if (onFailure != null) onFailure.run();
+                });
+    }
+
     public static void updateStudyStatus(String uid, String vocabularyId, String wordId, int newStatus, int oldStatus) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         DocumentReference vocabRef = db.collection("users").document(uid)

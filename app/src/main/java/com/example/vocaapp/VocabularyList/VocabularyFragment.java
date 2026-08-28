@@ -1,7 +1,10 @@
 package com.example.vocaapp.VocabularyList;
 
 import androidx.appcompat.app.AlertDialog;
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -20,7 +23,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.widget.ListPopupWindow;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -101,6 +107,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private TextView fabOption2Label;
     private boolean isFabOpen = false;
     private int currentWordCount = 0;
+    private int unlearnedCount = 0;
+    private int confusedCount = 0;
+    private int learnedCount = 0;
     private int currentStampCount = 0;
     private Date lastStudiedAt = null;
     private View normalContent;
@@ -108,6 +117,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
     private VocabularyListAdapter adapter;
 
+    private ItemTouchHelper itemTouchHelper;
     private ListenerRegistration bookListener;
     private ListenerRegistration wordsListener;
 
@@ -186,7 +196,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             if (isStudying) {
                 showStopStudyDialog();
             } else {
-                startStudyMode();
+                // 학습을 시작하면 복습 알림이 예약되므로, 이 시점에 알림 권한을 요청한다.
+                ensureNotificationPermission(this::startStudyMode);
             }
         });
 
@@ -240,6 +251,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         originalWordList = new ArrayList<>();
         currentWordCount = 0;
         currentStampCount = 0;
+        unlearnedCount = 0;
+        confusedCount = 0;
+        learnedCount = 0;
         lastStudiedAt = null;
     }
 
@@ -328,11 +342,45 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         adapter.updateItems(getFilteredAndSortedList());
     }
 
+    // 화면의 단어 목록에서 상태별 개수를 세어 칩 문구를 갱신한다.
+    // 단어장 문서의 카운터는 VocabularyFirestore가 증감으로 유지하고,
+    // 어긋난 기존 데이터는 VocabularyCounterBackfill이 한 번 바로잡는다.
+    // 여기서 되쓰면 그 둘과 충돌하므로 화면 갱신만 한다.
+    private void recountStatuses() {
+        int unlearned = 0, confused = 0, learned = 0;
+        for (WordItem item : originalWordList) {
+            switch (item.studyStatus) {
+                case VocabularyFirestore.STATUS_CONFUSED: confused++; break;
+                case VocabularyFirestore.STATUS_MEMORIZED: learned++; break;
+                default: unlearned++; break;
+            }
+        }
+
+        unlearnedCount = unlearned;
+        confusedCount = confused;
+        learnedCount = learned;
+
+        updateFilterButtons();
+        updateHeaderStats();
+
+    }
+
+
     private void updateFilterButtons() {
+        int total = unlearnedCount + confusedCount + learnedCount;
+        setChipText(btnFilterAll, "모두", total);
+        setChipText(btnFilterUnlearned, "미학습", unlearnedCount);
+        setChipText(btnFilterConfused, "헷갈림", confusedCount);
+        setChipText(btnFilterLearned, "학습", learnedCount);
+
         applyFilterChipStyle(btnFilterAll, activeFilters.isEmpty());
         applyFilterChipStyle(btnFilterUnlearned, activeFilters.contains(FILTER_UNLEARNED));
         applyFilterChipStyle(btnFilterConfused, activeFilters.contains(FILTER_CONFUSED));
         applyFilterChipStyle(btnFilterLearned, activeFilters.contains(FILTER_LEARNED));
+    }
+
+    private static void setChipText(TextView btn, String label, int count) {
+        if (btn != null) btn.setText(label + " " + count);
     }
 
     private void applyFilterChipStyle(TextView btn, boolean selected) {
@@ -457,9 +505,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     }
                     originalWordList = newList;
                     currentWordCount = newList.size();
-                    updateHeaderStats();
+                    // 서버에서 받은 실제 단어들이 기준이므로 여기서 카운터를 맞춘다.
+                    recountStatuses();
                     if (adapter == null) {
                         adapter = new VocabularyListAdapter(getFilteredAndSortedList(), tts, uid, vocabularyId);
+                        // 상태 버튼을 눌러 학습 상태가 바뀌면 개수 표시도 따라가야 한다.
+                        adapter.setOnStatusChangedListener(() -> recountStatuses());
                         recyclerView.setAdapter(adapter);
                         setupSwipeController();
                     } else {
@@ -620,7 +671,25 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     }
 
     private void setupSwipeController() {
-        SwipeController swipeController = new SwipeController(position -> {
+        SwipeController swipeController = new SwipeController(new SwipeController.SwipeControllerActions() {
+            @Override
+            public void onEditRequested(int position) {
+                if (adapter == null || position < 0 || position >= adapter.getItemCount()) {
+                    if (adapter != null) adapter.notifyDataSetChanged();
+                    return;
+                }
+                WordItem target = adapter.getItemAt(position);
+                // 밀린 행을 원위치시킨다.
+                // ItemTouchHelper는 스와이프가 끝나면 그 행이 목록에서 사라진다고 보고
+                // 위치를 잡고 있어서, notifyItemChanged만으로는 되돌아오지 않는다.
+                // 헬퍼를 뗐다 다시 붙여 내부 상태를 비운다.
+                recyclerView.post(VocabularyFragment.this::resetSwipeState);
+                WordEditDialog.show(requireContext(), getLayoutInflater(), uid, vocabularyId,
+                        target, (w, m, pr) -> applySortToAdapter());
+            }
+
+            @Override
+            public void onRightClicked(int position) {
             if (adapter == null || position < 0 || position >= adapter.getItemCount()) {
                 if (adapter != null) adapter.notifyDataSetChanged();
                 return;
@@ -646,13 +715,25 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                         wordData.put("pronunciation", deletedWord.pronunciation);
                         wordData.put("studyStatus", deletedWord.studyStatus);
                         wordData.put("timeStamp", FieldValue.serverTimestamp());
+                        // 학습 상태까지 되돌린다. 넣지 않으면 되살린 단어가 미학습으로 초기화된다.
+                        wordData.put("studyStatus", deletedWord.studyStatus);
 
                         VocabularyFirestore.addWord(uid, vocabularyId, wordData, () -> {}, () -> {});
                     })
                     .show();
+            }
         });
 
-        new ItemTouchHelper(swipeController).attachToRecyclerView(recyclerView);
+        itemTouchHelper = new ItemTouchHelper(swipeController);
+        itemTouchHelper.attachToRecyclerView(recyclerView);
+    }
+
+    // 스와이프로 밀려난 행을 제자리로 돌린다.
+    private void resetSwipeState() {
+        if (itemTouchHelper == null || recyclerView == null) return;
+        itemTouchHelper.attachToRecyclerView(null);
+        itemTouchHelper.attachToRecyclerView(recyclerView);
+        if (adapter != null) adapter.notifyDataSetChanged();
     }
 
     private void showWordRegisterBottomSheet() {
@@ -710,6 +791,51 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             });
         });
     }
+
+    // 알림 권한이 없으면 먼저 이유를 설명하고 요청한다.
+    // 권한을 거부해도 학습 자체는 진행한다. 복습 알림만 표시되지 않는다.
+    private void ensureNotificationPermission(Runnable onDone) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                || ContextCompat.checkSelfPermission(requireContext(),
+                        Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            onDone.run();
+            return;
+        }
+
+        pendingAfterPermission = onDone;
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_notification_permission, null);
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        dialogView.findViewById(R.id.btn_notification_permission_confirm).setOnClickListener(v -> {
+            dialog.dismiss();
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        });
+
+        dialog.show();
+    }
+
+    private Runnable pendingAfterPermission;
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (!isGranted && isAdded()) {
+                    Toast.makeText(getContext(),
+                            "알림을 허용하지 않으면 복습 시간을 알려드릴 수 없어요. 설정에서 언제든 켤 수 있습니다.",
+                            Toast.LENGTH_LONG).show();
+                }
+                // 허용 여부와 무관하게 학습은 시작한다.
+                Runnable next = pendingAfterPermission;
+                pendingAfterPermission = null;
+                if (next != null) next.run();
+            });
 
     private void startStudyMode() {
         VocabularyBookFirestore.getWordCount(uid, vocabularyId, count -> {

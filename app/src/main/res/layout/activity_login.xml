@@ -24,6 +24,23 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
 
+    <android.widget.Button
+        android:id="@+id/kakaoBtn"
+        android:layout_width="280dp"
+        android:layout_height="60dp"
+        android:layout_gravity="center"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/kakao_button_ripple_edge"
+        android:drawableLeft="@drawable/kakao_logo"
+        android:paddingStart="20dp"
+        android:paddingEnd="40dp"
+        android:text="카카오로 시작하기"
+        android:textColor="#191919"
+        android:textSize="14dp"
+        app:layout_constraintBottom_toTopOf="@+id/googleBtn"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
     <TextView
         android:id="@+id/textView3"
         android:layout_width="match_parent"
