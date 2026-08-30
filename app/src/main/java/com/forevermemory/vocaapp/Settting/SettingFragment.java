@@ -10,6 +10,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -26,6 +28,14 @@ import com.google.firebase.firestore.FirebaseFirestore;
 public class SettingFragment extends Fragment {
 
     private FirebaseAuth mAuth; // 파이어베이스 관리자
+
+    // 엑셀 파일 선택기. Fragment 생성 시점에 등록해야 하므로 필드로 둔다.
+    private final ActivityResultLauncher<String[]> excelPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null && isAdded()) {
+                    ImportVocabularyHelper.handlePickedFile(requireActivity(), uri);
+                }
+            });
 
     @Nullable
     @Override
@@ -45,6 +55,8 @@ public class SettingFragment extends Fragment {
         LinearLayout sendCommentLinear = view.findViewById(R.id.sendCommentLinear);
         LinearLayout checkPolicyLinear = view.findViewById(R.id.checkPolicyLinear);
         MaterialSwitch switchMarketingPush = view.findViewById(R.id.switchMarketingPush);
+        LinearLayout exportVocabularyLinear = view.findViewById(R.id.exportVocabularyLinear);
+        LinearLayout importVocabularyLinear = view.findViewById(R.id.importVocabularyLinear);
         LinearLayout logoutLinear = view.findViewById(R.id.logoutLinear);
         LinearLayout unregisterLinear = view.findViewById(R.id.unregisterLinear);
 
@@ -100,6 +112,9 @@ public class SettingFragment extends Fragment {
             startActivity(intent);
         });
 
+        exportVocabularyLinear.setOnClickListener(v -> ExportVocabularyDialog.show(requireActivity()));
+        importVocabularyLinear.setOnClickListener(v ->
+                excelPickerLauncher.launch(ImportVocabularyHelper.mimeTypes()));
         logoutLinear.setOnClickListener(v -> showLogoutDialog());
         unregisterLinear.setOnClickListener(v -> showUnregisterDialog());
 

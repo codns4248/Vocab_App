@@ -4,6 +4,7 @@ const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
 const Anthropic = require("@anthropic-ai/sdk");
 const { base64ByteLength, classifyError, logApiUsage } = require("./usageLogger");
+const ExcelJS = require("exceljs");
 
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -22,6 +23,15 @@ const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 // 카카오 REST API 키. 회원 탈퇴 시 카카오 연결 해제(관리자 API)에 쓴다.
 // 설정: firebase functions:secrets:set KAKAO_REST_API_KEY
 const KAKAO_REST_API_KEY = defineSecret("KAKAO_REST_API_KEY");
+
+// Resend API 키. 단어장 내보내기 메일 발송에 쓴다.
+// 설정: firebase functions:secrets:set RESEND_API_KEY
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
+
+// 발신 주소. Resend에서 도메인을 인증하기 전에는 onboarding@resend.dev만 쓸 수 있고,
+// 그 경우 Resend 계정에 등록된 본인 주소로만 발송된다.
+// 도메인 인증 후 noreply@본인도메인 으로 바꿔야 일반 사용자에게 보낼 수 있다.
+const MAIL_FROM = "포에버메모리 <onboarding@resend.dev>";
 
 // 카카오 콘솔의 앱 ID(숫자). 비밀값이 아니라 상수로 둔다.
 // 액세스 토큰이 "우리 앱" 것인지 대조하는 데 쓴다. 이 대조가 없으면
@@ -787,5 +797,454 @@ exports.deleteAccount = onCall(
 
         console.log(`회원 탈퇴 완료: ${uid} (카카오=${isKakao})`);
         return { success: true };
+    }
+);
+
+
+// ---------------------------------------------------------------------------
+// 단어장 엑셀 내보내기 (메일 발송)
+//
+// 안드로이드에서 xlsx를 만들려면 Apache POI가 필요해 앱 용량이 크게 늘고,
+// 메일 발송도 결국 서버가 해야 하므로 둘 다 서버에서 처리한다.
+// ---------------------------------------------------------------------------
+
+const RESEND_URL = "https://api.resend.com/emails";
+const MAX_EXPORT_BOOKS = 20;
+
+const STATUS_LABELS = ["미학습", "헷갈림", "학습완료"];
+
+/**
+ * 아주 느슨한 이메일 형식 검사.
+ * 실제 도달 여부는 보내봐야 알 수 있으므로 명백한 오타만 걸러낸다.
+ *
+ * @param {string} email 검사할 주소
+ * @return {boolean} 형식이 그럴듯하면 true
+ */
+function looksLikeEmail(email) {
+    return typeof email === "string"
+        && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
+        && email.length <= 254;
+}
+
+/**
+ * 단어장들을 하나의 엑셀 파일로 만든다. 단어장마다 시트를 하나씩 둔다.
+ *
+ * @param {Array<{title: string, words: object[]}>} books 단어장 목록
+ * @return {Promise<Buffer>} xlsx 바이너리
+ */
+async function buildWorkbook(books) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "포에버메모리";
+    wb.created = new Date();
+
+    const usedNames = new Set();
+    books.forEach((book, index) => {
+        // 시트 이름은 31자 제한이고 : \ / ? * [ ] 를 쓸 수 없다. 중복도 안 된다.
+        let name = String(book.title || `단어장${index + 1}`)
+            .replace(/[:\\/?*[\]]/g, " ")
+            .slice(0, 28)
+            .trim() || `단어장${index + 1}`;
+        let suffix = 2;
+        const base = name;
+        while (usedNames.has(name)) {
+            name = `${base} ${suffix++}`;
+        }
+        usedNames.add(name);
+
+        const ws = wb.addWorksheet(name);
+        ws.columns = [
+            { header: "번호", key: "no", width: 6 },
+            { header: "단어", key: "word", width: 22 },
+            { header: "뜻", key: "meaning", width: 40 },
+            { header: "발음", key: "pronunciation", width: 18 },
+            { header: "학습 상태", key: "status", width: 12 },
+            { header: "추가일", key: "added", width: 14 },
+        ];
+
+        ws.getRow(1).font = { bold: true };
+        ws.getRow(1).fill = {
+            type: "pattern", pattern: "solid", fgColor: { argb: "FF3B5BDB" },
+        };
+        ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+        ws.views = [{ state: "frozen", ySplit: 1 }];
+
+        book.words.forEach((w, i) => {
+            const status = STATUS_LABELS[w.studyStatus] || STATUS_LABELS[0];
+            let added = "";
+            if (w.timeStamp && typeof w.timeStamp.toDate === "function") {
+                const d = w.timeStamp.toDate();
+                added = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            }
+            ws.addRow({
+                no: i + 1,
+                word: w.word || "",
+                meaning: w.meaning || "",
+                pronunciation: w.pronunciation || "",
+                status,
+                added,
+            });
+        });
+    });
+
+    return wb.xlsx.writeBuffer();
+}
+
+exports.exportVocabularyToEmail = onCall(
+    {
+        region: "asia-northeast3",
+        secrets: [RESEND_API_KEY],
+        memory: "512MiB",
+        timeoutSeconds: 300,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+        }
+        const uid = request.auth.uid;
+
+        const email = String(request.data?.email || "").trim();
+        if (!looksLikeEmail(email)) {
+            throw new HttpsError("invalid-argument", "이메일 주소를 확인해주세요.");
+        }
+
+        // vocabularyIds를 주지 않으면 전체 단어장을 내보낸다.
+        const requestedIds = Array.isArray(request.data?.vocabularyIds)
+            ? request.data.vocabularyIds.filter((v) => typeof v === "string")
+            : null;
+
+        const db = admin.firestore();
+        const booksRef = db.collection("users").doc(uid).collection("vocabularies");
+
+        let bookDocs;
+        try {
+            const snap = await booksRef.get();
+            bookDocs = snap.docs;
+            if (requestedIds) {
+                const wanted = new Set(requestedIds);
+                bookDocs = bookDocs.filter((d) => wanted.has(d.id));
+            }
+        } catch (error) {
+            console.error("단어장 조회 실패:", error);
+            throw new HttpsError("internal", "단어장을 불러오지 못했습니다.");
+        }
+
+        if (bookDocs.length === 0) {
+            throw new HttpsError("not-found", "내보낼 단어장이 없습니다.");
+        }
+        if (bookDocs.length > MAX_EXPORT_BOOKS) {
+            throw new HttpsError("invalid-argument",
+                `단어장은 한 번에 ${MAX_EXPORT_BOOKS}개까지 내보낼 수 있습니다.`);
+        }
+
+        // 단어를 모은다. 단어장이 여러 개일 수 있으므로 병렬로 읽는다.
+        const books = await Promise.all(bookDocs.map(async (doc) => {
+            const words = await doc.ref.collection("words").orderBy("timeStamp", "asc").get();
+            return {
+                title: doc.data().title,
+                words: words.docs.map((w) => w.data()),
+            };
+        }));
+
+        const totalWords = books.reduce((sum, b) => sum + b.words.length, 0);
+        if (totalWords === 0) {
+            throw new HttpsError("not-found", "내보낼 단어가 없습니다.");
+        }
+
+        let buffer;
+        try {
+            buffer = await buildWorkbook(books);
+        } catch (error) {
+            console.error("엑셀 생성 실패:", error);
+            throw new HttpsError("internal", "파일을 만들지 못했습니다.");
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        const filename = `단어장_${today}.xlsx`;
+        const bookList = books.map((b) => `${b.title} (${b.words.length}개)`).join("<br>");
+
+        try {
+            const res = await fetch(RESEND_URL, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${RESEND_API_KEY.value()}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    from: MAIL_FROM,
+                    to: [email],
+                    subject: `[포에버메모리] 단어장 내보내기 (${totalWords}개 단어)`,
+                    html: `<div style="font-family:sans-serif;line-height:1.6">
+<p>요청하신 단어장을 엑셀 파일로 보내드립니다.</p>
+<p><b>포함된 단어장</b><br>${bookList}</p>
+<p>총 <b>${totalWords}개</b>의 단어가 들어 있습니다.</p>
+<hr style="border:none;border-top:1px solid #ddd">
+<p style="color:#888;font-size:12px">본 메일은 앱에서 요청하신 경우에만 발송됩니다.</p>
+</div>`,
+                    attachments: [{
+                        filename,
+                        content: Buffer.from(buffer).toString("base64"),
+                    }],
+                }),
+            });
+
+            if (!res.ok) {
+                const body = await res.text();
+                console.error("Resend 발송 실패:", res.status, body);
+                throw new HttpsError("internal", "메일 발송에 실패했습니다.");
+            }
+        } catch (error) {
+            if (error instanceof HttpsError) throw error;
+            console.error("메일 발송 중 오류:", error);
+            throw new HttpsError("internal", "메일 발송에 실패했습니다.");
+        }
+
+        console.log(`단어장 내보내기 완료: uid=${uid}, 단어장=${books.length}, 단어=${totalWords}`);
+        return { success: true, bookCount: books.length, wordCount: totalWords };
+    }
+);
+
+
+// ---------------------------------------------------------------------------
+// 엑셀에서 단어 가져오기
+//
+// 앱은 파일을 고르기만 하고 파싱은 서버가 한다. 안드로이드에서 xlsx를 읽으려면
+// Apache POI가 필요해 앱 용량이 크게 늘기 때문이다.
+//
+// 내보내기가 만든 파일을 그대로 다시 넣을 수 있어야 하므로 같은 열 이름을 읽고,
+// 사용자가 직접 만든 파일도 받아들이도록 열 이름 후보를 넉넉히 둔다.
+// ---------------------------------------------------------------------------
+
+const MAX_IMPORT_WORDS = 2000;
+const IMPORT_BATCH_SIZE = 400;   // Firestore 배치 상한(500)보다 여유 있게
+
+// 열 이름 후보. 소문자로 비교한다.
+const COLUMN_ALIASES = {
+    word: ["단어", "word", "영단어", "spelling"],
+    meaning: ["뜻", "의미", "meaning", "해석", "정의"],
+    pronunciation: ["발음", "pronunciation", "읽기"],
+    status: ["학습 상태", "학습상태", "상태", "status"],
+};
+
+const STATUS_FROM_LABEL = {
+    "미학습": 0, "미확인": 0, "unknown": 0,
+    "헷갈림": 1, "헷갈리는": 1, "confused": 1,
+    "학습완료": 2, "학습 완료": 2, "암기": 2, "암기함": 2, "memorized": 2,
+};
+
+/**
+ * 헤더 행에서 열 위치를 찾는다.
+ *
+ * @param {Array} headerRow 헤더 셀 값 배열(1-based ExcelJS 행)
+ * @return {object|null} {word, meaning, pronunciation, status} 열 번호. 단어/뜻이 없으면 null
+ */
+function mapColumns(headerRow) {
+    const found = {};
+    headerRow.eachCell((cell, colNumber) => {
+        const label = String(cell.value ?? "").trim().toLowerCase();
+        if (!label) return;
+        for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
+            if (found[key] === undefined && aliases.includes(label)) {
+                found[key] = colNumber;
+            }
+        }
+    });
+    // 단어와 뜻은 없으면 가져올 수가 없다.
+    if (found.word === undefined || found.meaning === undefined) return null;
+    return found;
+}
+
+/**
+ * 셀 값을 문자열로 만든다. 수식이나 리치 텍스트도 텍스트로 뽑는다.
+ *
+ * @param {*} value ExcelJS 셀 값
+ * @return {string} 정리된 문자열
+ */
+function cellText(value) {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "object") {
+        if (typeof value.text === "string") return value.text.trim();
+        if (Array.isArray(value.richText)) return value.richText.map((r) => r.text).join("").trim();
+        if (value.result !== undefined) return String(value.result).trim();
+        return "";
+    }
+    return String(value).trim();
+}
+
+exports.importVocabularyFromExcel = onCall(
+    {
+        region: "asia-northeast3",
+        memory: "512MiB",
+        timeoutSeconds: 300,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+        }
+        const uid = request.auth.uid;
+
+        const vocabularyId = request.data?.vocabularyId;
+        const newBookTitle = typeof request.data?.newBookTitle === "string"
+            ? request.data.newBookTitle.trim() : "";
+        const fileBase64 = request.data?.file;
+
+        if (typeof fileBase64 !== "string" || fileBase64 === "") {
+            throw new HttpsError("invalid-argument", "파일이 없습니다.");
+        }
+        // 기존 단어장에 넣거나, 새로 만들어 넣거나 둘 중 하나여야 한다.
+        const useNewBook = newBookTitle !== "";
+        if (!useNewBook && (typeof vocabularyId !== "string" || vocabularyId === "")) {
+            throw new HttpsError("invalid-argument", "단어장을 선택해주세요.");
+        }
+        if (useNewBook && newBookTitle.length > 50) {
+            throw new HttpsError("invalid-argument", "단어장 이름은 50자 이내로 입력해주세요.");
+        }
+
+        const db = admin.firestore();
+        const booksRef = db.collection("users").doc(uid).collection("vocabularies");
+
+        // [1] 엑셀 파싱
+        let rows = [];
+        try {
+            const wb = new ExcelJS.Workbook();
+            await wb.xlsx.load(Buffer.from(fileBase64, "base64"));
+
+            // 시트가 하나뿐이면 헤더가 없어도 A=단어, B=뜻으로 본다.
+            // 사람들이 헤더 없이 A·B열에 그냥 적는 경우가 흔하기 때문이다.
+            // 여러 시트짜리 파일에서는 이 추정을 하지 않는다. 메모나 안내처럼
+            // 단어가 아닌 시트까지 단어로 읽어버리기 때문이다.
+            const allowHeaderless = wb.worksheets.length === 1;
+
+            wb.eachSheet((ws) => {
+                const mapped = mapColumns(ws.getRow(1));
+                if (!mapped && !allowHeaderless) return;   // 헤더 없는 시트는 건너뛴다
+                const cols = mapped || { word: 1, meaning: 2, pronunciation: 3, status: 4 };
+                const hasHeader = mapped !== null;
+
+                ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+                    if (hasHeader && rowNumber === 1) return;   // 헤더 행
+                    const word = cellText(row.getCell(cols.word).value);
+                    const meaning = cellText(row.getCell(cols.meaning).value);
+                    if (!word || !meaning) return;
+
+                    const pronunciation = cols.pronunciation !== undefined
+                        ? cellText(row.getCell(cols.pronunciation).value) : "";
+                    let studyStatus = 0;
+                    if (cols.status !== undefined) {
+                        const label = cellText(row.getCell(cols.status).value).toLowerCase();
+                        studyStatus = STATUS_FROM_LABEL[label] ?? 0;
+                    }
+                    rows.push({ word, meaning, pronunciation, studyStatus });
+                });
+            });
+        } catch (error) {
+            console.error("엑셀 파싱 실패:", error);
+            throw new HttpsError("invalid-argument",
+                "엑셀 파일을 읽지 못했습니다. xlsx 형식인지 확인해주세요.");
+        }
+
+        if (rows.length === 0) {
+            throw new HttpsError("invalid-argument",
+                "가져올 단어가 없습니다. A열에 단어, B열에 뜻을 넣어주세요.");
+        }
+        if (rows.length > MAX_IMPORT_WORDS) {
+            throw new HttpsError("invalid-argument",
+                `한 번에 ${MAX_IMPORT_WORDS}개까지 가져올 수 있습니다. (파일에 ${rows.length}개)`);
+        }
+
+        // [2] 파일 안의 중복 제거
+        const seen = new Set();
+        rows = rows.filter((r) => {
+            const key = r.word.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        // [3] 단어장 준비.
+        // 파싱이 끝난 뒤에 만든다. 앞에서 만들면 파일이 잘못됐을 때
+        // 빈 단어장만 덩그러니 남는다.
+        let vocabRef;
+        if (useNewBook) {
+            // 앱에서 만드는 것과 같은 필드 구성으로 맞춘다.
+            vocabRef = booksRef.doc();
+            await vocabRef.set({
+                docId: vocabRef.id,
+                title: newBookTitle,
+                stampCount: 0,
+                isStudying: false,
+                wordCount: 0,
+                unknownCount: 0,
+                confusedCount: 0,
+                memorizedCount: 0,
+                timeStamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } else {
+            vocabRef = booksRef.doc(vocabularyId);
+            const vocabSnap = await vocabRef.get();
+            if (!vocabSnap.exists) {
+                throw new HttpsError("not-found", "단어장을 찾을 수 없습니다.");
+            }
+        }
+
+        // [4] 단어장에 이미 있는 단어 제외
+        const existing = new Set();
+        try {
+            const snap = await vocabRef.collection("words").get();
+            snap.docs.forEach((d) => {
+                const w = d.get("word");
+                if (typeof w === "string") existing.add(w.toLowerCase());
+            });
+        } catch (error) {
+            console.error("기존 단어 조회 실패:", error);
+            throw new HttpsError("internal", "단어장을 확인하지 못했습니다.");
+        }
+
+        const toAdd = rows.filter((r) => !existing.has(r.word.toLowerCase()));
+        const skipped = rows.length - toAdd.length;
+
+        if (toAdd.length === 0) {
+            // 방금 만든 단어장이면 빈 채로 남기지 않는다.
+            if (useNewBook) await vocabRef.delete();
+            return { added: 0, skipped, message: "이미 모두 등록된 단어입니다." };
+        }
+
+        // [5] 저장. 상태별 카운터도 함께 맞춘다.
+        const statusCounts = [0, 0, 0];
+        toAdd.forEach((r) => statusCounts[r.studyStatus]++);
+
+        try {
+            for (let i = 0; i < toAdd.length; i += IMPORT_BATCH_SIZE) {
+                const batch = db.batch();
+                toAdd.slice(i, i + IMPORT_BATCH_SIZE).forEach((r) => {
+                    batch.set(vocabRef.collection("words").doc(), {
+                        word: r.word,
+                        meaning: r.meaning,
+                        pronunciation: r.pronunciation,
+                        studyStatus: r.studyStatus,
+                        timeStamp: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                });
+                await batch.commit();
+            }
+
+            // 카운터는 단어를 다 넣은 뒤 한 번에 올린다.
+            await vocabRef.update({
+                wordCount: admin.firestore.FieldValue.increment(toAdd.length),
+                unknownCount: admin.firestore.FieldValue.increment(statusCounts[0]),
+                confusedCount: admin.firestore.FieldValue.increment(statusCounts[1]),
+                memorizedCount: admin.firestore.FieldValue.increment(statusCounts[2]),
+            });
+        } catch (error) {
+            console.error("단어 저장 실패:", error);
+            throw new HttpsError("internal", "단어를 저장하지 못했습니다.");
+        }
+
+        console.log(`엑셀 가져오기 완료: uid=${uid}, 추가=${toAdd.length}, 중복=${skipped}, 새단어장=${useNewBook}`);
+        return {
+            added: toAdd.length,
+            skipped,
+            vocabularyId: vocabRef.id,
+            createdBook: useNewBook,
+        };
     }
 );

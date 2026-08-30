@@ -4,22 +4,36 @@
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 
+    <!-- 앱 기본색 #3b5bdb 를 기준으로 맞춘 팔레트.
+         Material3는 다이얼로그·스위치·리플 배경에 이 색들을 섞어 쓰기 때문에,
+         기본값(보라 계열)이 남아 있으면 다이얼로그가 연보라로 보인다. -->
     <color name="md_theme_primary">#3b5bdb</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
-    <color name="md_theme_primaryContainer">#EADDFF</color>
-    <color name="md_theme_onPrimaryContainer">#21005D</color>
+    <color name="md_theme_primaryContainer">#DDE3FB</color>
+    <color name="md_theme_onPrimaryContainer">#0C1A52</color>
 
-    <color name="md_theme_secondary">#625B71</color>
+    <color name="md_theme_secondary">#5A6483</color>
     <color name="md_theme_onSecondary">#FFFFFF</color>
-    <color name="md_theme_secondaryContainer">#E8DEF8</color>
-    <color name="md_theme_onSecondaryContainer">#1D192B</color>
+    <color name="md_theme_secondaryContainer">#E1E5F2</color>
+    <color name="md_theme_onSecondaryContainer">#171C2C</color>
 
     <color name="md_theme_error">#B3261E</color>
     <color name="md_theme_onError">#FFFFFF</color>
-    <color name="md_theme_background">#FFFBFE</color>
-    <color name="md_theme_onBackground">#1C1B1F</color>
-    <color name="md_theme_surface">#FFFBFE</color>
-    <color name="md_theme_onSurface">#1C1B1F</color>
+    <color name="md_theme_background">#FFFFFF</color>
+    <color name="md_theme_onBackground">#1A1C1E</color>
+    <color name="md_theme_surface">#FFFFFF</color>
+    <color name="md_theme_onSurface">#1A1C1E</color>
+
+    <!-- 다이얼로그·바텀시트 배경. Material3 기본값이 보라 계열이라
+         그대로 두면 팝업만 연보라로 보인다. 파란 계열 회색으로 맞춘다. -->
+    <color name="md_theme_surfaceContainerLowest">#FFFFFF</color>
+    <color name="md_theme_surfaceContainerLow">#F8F9FC</color>
+    <color name="md_theme_surfaceContainer">#F3F5FA</color>
+    <color name="md_theme_surfaceContainerHigh">#EDF0F8</color>
+    <color name="md_theme_surfaceContainerHighest">#E7EBF5</color>
+    <color name="md_theme_surfaceVariant">#E1E4ED</color>
+    <color name="md_theme_onSurfaceVariant">#44474F</color>
+    <color name="md_theme_outline">#757780</color>
 
     <color name="text_color">#000000</color>
 
