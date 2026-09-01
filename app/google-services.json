@@ -99,6 +99,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "211185583428-seuc96qkm56t2ofticcasse5m1adqi1f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.forevermemory.vocaapp",
+            "certificate_hash": "528c8a5ee4ff9330bf67e4c03ce5dbfb9704689c"
+          }
+        },
+        {
           "client_id": "211185583428-vndgniikcrn528sks70m1okudm4ut8od.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

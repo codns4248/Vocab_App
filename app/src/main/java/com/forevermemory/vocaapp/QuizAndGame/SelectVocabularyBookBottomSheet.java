@@ -9,7 +9,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -24,6 +23,7 @@ import com.google.firebase.auth.FirebaseUser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
 
@@ -61,7 +61,7 @@ public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
             Map<String, Object> selectedData = adapter.getSelectedWordbook();
 
             if (selectedData == null) {
-                Toast.makeText(getContext(), "단어장을 선택해주세요!", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "단어장을 선택해주세요!");
                 return;
             }
 
@@ -91,7 +91,7 @@ public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
             }
 
             if (isOfficial && !isStudying) {
-                Toast.makeText(getContext(), "이 단어장은 학습 모드가 꺼져있습니다.\n단어장 탭에서 학습 모드를 켜주세요!", Toast.LENGTH_LONG).show();
+                PopupUtil.show(getContext(), "이 단어장은 학습 모드가 꺼져있습니다.\n단어장 탭에서 학습 모드를 켜주세요!");
                 return;
             }
 
@@ -101,7 +101,7 @@ public class SelectVocabularyBookBottomSheet extends BottomSheetDialogFragment {
             QuizAndGameFirestore quizAndGameFirestore = new QuizAndGameFirestore();
             quizAndGameFirestore.getWordCount(uid, id, wordCount -> {
                 if (wordCount == 0) {
-                    Toast.makeText(requireContext(), "단어장에 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(requireContext(), "단어장에 단어가 없습니다.");
                     return;
                 }
 

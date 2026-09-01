@@ -10,7 +10,6 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -25,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 /**
  * 단어장을 엑셀로 만들어 메일로 보내는 창.
@@ -41,7 +41,7 @@ public class ExportVocabularyDialog {
     public static void show(Activity activity) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            Toast.makeText(activity, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(activity, "로그인이 필요합니다.");
             return;
         }
 
@@ -52,7 +52,7 @@ public class ExportVocabularyDialog {
                 .addOnSuccessListener(snapshot -> {
                     if (activity.isFinishing()) return;
                     if (snapshot.isEmpty()) {
-                        Toast.makeText(activity, "내보낼 단어장이 없습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(activity, "내보낼 단어장이 없습니다.");
                         return;
                     }
                     List<String> ids = new ArrayList<>();
@@ -68,7 +68,7 @@ public class ExportVocabularyDialog {
                 })
                 .addOnFailureListener(e -> {
                     if (!activity.isFinishing()) {
-                        Toast.makeText(activity, "단어장을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(activity, "단어장을 불러오지 못했습니다.");
                     }
                 });
     }
@@ -112,7 +112,7 @@ public class ExportVocabularyDialog {
         sendBtn.setOnClickListener(v -> {
             String email = emailEdit.getText().toString().trim();
             if (TextUtils.isEmpty(email) || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                Toast.makeText(activity, "이메일 주소를 확인해주세요.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(activity, "이메일 주소를 확인해주세요.");
                 return;
             }
 
@@ -121,7 +121,7 @@ public class ExportVocabularyDialog {
                 if (boxes.get(i).isChecked()) selected.add(ids.get(i));
             }
             if (selected.isEmpty()) {
-                Toast.makeText(activity, "단어장을 하나 이상 선택해주세요.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(activity, "단어장을 하나 이상 선택해주세요.");
                 return;
             }
 
@@ -138,16 +138,14 @@ public class ExportVocabularyDialog {
                     .call(data)
                     .addOnSuccessListener(result -> {
                         if (activity.isFinishing()) return;
-                        Toast.makeText(activity,
-                                email + " 으로 보냈습니다.\n메일이 안 보이면 스팸함도 확인해주세요.",
-                                Toast.LENGTH_LONG).show();
+                        PopupUtil.show(activity, email + " 으로 보냈습니다.\n메일이 안 보이면 스팸함도 확인해주세요.");
                         dialog.dismiss();
                     })
                     .addOnFailureListener(e -> {
                         if (activity.isFinishing()) return;
                         sendBtn.setEnabled(true);
                         sendBtn.setText("보내기");
-                        Toast.makeText(activity, "발송 실패: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        PopupUtil.show(activity, "발송 실패: " + e.getMessage());
                     });
         });
 

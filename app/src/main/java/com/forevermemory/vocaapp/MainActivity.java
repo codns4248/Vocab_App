@@ -12,7 +12,6 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.util.Log;
 
 import android.os.Bundle;
@@ -31,6 +30,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -196,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
         dialogView.findViewById(R.id.btn_marketing_allow).setOnClickListener(v -> {
             MarketingPushPrefs.setEnabled(this, true);
             dialog.dismiss();
-            Toast.makeText(this, "마케팅 정보 수신에 동의했습니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(this, "마케팅 정보 수신에 동의했습니다.");
         });
 
         dialogView.findViewById(R.id.btn_marketing_deny).setOnClickListener(v -> {

@@ -6,7 +6,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -14,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.forevermemory.vocaapp.R;
 
 import java.util.List;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class CameraAdapter extends RecyclerView.Adapter<CameraAdapter.PhotoViewHolder> {
 
@@ -52,7 +52,7 @@ public class CameraAdapter extends RecyclerView.Adapter<CameraAdapter.PhotoViewH
     // 사진의 개수를 10개 이하로 제한
     public void addPhoto(Bitmap photo, Context context) {
         if (photos.size() >= MAX_PHOTOS) {
-            Toast.makeText(context, "사진은 10개까지 선택 가능합니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(context, "사진은 10개까지 선택 가능합니다.");
             return;
         } else {
             photos.add(photo);

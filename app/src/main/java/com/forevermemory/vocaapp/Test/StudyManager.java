@@ -2,7 +2,6 @@ package com.forevermemory.vocaapp.Test;
 
 import android.content.Context;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookFirestore;
 import com.google.firebase.Timestamp;
@@ -15,6 +14,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class StudyManager {
 
@@ -89,7 +89,7 @@ public class StudyManager {
                     updates.put("nextReviewDate", null);
 
                     vocabRef.update(updates).addOnSuccessListener(aVoid -> {
-                        if (context != null) Toast.makeText(context, "🎉 모든 복습 완료! 수고하셨습니다.", Toast.LENGTH_SHORT).show();
+                        if (context != null) PopupUtil.show(context, "🎉 모든 복습 완료! 수고하셨습니다.");
                     });
                 }
 
@@ -132,7 +132,7 @@ public class StudyManager {
 
                             String timeInfo = intervalMinutes + "분";
                             if (context != null) {
-                                Toast.makeText(context, nextStamp + "단계 완료! (" + timeInfo + " 후 알림)", Toast.LENGTH_SHORT).show();
+                                PopupUtil.show(context, nextStamp + "단계 완료! (" + timeInfo + " 후 알림)");
                             }
                         }).addOnFailureListener(e -> Log.e("StudyManager", "DB 업데이트 실패", e));
                     });

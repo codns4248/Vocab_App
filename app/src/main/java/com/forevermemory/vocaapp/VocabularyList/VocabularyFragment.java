@@ -20,7 +20,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.appcompat.widget.ListPopupWindow;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -61,6 +60,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 
 public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitListener {
@@ -165,12 +165,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
         fab.setOnClickListener(v -> {
             if (vocabularyId == null) {
-                Toast.makeText(getContext(), "단어장을 먼저 선택해주세요.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "단어장을 먼저 선택해주세요.");
                 openBookList();
                 return;
             }
             if (isStudying) {
-                Toast.makeText(getContext(), "학습 모드 중에는 단어를 추가할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "학습 모드 중에는 단어를 추가할 수 없습니다.");
                 return;
             }
             if (isFabOpen) closeFabMenu(); else openFabMenu();
@@ -190,7 +190,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
         btnStudyToggle.setOnClickListener(v -> {
             if (vocabularyId == null) {
-                Toast.makeText(getContext(), "단어장을 먼저 선택해주세요.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "단어장을 먼저 선택해주세요.");
                 return;
             }
             if (isStudying) {
@@ -204,7 +204,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         btnStudyNow.setOnClickListener(v -> {
             if (vocabularyId == null) return;
             if (!buttonOn) {
-                Toast.makeText(getContext(), "아직 공부 시간이 아닙니다.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "아직 공부 시간이 아닙니다.");
                 return;
             }
             Intent intent = new Intent(requireContext(), TestActivity.class);
@@ -761,13 +761,13 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             String pronunciation = pronunciationEditText.getText().toString().trim();
 
             if (word.isEmpty() || mean.isEmpty()) {
-                Toast.makeText(getContext(), "단어와 의미는 필수입니다", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "단어와 의미는 필수입니다");
                 return;
             }
 
             new VocabularyFirestore().alreadyVocabulary(uid, vocabularyId, word, isAlready -> {
                 if (isAlready) {
-                    Toast.makeText(getContext(), "이미 등록된 단어입니다", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(getContext(), "이미 등록된 단어입니다");
                 } else {
                     Map<String, Object> wordData = new HashMap<>();
                     wordData.put("word", word);
@@ -778,14 +778,14 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     VocabularyFirestore.addWord(uid, vocabularyId, wordData,
                             () -> {
                                 if (!isAdded()) return;
-                                Toast.makeText(getContext(), "단어가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+                                PopupUtil.show(getContext(), "단어가 등록되었습니다.");
                                 wordEditText.setText("");
                                 meanEditText.setText("");
                                 pronunciationEditText.setText("");
                                 wordEditText.requestFocus();
                             },
                             () -> {
-                                if (isAdded()) Toast.makeText(getContext(), "등록 실패", Toast.LENGTH_SHORT).show();
+                                if (isAdded()) PopupUtil.show(getContext(), "등록 실패");
                             });
                 }
             });
@@ -827,9 +827,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (!isGranted && isAdded()) {
-                    Toast.makeText(getContext(),
-                            "알림을 허용하지 않으면 복습 시간을 알려드릴 수 없어요. 설정에서 언제든 켤 수 있습니다.",
-                            Toast.LENGTH_LONG).show();
+                    PopupUtil.show(getContext(), "알림을 허용하지 않으면 복습 시간을 알려드릴 수 없어요. 설정에서 언제든 켤 수 있습니다.");
                 }
                 // 허용 여부와 무관하게 학습은 시작한다.
                 Runnable next = pendingAfterPermission;
@@ -842,7 +840,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             if (!isAdded() || getContext() == null) return;
             if (count == null || count <= 0) {
                 String msg = (count == null) ? "단어장 데이터가 유효하지 않습니다." : "단어장에 단어를 추가해주세요.";
-                Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), msg);
                 return;
             }
             proceedStartStudy();
@@ -890,7 +888,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                                         String msg = String.format(Locale.KOREA,
                                                 "단계 %d 학습 시작! %d분 뒤 알림이 옵니다.",
                                                 (currentStampCount + 1), intervalMinutes);
-                                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+                                        PopupUtil.show(getContext(), msg);
                                         StudyManager.getInstance().scheduleNotification(
                                                 vocabularyId, title,
                                                 reviewTime.getTime() / 1000,
@@ -900,7 +898,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                                     @Override
                                     public void onFailure(Exception e) {
                                         if (isAdded()) {
-                                            Toast.makeText(getContext(), "업데이트 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                            PopupUtil.show(getContext(), "업데이트 실패: " + e.getMessage());
                                         }
                                     }
                                 });
@@ -919,7 +917,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             .collection("vocabularies").document(vocabularyId)
                             .update("buttonOn", false);
                     if (isAdded()) {
-                        Toast.makeText(getContext(), "학습 모드가 해제되고 예약된 알림이 취소되었습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(getContext(), "학습 모드가 해제되고 예약된 알림이 취소되었습니다.");
                     }
                 })
                 .setNegativeButton("취소", null)
@@ -932,7 +930,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         if (status == TextToSpeech.SUCCESS && tts != null) {
             int result = tts.setLanguage(Locale.US);
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                if (isAdded()) Toast.makeText(getContext(), "영어 음성 데이터가 없습니다", Toast.LENGTH_SHORT).show();
+                if (isAdded()) PopupUtil.show(getContext(), "영어 음성 데이터가 없습니다");
             } else {
                 tts.setSpeechRate(0.9f);
                 tts.setPitch(1.0f);

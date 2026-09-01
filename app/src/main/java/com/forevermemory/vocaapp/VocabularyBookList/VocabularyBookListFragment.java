@@ -13,7 +13,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class VocabularyBookListFragment extends Fragment {
 
@@ -203,7 +203,7 @@ public class VocabularyBookListFragment extends Fragment {
         dialogView.findViewById(R.id.registerButton).setOnClickListener(v -> {
             String bookName = bookNameEditText.getText().toString().trim();
             if (bookName.isEmpty()) {
-                Toast.makeText(getContext(), "단어장 이름을 입력해주세요.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "단어장 이름을 입력해주세요.");
                 return;
             }
             alreadyVocabularyBookFilter(bookName);
@@ -214,7 +214,7 @@ public class VocabularyBookListFragment extends Fragment {
         VocabularyBookFirestore checker = new VocabularyBookFirestore();
         checker.alreadyVocabularyBook(uid, bookName, isAlready -> {
             if (isAlready) {
-                Toast.makeText(getContext(), "이미 등록된 단어장 이름입니다", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "이미 등록된 단어장 이름입니다");
             } else {
                 saveBookToFirestore(bookName);
             }
@@ -337,7 +337,7 @@ public class VocabularyBookListFragment extends Fragment {
 
             @Override
             public void onFailure(Exception e) {
-                Toast.makeText(getContext(), "등록 실패", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "등록 실패");
             }
         });
     }

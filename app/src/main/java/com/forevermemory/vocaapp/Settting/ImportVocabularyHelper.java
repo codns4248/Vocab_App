@@ -6,7 +6,6 @@ import android.net.Uri;
 import android.util.Base64;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -22,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 /**
  * 엑셀 파일에서 단어를 가져온다.
@@ -49,7 +49,7 @@ public class ImportVocabularyHelper {
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            Toast.makeText(activity, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(activity, "로그인이 필요합니다.");
             return;
         }
 
@@ -57,11 +57,11 @@ public class ImportVocabularyHelper {
         try {
             base64 = readAsBase64(activity, uri);
         } catch (Exception e) {
-            Toast.makeText(activity, "파일을 읽지 못했습니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(activity, "파일을 읽지 못했습니다.");
             return;
         }
         if (base64 == null) {
-            Toast.makeText(activity, "파일이 너무 큽니다. (5MB 이하)", Toast.LENGTH_LONG).show();
+            PopupUtil.show(activity, "파일이 너무 큽니다. (5MB 이하)");
             return;
         }
 
@@ -85,7 +85,7 @@ public class ImportVocabularyHelper {
                 })
                 .addOnFailureListener(e -> {
                     if (!activity.isFinishing()) {
-                        Toast.makeText(activity, "단어장을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(activity, "단어장을 불러오지 못했습니다.");
                     }
                 });
     }
@@ -126,7 +126,7 @@ public class ImportVocabularyHelper {
                 .setPositiveButton("만들기", (d, w) -> {
                     String title = input.getText().toString().trim();
                     if (title.isEmpty()) {
-                        Toast.makeText(activity, "단어장 이름을 입력해주세요.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(activity, "단어장 이름을 입력해주세요.");
                         return;
                     }
                     upload(activity, null, title, fileData);
@@ -176,8 +176,7 @@ public class ImportVocabularyHelper {
                 .addOnFailureListener(e -> {
                     if (activity.isFinishing()) return;
                     progress.dismiss();
-                    Toast.makeText(activity, "가져오기 실패: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    PopupUtil.show(activity, "가져오기 실패: " + e.getMessage());
                 });
     }
 

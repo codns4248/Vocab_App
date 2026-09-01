@@ -238,4 +238,35 @@ public class VocabularyBookFirestore {
         void wordCount(Integer count);
     }
 
+    // 회원 탈퇴 방지 바텀시트에 보여줄 요약값.
+    // 단어장 문서에 이미 집계돼 있는 memorizedCount 를 합산하므로
+    // words 하위 컬렉션은 읽지 않는다. (집계는 VocabularyCounterBackfill 로 보정됨)
+    public static void getWithdrawalSummary(String uid, WithdrawalSummaryCallback callback) {
+        if (uid == null) {
+            if (callback != null) callback.onFailure(new IllegalStateException("로그인 정보가 없습니다."));
+            return;
+        }
+        FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .collection("vocabularies")
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    int bookCount = snapshot.size();
+                    int memorizedWordCount = 0;
+                    for (QueryDocumentSnapshot doc : snapshot) {
+                        Long memorized = doc.getLong("memorizedCount");
+                        if (memorized != null) memorizedWordCount += memorized.intValue();
+                    }
+                    if (callback != null) callback.onResult(bookCount, memorizedWordCount);
+                })
+                .addOnFailureListener(e -> {
+                    if (callback != null) callback.onFailure(e);
+                });
+    }
+
+    public interface WithdrawalSummaryCallback {
+        void onResult(int bookCount, int memorizedWordCount);
+        void onFailure(Exception e);
+    }
+
 }

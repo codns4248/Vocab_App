@@ -13,7 +13,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
@@ -52,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class CameraActivity extends AppCompatActivity {
 
@@ -208,7 +208,7 @@ public class CameraActivity extends AppCompatActivity {
     private void extractData() {
 
         if (photoList.isEmpty()) {
-            Toast.makeText(this, "먼저 사진을 촬영해주세요.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(this, "먼저 사진을 촬영해주세요.");
             return;
         }
 
@@ -230,7 +230,7 @@ public class CameraActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> {
                     hideLoading();
-                    Toast.makeText(this, "포인트 확인 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(this, "포인트 확인 실패: " + e.getMessage());
                 });
     }
 
@@ -320,7 +320,7 @@ public class CameraActivity extends AppCompatActivity {
                 Log.e("EncodeError", "이미지 인코딩 실패: " + e.getMessage());
                 runOnUiThread(() -> {
                     hideLoading();
-                    Toast.makeText(CameraActivity.this, "사진 처리에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(CameraActivity.this, "사진 처리에 실패했습니다.");
                 });
                 return;
             }
@@ -355,7 +355,7 @@ public class CameraActivity extends AppCompatActivity {
                     } catch (Exception e) {
                         Log.e("ParsingError", "파싱 실패: " + e.getMessage());
                         hideLoading();
-                        Toast.makeText(CameraActivity.this, "분석 결과를 읽지 못했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(CameraActivity.this, "분석 결과를 읽지 못했습니다. 다시 시도해주세요.");
                         return;
                     }
 
@@ -371,9 +371,7 @@ public class CameraActivity extends AppCompatActivity {
                         }
 
                         if (failedImages > 0) {
-                            Toast.makeText(CameraActivity.this,
-                                    "사진 " + failedImages + "장은 분석하지 못했습니다. 해당 사진의 포인트는 차감되지 않았습니다.",
-                                    Toast.LENGTH_LONG).show();
+                            PopupUtil.show(CameraActivity.this, "사진 " + failedImages + "장은 분석하지 못했습니다. 해당 사진의 포인트는 차감되지 않았습니다.");
                         }
 
                         Intent intent = new Intent(CameraActivity.this, WordSelectActivity.class);
@@ -382,13 +380,13 @@ public class CameraActivity extends AppCompatActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(CameraActivity.this, "추출된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(CameraActivity.this, "추출된 단어가 없습니다.");
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e("ExtractError", "에러 발생: " + e.getMessage());
                     hideLoading();
-                    Toast.makeText(CameraActivity.this, "분석 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(CameraActivity.this, "분석 실패: " + e.getMessage());
                 });
     }
 
@@ -428,8 +426,7 @@ public class CameraActivity extends AppCompatActivity {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startCamera();
             } else {
-                Toast.makeText(this, "카메라 권한이 필요합니다", Toast.LENGTH_SHORT).show();
-                finish();
+                PopupUtil.show(this, "카메라 권한이 필요합니다", this::finish);
             }
         }
     }
@@ -443,8 +440,7 @@ public class CameraActivity extends AppCompatActivity {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
                 bindPreview(cameraProvider);
             } catch (ExecutionException | InterruptedException e) {
-                Toast.makeText(this, "카메라 시작 실패: " + e.getMessage(),
-                        Toast.LENGTH_SHORT).show();
+                PopupUtil.show(this, "카메라 시작 실패: " + e.getMessage());
             }
         }, ContextCompat.getMainExecutor(this));
     }
@@ -474,8 +470,7 @@ public class CameraActivity extends AppCompatActivity {
                     imageCapture
             );
         } catch (Exception e) {
-            Toast.makeText(this, "카메라 바인딩 실패: " + e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+            PopupUtil.show(this, "카메라 바인딩 실패: " + e.getMessage());
         }
     }
 
@@ -502,9 +497,7 @@ public class CameraActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(@NonNull ImageCaptureException exception) {
-                        Toast.makeText(CameraActivity.this,
-                                "사진 촬영 실패: " + exception.getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(CameraActivity.this, "사진 촬영 실패: " + exception.getMessage());
                     }
                 }
         );
@@ -535,7 +528,7 @@ public class CameraActivity extends AppCompatActivity {
             return rotateBitmap(bitmap, degrees);
         } catch (IOException e) {
             Log.e("GalleryError", "이미지 불러오기 실패: " + e.getMessage());
-            Toast.makeText(this, "이미지를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(this, "이미지를 불러오지 못했습니다.");
             return null;
         }
     }

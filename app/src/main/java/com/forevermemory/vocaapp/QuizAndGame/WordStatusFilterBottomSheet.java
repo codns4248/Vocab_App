@@ -7,7 +7,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class WordStatusFilterBottomSheet extends BottomSheetDialogFragment {
 
@@ -50,7 +50,7 @@ public class WordStatusFilterBottomSheet extends BottomSheetDialogFragment {
             if (checkMemorized.isChecked()) selectedStatuses.add(2);
 
             if (selectedStatuses.isEmpty()) {
-                Toast.makeText(getContext(), "최소 1개 이상 선택해주세요.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "최소 1개 이상 선택해주세요.");
                 return;
             }
 
@@ -59,13 +59,13 @@ public class WordStatusFilterBottomSheet extends BottomSheetDialogFragment {
             boolean isOfficial = getArguments() != null && getArguments().getBoolean("isOfficial", false);
 
             if (vocabularyId == null) {
-                Toast.makeText(getContext(), "단어장 정보가 없습니다.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "단어장 정보가 없습니다.");
                 return;
             }
 
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user == null) {
-                Toast.makeText(getContext(), "로그인 정보가 없습니다.", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(getContext(), "로그인 정보가 없습니다.");
                 return;
             }
             String uid = user.getUid();
@@ -78,7 +78,7 @@ public class WordStatusFilterBottomSheet extends BottomSheetDialogFragment {
                 startButton.setEnabled(true);
 
                 if (words.isEmpty()) {
-                    Toast.makeText(getContext(), "선택한 조건에 해당하는 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(getContext(), "선택한 조건에 해당하는 단어가 없습니다.");
                     return;
                 }
 

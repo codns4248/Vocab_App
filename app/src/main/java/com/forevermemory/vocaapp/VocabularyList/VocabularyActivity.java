@@ -14,13 +14,13 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.forevermemory.vocaapp.R;
+import com.forevermemory.vocaapp.util.PopupUtil;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -102,7 +102,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
             public void onClick(View v) {
                 if (isStudying) {
                     // 학습 모드일 땐 메뉴를 열지 않고 바로 안내 메시지
-                    Toast.makeText(VocabularyActivity.this, "학습 모드 중에는 단어를 추가할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(VocabularyActivity.this, "학습 모드 중에는 단어를 추가할 수 없습니다.");
                 } else {
                     // 학습 모드가 아닐 때만 기존처럼 메뉴를 열거나 닫음
                     if (isFabOpen) {
@@ -119,7 +119,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
             @Override
             public void onClick(View v) {
                 if (isStudying) {
-                    Toast.makeText(VocabularyActivity.this,"학습 모드 중에는 단어를 추가할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(VocabularyActivity.this, "학습 모드 중에는 단어를 추가할 수 없습니다.");
                 } else {
                     Intent intent = new Intent(VocabularyActivity.this, CameraActivity.class);
                     intent.putExtra("vocabularyId", vocabularyId);
@@ -134,7 +134,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
             @Override
             public void onClick(View v) {
                 if (isStudying) {
-                    Toast.makeText(VocabularyActivity.this, "학습 모드 중에는 단어를 추가할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(VocabularyActivity.this, "학습 모드 중에는 단어를 추가할 수 없습니다.");
                 } else {
                     showWordRegisterBottomSheet();
                 }
@@ -189,8 +189,8 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
             @Override
             public void onError(Exception e) {
                 Log.e("FirestoreError", "단어 목록을 불러오는 중 에러 발생: " + e.getMessage());
-                // 사용자에게 알림을 주고 싶다면 토스트 추가
-                // Toast.makeText(VocabularyActivity.this, "데이터 로딩 실패", Toast.LENGTH_SHORT).show();
+                // 사용자에게 알림을 주고 싶다면 팝업 추가
+                // PopupUtil.show(VocabularyActivity.this, "데이터 로딩 실패");
             }
         });
 
@@ -289,7 +289,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
 
             // 유효성 검사
             if (word.isEmpty() || mean.isEmpty()) {
-                Toast.makeText(this, "단어와 의미는 필수입니다", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(this, "단어와 의미는 필수입니다");
                 return;
             }
 
@@ -383,7 +383,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
         VocabularyFirestore alreadyVocabularyFirestore = new VocabularyFirestore();
         alreadyVocabularyFirestore.alreadyVocabulary(uid, vocabularyId, word, isAlready -> {
             if (isAlready){
-                Toast.makeText(this, "이미 등록된 단어입니다", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(this, "이미 등록된 단어입니다");
             }
             else{
                 saveWordToFirestore(word, mean, pronunciation);
@@ -400,9 +400,9 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
         wordData.put("timeStamp", FieldValue.serverTimestamp());
 
         VocabularyFirestore.addWord(uid, vocabularyId, wordData, () -> {
-            Toast.makeText(this, "단어가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(this, "단어가 등록되었습니다.");
         }, () -> {
-            Toast.makeText(this, "등록 실패", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(this, "등록 실패");
         });
     }
 
@@ -412,8 +412,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
             int result = tts.setLanguage(Locale.US);
             if (result == TextToSpeech.LANG_MISSING_DATA
                     || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Toast.makeText(this, "영어 음성 데이터가 없습니다",
-                        Toast.LENGTH_SHORT).show();
+                PopupUtil.show(this, "영어 음성 데이터가 없습니다");
             } else {
                 tts.setSpeechRate(0.9f);
                 tts.setPitch(1.0f);

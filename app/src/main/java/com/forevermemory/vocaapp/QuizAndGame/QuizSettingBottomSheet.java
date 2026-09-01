@@ -9,13 +9,13 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.forevermemory.vocaapp.R;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class QuizSettingBottomSheet extends BottomSheetDialogFragment {
     private String selectedDocId;
@@ -50,7 +50,7 @@ public class QuizSettingBottomSheet extends BottomSheetDialogFragment {
             @Override
             public void onClick(View v) {
                 if (selectedDocId == null){
-                    Toast.makeText(getContext(), "단어장을 선택해주세요!", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(getContext(), "단어장을 선택해주세요!");
                     return;
                 }
 
@@ -63,7 +63,7 @@ public class QuizSettingBottomSheet extends BottomSheetDialogFragment {
                 }
 
                 if (isOfficial && !selectedBookIsStudying) {
-                    Toast.makeText(getContext(), "이 단어장은 학습 모드가 꺼져있습니다.\n단어장 탭에서 학습 모드를 켜주세요!", Toast.LENGTH_LONG).show();
+                    PopupUtil.show(getContext(), "이 단어장은 학습 모드가 꺼져있습니다.\n단어장 탭에서 학습 모드를 켜주세요!");
                     return;
                 }
 

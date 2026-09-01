@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -36,6 +35,7 @@ import kotlin.jvm.functions.Function2;
 // 안드로이드 구버전 호환성을 위해 추가
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -111,7 +111,7 @@ public class LoginActivity extends AppCompatActivity {
                     public void onError(@NonNull GetCredentialException e) {
                         // 에러 났을 때
                         Log.e("Login", "로그인 창 오류", e);
-                        runOnUiThread(() -> Toast.makeText(LoginActivity.this, "로그인 창 안뜸: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> PopupUtil.show(LoginActivity.this, "로그인 창 안뜸: " + e.getMessage()));
                     }
                 }
         );
@@ -166,7 +166,7 @@ public class LoginActivity extends AppCompatActivity {
                         runOnUiThread(() -> goToMain(isNewUser));
                     } else {
                         // 실패
-                        runOnUiThread(() -> Toast.makeText(LoginActivity.this, "파이어베이스 인증 실패", Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> PopupUtil.show(LoginActivity.this, "파이어베이스 인증 실패"));
                     }
                 });
     }
@@ -189,13 +189,11 @@ public class LoginActivity extends AppCompatActivity {
                     return Unit.INSTANCE;
                 }
                 Log.e("KakaoLogin", "카카오 로그인 실패", error);
-                runOnUiThread(() -> Toast.makeText(this,
-                        "카카오 로그인에 실패했습니다.", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> PopupUtil.show(this, "카카오 로그인에 실패했습니다."));
                 return Unit.INSTANCE;
             }
             if (token == null) {
-                runOnUiThread(() -> Toast.makeText(this,
-                        "카카오 로그인에 실패했습니다.", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> PopupUtil.show(this, "카카오 로그인에 실패했습니다."));
                 return Unit.INSTANCE;
             }
             exchangeKakaoTokenForFirebase(token.getAccessToken());
@@ -226,15 +224,14 @@ public class LoginActivity extends AppCompatActivity {
                     boolean isNewUser = body != null && Boolean.TRUE.equals(body.get("isNewUser"));
 
                     if (customToken == null) {
-                        Toast.makeText(this, "로그인에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(this, "로그인에 실패했습니다.");
                         return;
                     }
                     firebaseAuthWithCustomToken(customToken, isNewUser);
                 })
                 .addOnFailureListener(e -> {
                     Log.e("KakaoLogin", "커스텀 토큰 발급 실패", e);
-                    Toast.makeText(this, "로그인에 실패했습니다: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(this, "로그인에 실패했습니다: " + e.getMessage());
                 });
     }
 
@@ -243,7 +240,7 @@ public class LoginActivity extends AppCompatActivity {
                 .addOnCompleteListener(this, task -> {
                     if (!task.isSuccessful()) {
                         Log.e("KakaoLogin", "Firebase 인증 실패", task.getException());
-                        Toast.makeText(this, "파이어베이스 인증 실패", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(this, "파이어베이스 인증 실패");
                         return;
                     }
 

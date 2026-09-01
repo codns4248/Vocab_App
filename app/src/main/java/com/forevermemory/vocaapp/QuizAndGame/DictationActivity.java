@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -19,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class DictationActivity extends AppCompatActivity {
 
@@ -117,7 +117,7 @@ public class DictationActivity extends AppCompatActivity {
                     startActivity(testResultIntent);
                     finish();
                 } else {
-                    Toast.makeText(this, "로그인 정보가 없습니다.", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(this, "로그인 정보가 없습니다.");
                 }
             }
         });
