@@ -4,7 +4,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -20,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class WordSelectActivity extends AppCompatActivity {
     private WordSelectAdapter adapter;
@@ -112,8 +112,7 @@ public class WordSelectActivity extends AppCompatActivity {
         List<WordItem> selected = adapter.getSelectedWords();
 
         if (selected.isEmpty()) {
-            Toast.makeText(this, "선택된 단어가 없습니다.", Toast.LENGTH_SHORT).show();
-            finish();
+            PopupUtil.show(this, "선택된 단어가 없습니다.", this::finish);
             return;
         }
 
@@ -131,8 +130,7 @@ public class WordSelectActivity extends AppCompatActivity {
                     () -> {
                         successCount[0]++;
                         if (successCount[0] == total) {
-                            Toast.makeText(this, total + "개 단어 저장 완료", Toast.LENGTH_SHORT).show();
-                            finish();
+                            PopupUtil.show(this, total + "개 단어 저장 완료", this::finish);
                         }
                     },
                     () -> Log.e("Firestore", "저장 실패: " + item.word)

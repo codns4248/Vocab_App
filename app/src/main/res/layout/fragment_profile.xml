@@ -410,7 +410,9 @@
                     android:layout_width="25dp"
                     android:layout_height="25dp"
                     android:layout_gravity="center"
-                    app:srcCompat="@drawable/cancel" />
+                    android:alpha="0.5"
+                    app:srcCompat="@drawable/cancel"
+                    app:tint="#C7C7C7" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -419,12 +421,15 @@
                     android:layout_marginStart="5dp"
                     android:layout_weight="1"
                     android:text="회원탈퇴"
-                    android:textColor="#DC2626" />
+                    android:textColor="#C7C7C7"
+                    android:textSize="12sp" />
 
                 <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:srcCompat="@drawable/next_icon" />
+                    android:alpha="0.5"
+                    app:srcCompat="@drawable/next_icon"
+                    app:tint="#C7C7C7" />
             </LinearLayout>
         </LinearLayout>
 

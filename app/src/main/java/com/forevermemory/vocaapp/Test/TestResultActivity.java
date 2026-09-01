@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.forevermemory.vocaapp.QuizAndGame.BarChartView;
 import com.google.android.material.button.MaterialButton;
@@ -21,6 +20,7 @@ import com.forevermemory.vocaapp.R;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class TestResultActivity extends AppCompatActivity {
 
@@ -95,7 +95,7 @@ public class TestResultActivity extends AppCompatActivity {
                                         nextStamp
                                 );
 
-                                Toast.makeText(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!", Toast.LENGTH_SHORT).show();
+                                PopupUtil.show(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!");
                             }
                             @Override
                             public void onFailure(Exception e) {

@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -18,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class OXTestActivity extends AppCompatActivity {
 
@@ -76,8 +76,7 @@ public class OXTestActivity extends AppCompatActivity {
                 if (!loadedList.isEmpty()) {
                     displayWord();
                 } else {
-                    Toast.makeText(OXTestActivity.this, "단어장에 단어가 없습니다.", Toast.LENGTH_SHORT).show();
-                    finish();
+                    PopupUtil.show(OXTestActivity.this, "단어장에 단어가 없습니다.", this::finish);
                 }
             });
         }

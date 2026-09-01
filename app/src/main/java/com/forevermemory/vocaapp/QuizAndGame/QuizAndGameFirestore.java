@@ -1,7 +1,6 @@
 package com.forevermemory.vocaapp.QuizAndGame;
 
 import android.util.Log;
-import android.widget.Toast;
 
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookFirestore;
 import com.google.firebase.auth.FirebaseAuth;

@@ -11,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -34,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class QuizAndGameFragment extends Fragment {
 
@@ -315,13 +315,13 @@ public class QuizAndGameFragment extends Fragment {
 
     private void launchMode(String quizType) {
         if (vocabularyId == null) {
-            Toast.makeText(getContext(), "단어장을 먼저 선택해주세요.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(getContext(), "단어장을 먼저 선택해주세요.");
             return;
         }
 
         List<WordItem> targetWords = getTargetWordItems();
         if (targetWords.isEmpty()) {
-            Toast.makeText(getContext(), "선택한 조건에 해당하는 단어가 없습니다.", Toast.LENGTH_SHORT).show();
+            PopupUtil.show(getContext(), "선택한 조건에 해당하는 단어가 없습니다.");
             return;
         }
 

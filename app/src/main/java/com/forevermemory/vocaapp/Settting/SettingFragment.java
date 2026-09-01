@@ -8,7 +8,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -24,6 +23,7 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class SettingFragment extends Fragment {
 
@@ -90,9 +90,7 @@ public class SettingFragment extends Fragment {
         switchMarketingPush.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) return;   // setChecked로 인한 호출은 무시
             MarketingPushPrefs.setEnabled(requireContext(), isChecked);
-            Toast.makeText(getContext(),
-                    isChecked ? "마케팅 정보 수신에 동의했습니다." : "마케팅 정보 수신을 해제했습니다.",
-                    Toast.LENGTH_SHORT).show();
+            PopupUtil.show(getContext(), isChecked ? "마케팅 정보 수신에 동의했습니다." : "마케팅 정보 수신을 해제했습니다.");
         });
 
         checkNoticeLinear.setOnClickListener(v -> {
@@ -116,7 +114,16 @@ public class SettingFragment extends Fragment {
         importVocabularyLinear.setOnClickListener(v ->
                 excelPickerLauncher.launch(ImportVocabularyHelper.mimeTypes()));
         logoutLinear.setOnClickListener(v -> showLogoutDialog());
-        unregisterLinear.setOnClickListener(v -> showUnregisterDialog());
+
+        // "회원탈퇴" 를 누르면 바로 탈퇴 확인으로 가지 않고 방지용 바텀시트를 먼저 띄운다.
+        getChildFragmentManager().setFragmentResultListener(
+                AccountRetentionBottomSheet.REQUEST_KEY, this, (requestKey, bundle) -> {
+                    if (bundle.getBoolean(AccountRetentionBottomSheet.RESULT_PROCEED, false)) {
+                        showUnregisterDialog();
+                    }
+                });
+        unregisterLinear.setOnClickListener(v ->
+                new AccountRetentionBottomSheet().show(getChildFragmentManager(), "AccountRetentionTag"));
 
         return view;
     }
@@ -154,8 +161,7 @@ public class SettingFragment extends Fragment {
                                 @Override
                                 public void onFailure(String errorMsg) {
                                     if (isAdded()) {
-                                        Toast.makeText(getContext(), "탈퇴 실패: " + errorMsg,
-                                                Toast.LENGTH_SHORT).show();
+                                        PopupUtil.show(getContext(), "탈퇴 실패: " + errorMsg);
                                     }
                                 }
                             });

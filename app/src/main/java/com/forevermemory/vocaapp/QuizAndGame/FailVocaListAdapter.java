@@ -50,6 +50,10 @@ public class FailVocaListAdapter extends RecyclerView.Adapter<FailVocaListAdapte
         holder.meaningTextView.setText(meaning);
         holder.pronunciationTextView.setText(pronunciation);
 
+        // 오답 목록에서는 학습 상태 태그와 스피커 버튼을 숨긴다.
+        if (holder.statusButton != null) holder.statusButton.setVisibility(View.GONE);
+        if (holder.speakerImageView != null) holder.speakerImageView.setVisibility(View.GONE);
+
         holder.itemView.setOnClickListener(v -> {
             // 클릭 이벤트 처리 (필요시)
         });
@@ -65,6 +69,8 @@ public class FailVocaListAdapter extends RecyclerView.Adapter<FailVocaListAdapte
         TextView wordTextView;
         TextView meaningTextView;
         TextView pronunciationTextView;
+        View statusButton;
+        View speakerImageView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -72,6 +78,8 @@ public class FailVocaListAdapter extends RecyclerView.Adapter<FailVocaListAdapte
             wordTextView = itemView.findViewById(R.id.wordTextView); // 기존 단어 뷰
             meaningTextView = itemView.findViewById(R.id.meanTextView); // 뜻을 위한 뷰 ID 추가 필요
             pronunciationTextView = itemView.findViewById(R.id.pronunciationTextView);
+            statusButton = itemView.findViewById(R.id.statusButton);
+            speakerImageView = itemView.findViewById(R.id.speakerImageView);
         }
     }
 }

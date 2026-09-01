@@ -6,7 +6,6 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -15,6 +14,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Locale;
+import com.forevermemory.vocaapp.util.PopupUtil;
 
 /**
  * 단어 수정 창.
@@ -65,7 +65,7 @@ public class WordEditDialog {
             String pronunciation = pronunciationEditText.getText().toString().trim();
 
             if (word.isEmpty() || mean.isEmpty()) {
-                Toast.makeText(context, "단어와 의미는 필수입니다", Toast.LENGTH_SHORT).show();
+                PopupUtil.show(context, "단어와 의미는 필수입니다");
                 return;
             }
 
@@ -75,11 +75,11 @@ public class WordEditDialog {
                         target.word = word;
                         target.meaning = mean;
                         target.pronunciation = pronunciation;
-                        Toast.makeText(context, "수정되었습니다.", Toast.LENGTH_SHORT).show();
+                        PopupUtil.show(context, "수정되었습니다.");
                         if (listener != null) listener.onWordUpdated(word, mean, pronunciation);
                         dialog.dismiss();
                     },
-                    () -> Toast.makeText(context, "수정 실패", Toast.LENGTH_SHORT).show());
+                    () -> PopupUtil.show(context, "수정 실패"));
 
             // 철자를 바꾸지 않았다면 중복 검사를 건너뛴다. 그대로 두면 자기 자신과 부딪힌다.
             if (word.equalsIgnoreCase(target.word)) {
@@ -89,7 +89,7 @@ public class WordEditDialog {
 
             new VocabularyFirestore().alreadyVocabulary(uid, vocabularyId, word, isAlready -> {
                 if (isAlready) {
-                    Toast.makeText(context, "이미 등록된 단어입니다", Toast.LENGTH_SHORT).show();
+                    PopupUtil.show(context, "이미 등록된 단어입니다");
                 } else {
                     save.run();
                 }
