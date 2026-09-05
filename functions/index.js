@@ -24,6 +24,18 @@ const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 // 설정: firebase functions:secrets:set KAKAO_REST_API_KEY
 const KAKAO_REST_API_KEY = defineSecret("KAKAO_REST_API_KEY");
 
+// Cloud Tasks가 우리 HTTP 함수를 부를 때 함께 보내는 공유 비밀.
+// sendFcmNotification / handleRollback 은 공개 주소라 이 값이 없으면 누구나
+// 남에게 푸시를 보내거나 학습 진도를 되돌릴 수 있다.
+// 설정: openssl rand -hex 32 | firebase functions:secrets:set TASK_SECRET --data-file=-
+const TASK_SECRET = defineSecret("TASK_SECRET");
+
+// AI 단어 추출 시 사진 1장당 차감할 포인트. 앱의 값과 같아야 한다.
+const POINT_PER_PHOTO = 20;
+
+// 신규 가입자에게 지급하는 포인트.
+const SIGNUP_BONUS_POINT = 100;
+
 // Resend API 키. 단어장 내보내기 메일 발송에 쓴다.
 // 설정: firebase functions:secrets:set RESEND_API_KEY
 const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
@@ -231,7 +243,42 @@ exports.extractWordsFromImages = onCall(
             throw new HttpsError("invalid-argument", `이미지는 최대 ${MAX_IMAGES}장까지 가능합니다.`);
         }
 
-        const uid = request.auth?.uid ?? null;
+        const uid = request.auth.uid;
+        const userRef = admin.firestore().collection("users").doc(uid);
+
+        // 포인트는 AI 호출 "전에" 깎는다. 뒤에 깎으면 동시에 여러 번 호출해
+        // 잔액보다 많이 쓸 수 있다. 실패한 장수는 아래에서 되돌려준다.
+        const requiredPoint = POINT_PER_PHOTO * images.length;
+        try {
+            await admin.firestore().runTransaction(async (tx) => {
+                const snap = await tx.get(userRef);
+                const current = snap.exists ? (snap.get("point") || 0) : 0;
+                if (current < requiredPoint) {
+                    throw new HttpsError("failed-precondition",
+                        `포인트가 부족합니다. (필요 ${requiredPoint}P / 보유 ${current}P)`);
+                }
+                tx.update(userRef, {
+                    point: admin.firestore.FieldValue.increment(-requiredPoint),
+                });
+            });
+        } catch (error) {
+            if (error instanceof HttpsError) throw error;
+            console.error("포인트 차감 실패:", error);
+            throw new HttpsError("internal", "포인트 처리에 실패했습니다.");
+        }
+
+        // 여기서부터 실패하면 깎은 포인트를 되돌려야 한다.
+        const refund = async (photos) => {
+            if (photos <= 0) return;
+            try {
+                await userRef.update({
+                    point: admin.firestore.FieldValue.increment(POINT_PER_PHOTO * photos),
+                });
+            } catch (error) {
+                console.error(`포인트 환불 실패(uid=${uid}, ${photos}장):`, error);
+            }
+        };
+
         const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
 
         // 장별로 병렬 호출합니다. 한 호출에 몰아넣으면 출력 토큰과 소요 시간이
@@ -259,11 +306,14 @@ exports.extractWordsFromImages = onCall(
 
         // 전부 실패했을 때만 사용자에게 에러를 돌려줍니다.
         if (succeeded.length === 0) {
+            await refund(images.length);
             throw toHttpsError(failedTypes[0]);
         }
 
         if (failedTypes.length > 0) {
             console.warn(`이미지 ${images.length}장 중 ${failedTypes.length}장 실패:`, failedTypes.join(", "));
+            // 실패한 장은 결과가 없으니 그만큼 돌려준다.
+            await refund(failedTypes.length);
         }
 
         const words = dedupeWords(succeeded.flatMap((result) => result.words));
@@ -274,8 +324,14 @@ exports.extractWordsFromImages = onCall(
     }
 );
 
-exports.scheduleReviewNotification = onCall({ region: "asia-northeast3" }, async (request) => {
+exports.scheduleReviewNotification = onCall(
+    { region: "asia-northeast3", secrets: [TASK_SECRET] },
+    async (request) => {
     const { data, auth } = request;
+    // 인증 검사가 없어 미로그인 호출 시 auth.uid 에서 죽었다.
+    if (!auth) {
+        throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    }
     // Android에서 넘겨준 scheduledTime과 rollbackTime을 받습니다.
     const { docId, title, scheduledTime, rollbackTime } = data;
     const uid = auth.uid;
@@ -300,7 +356,7 @@ exports.scheduleReviewNotification = onCall({ region: "asia-northeast3" }, async
             httpRequest: {
                 httpMethod: "POST",
                 url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
                 body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
             },
             scheduleTime: { seconds: Number(scheduledTime) },
@@ -313,7 +369,7 @@ exports.scheduleReviewNotification = onCall({ region: "asia-northeast3" }, async
             httpRequest: {
                 httpMethod: "POST",
                 url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/handleRollback`, // 롤백 처리 함수 URL
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
                 body: Buffer.from(JSON.stringify({ uid, docId })).toString("base64"),
             },
             scheduleTime: { seconds: Number(rollbackTime) },
@@ -365,7 +421,14 @@ exports.cancelReviewNotification = onCall({ region: "asia-northeast3" }, async (
     }
 });
 
-exports.sendFcmNotification = onRequest({ region: "asia-northeast3" }, async (req, res) => {
+exports.sendFcmNotification = onRequest(
+    { region: "asia-northeast3", secrets: [TASK_SECRET] },
+    async (req, res) => {
+    // 공개 주소이므로 Cloud Tasks가 보낸 것인지 먼저 확인한다.
+    if (!isFromOurTasks(req)) {
+        console.warn("인증되지 않은 sendFcmNotification 호출 차단");
+        return res.status(403).send("Forbidden");
+    }
     try {
         // [1] 안전하게 데이터 파싱 (기존 로직)
         let payload = req.body;
@@ -438,7 +501,13 @@ exports.sendFcmNotification = onRequest({ region: "asia-northeast3" }, async (re
 
 // 롤백을 위한 함수
 // 롤백을 위한 함수 (전체 버전)
-exports.handleRollback = onRequest({ region: "asia-northeast3" }, async (req, res) => {
+exports.handleRollback = onRequest(
+    { region: "asia-northeast3", secrets: [TASK_SECRET] },
+    async (req, res) => {
+    if (!isFromOurTasks(req)) {
+        console.warn("인증되지 않은 handleRollback 호출 차단");
+        return res.status(403).send("Forbidden");
+    }
     try {
         // [1] 데이터 파싱 및 기본 검증
         let payload = req.body;
@@ -516,7 +585,7 @@ exports.handleRollback = onRequest({ region: "asia-northeast3" }, async (req, re
                 httpRequest: {
                     httpMethod: "POST",
                     url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
                     body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
                 },
                 scheduleTime: { seconds: nextScheduledTime },
@@ -530,7 +599,7 @@ exports.handleRollback = onRequest({ region: "asia-northeast3" }, async (req, re
                 httpRequest: {
                     httpMethod: "POST",
                     url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/handleRollback`,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
                     body: Buffer.from(JSON.stringify({ uid, docId })).toString("base64"),
                 },
                 scheduleTime: { seconds: nextRollbackTime },
@@ -807,6 +876,27 @@ exports.deleteAccount = onCall(
 // 안드로이드에서 xlsx를 만들려면 Apache POI가 필요해 앱 용량이 크게 늘고,
 // 메일 발송도 결국 서버가 해야 하므로 둘 다 서버에서 처리한다.
 // ---------------------------------------------------------------------------
+
+const TASK_SECRET_HEADER = "x-task-secret";
+
+/**
+ * Cloud Tasks가 보낸 요청인지 확인한다.
+ * 공개 주소이므로 이 검사가 유일한 방어선이다.
+ *
+ * @param {object} req Express 요청
+ * @return {boolean} 우리 Cloud Tasks가 보낸 것이면 true
+ */
+function isFromOurTasks(req) {
+    const sent = req.get(TASK_SECRET_HEADER);
+    const expected = TASK_SECRET.value();
+    if (!sent || !expected || sent.length !== expected.length) return false;
+    // 길이가 같을 때만 비교한다. 타이밍 공격을 줄이기 위해 조기 반환하지 않는다.
+    let diff = 0;
+    for (let i = 0; i < sent.length; i++) {
+        diff |= sent.charCodeAt(i) ^ expected.charCodeAt(i);
+    }
+    return diff === 0;
+}
 
 const RESEND_URL = "https://api.resend.com/emails";
 const MAX_EXPORT_BOOKS = 20;
@@ -1246,5 +1336,39 @@ exports.importVocabularyFromExcel = onCall(
             vocabularyId: vocabRef.id,
             createdBook: useNewBook,
         };
+    }
+);
+
+
+// ---------------------------------------------------------------------------
+// 신규 가입 포인트 지급
+//
+// 규칙에서 클라이언트의 point 쓰기를 막았으므로 서버가 지급한다.
+// 여러 번 불려도 이미 지급됐으면 아무 것도 하지 않는다.
+// ---------------------------------------------------------------------------
+
+exports.initializeUser = onCall(
+    { region: "asia-northeast3" },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+        }
+        const uid = request.auth.uid;
+        const userRef = admin.firestore().collection("users").doc(uid);
+
+        try {
+            const granted = await admin.firestore().runTransaction(async (tx) => {
+                const snap = await tx.get(userRef);
+                // point 필드가 이미 있으면 지급 이력이 있는 것으로 본다.
+                if (snap.exists && snap.get("point") !== undefined) return false;
+                tx.set(userRef, { point: SIGNUP_BONUS_POINT }, { merge: true });
+                return true;
+            });
+            if (granted) console.log(`신규 포인트 지급: ${uid} (${SIGNUP_BONUS_POINT}P)`);
+            return { granted, point: SIGNUP_BONUS_POINT };
+        } catch (error) {
+            console.error("신규 포인트 지급 실패:", error);
+            throw new HttpsError("internal", "초기화에 실패했습니다.");
+        }
     }
 );

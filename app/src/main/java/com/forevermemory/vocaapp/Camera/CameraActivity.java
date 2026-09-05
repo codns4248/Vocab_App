@@ -200,8 +200,8 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     // AI 단어 등록 시 사진 1장당 차감되는 포인트.
-    // 서버는 사진을 장별로 나눠 Claude API를 호출하므로 원가가 장수에 비례한다.
-    // 요청당 고정으로 두면 5장 올리는 사용자가 1장 사용자의 5배를 쓰고도 같은 값을 낸다.
+    // 실제 차감은 서버가 하고, 이 값은 시작 전 안내용 잔액 확인에만 쓴다.
+    // 서버의 POINT_PER_PHOTO 와 같은 값이어야 안내가 정확하다.
     private static final int AI_EXTRACT_COST_PER_PHOTO = 20;
 
     // 사진에서 단어를 추출하는 method
@@ -362,14 +362,9 @@ public class CameraActivity extends AppCompatActivity {
                     hideLoading();
 
                     if (wordList != null && !wordList.isEmpty()) {
-                        // 성공한 사진 장수만큼만 차감한다.
-                        int chargedPhotos = Math.max(photoList.size() - failedImages, 0);
-                        if (chargedPhotos > 0) {
-                            FirebaseFirestore.getInstance().collection("users").document(uid)
-                                    .update("point", FieldValue.increment(
-                                            (long) -AI_EXTRACT_COST_PER_PHOTO * chargedPhotos));
-                        }
-
+                        // 포인트 차감은 서버(extractWordsFromImages)가 처리한다.
+                        // 앱에서 깎으면 앱을 거치지 않고 호출하거나 DB를 직접 고쳐
+                        // 무료로 쓸 수 있다.
                         if (failedImages > 0) {
                             PopupUtil.show(CameraActivity.this, "사진 " + failedImages + "장은 분석하지 못했습니다. 해당 사진의 포인트는 차감되지 않았습니다.");
                         }

@@ -3,22 +3,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 토큰 사용량 로그: 클라이언트는 읽기/쓰기 모두 차단.
-    // Admin SDK(Cloud Functions, 집계 스크립트)는 보안 규칙을 우회하므로 그대로 동작합니다.
-    match /apiUsageLogs/{logId} {
-      allow read, write: if false;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // 사용자 본인 데이터(단어장, 단어 등)만 접근 가능
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // 이번 쓰기가 특정 필드를 건드리는지
+    function touches(field) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([field]);
+    }
 
-      match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      // point 는 실제 돈이 걸린 값이라 클라이언트가 쓰지 못한다.
+      // 지급은 initializeUser, 차감은 extractWordsFromImages 가 하고
+      // Admin SDK 는 보안 규칙을 우회하므로 서버 동작에는 영향이 없다.
+      allow create: if isOwner(userId)
+                    && !request.resource.data.keys().hasAny(['point']);
+      allow update: if isOwner(userId) && !touches('point');
+      allow delete: if false;   // 탈퇴는 deleteAccount 함수가 처리
+
+      // 단어장과 단어는 본인 것만
+      match /vocabularies/{vocabularyId} {
+        allow read, write: if isOwner(userId);
+
+        match /words/{wordId} {
+          allow read, write: if isOwner(userId);
+        }
       }
     }
 
-    // 복습/롤백 시간 설정: 읽기 전용
+    // 복습/롤백 시간 설정: 모두가 읽고, 쓰기는 콘솔에서만
     match /reviewAndRollbackTimeSetting/{docId} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -30,7 +45,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // 그 외는 전부 차단
+    // API 사용량 로그: Admin SDK 전용
+    match /apiUsageLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    // 그 외 전부 차단
     match /{document=**} {
       allow read, write: if false;
     }
