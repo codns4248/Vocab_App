@@ -1,15 +1,15 @@
 package com.forevermemory.vocaapp.Settting;
 
 import android.app.Activity;
-import android.content.Context;
-import android.text.TextUtils;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -24,14 +24,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import com.forevermemory.vocaapp.util.PopupUtil;
 
 /**
- * 단어장을 엑셀로 만들어 메일로 보내는 창.
+ * 단어장을 엑셀 파일로 만들어 내려받는 창.
  *
- * 파일 생성과 발송은 exportVocabularyToEmail Cloud Function이 담당한다.
- * 안드로이드에서 xlsx를 만들려면 무거운 라이브러리가 필요하고, 메일 발송도
- * 결국 서버 몫이라 둘 다 서버에서 처리한다.
+ * 파일 생성과 보관은 exportVocabularyFile Cloud Function이 담당한다.
+ * 서버가 Firebase Storage에 올린 뒤 시간제한이 걸린 링크를 돌려주고,
+ * 앱은 그 링크를 브라우저로 열어 내려받는다.
  */
 public class ExportVocabularyDialog {
 
@@ -41,7 +40,7 @@ public class ExportVocabularyDialog {
     public static void show(Activity activity) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            PopupUtil.show(activity, "로그인이 필요합니다.");
+            Toast.makeText(activity, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -52,7 +51,7 @@ public class ExportVocabularyDialog {
                 .addOnSuccessListener(snapshot -> {
                     if (activity.isFinishing()) return;
                     if (snapshot.isEmpty()) {
-                        PopupUtil.show(activity, "내보낼 단어장이 없습니다.");
+                        Toast.makeText(activity, "내보낼 단어장이 없습니다.", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     List<String> ids = new ArrayList<>();
@@ -64,17 +63,17 @@ public class ExportVocabularyDialog {
                         Long c = d.getLong("wordCount");
                         counts.add(c != null ? c : 0L);
                     });
-                    buildDialog(activity, user, ids, titles, counts);
+                    buildDialog(activity, ids, titles, counts);
                 })
                 .addOnFailureListener(e -> {
                     if (!activity.isFinishing()) {
-                        PopupUtil.show(activity, "단어장을 불러오지 못했습니다.");
+                        Toast.makeText(activity, "단어장을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
-    private static void buildDialog(Activity activity, FirebaseUser user,
-                                    List<String> ids, List<String> titles, List<Long> counts) {
+    private static void buildDialog(Activity activity, List<String> ids,
+                                    List<String> titles, List<Long> counts) {
         View view = LayoutInflater.from(activity).inflate(R.layout.dialog_export_vocabulary, null);
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
@@ -83,15 +82,12 @@ public class ExportVocabularyDialog {
                 .create();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
         LinearLayout container = view.findViewById(R.id.bookCheckContainer);
-        EditText emailEdit = view.findViewById(R.id.exportEmailEditText);
         Button cancelBtn = view.findViewById(R.id.exportCancelButton);
         Button sendBtn = view.findViewById(R.id.exportSendButton);
 
-        // 단어장 체크박스. 기본은 전체 선택.
         List<CheckBox> boxes = new ArrayList<>();
         for (int i = 0; i < ids.size(); i++) {
             CheckBox cb = new CheckBox(activity);
@@ -102,53 +98,79 @@ public class ExportVocabularyDialog {
             boxes.add(cb);
         }
 
-        // 카카오 계정은 이메일이 없을 수 있어 비워둔다. 구글이면 채워주되 수정 가능하다.
-        if (!TextUtils.isEmpty(user.getEmail())) {
-            emailEdit.setText(user.getEmail());
-        }
-
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
 
         sendBtn.setOnClickListener(v -> {
-            String email = emailEdit.getText().toString().trim();
-            if (TextUtils.isEmpty(email) || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                PopupUtil.show(activity, "이메일 주소를 확인해주세요.");
-                return;
-            }
-
             ArrayList<String> selected = new ArrayList<>();
             for (int i = 0; i < boxes.size(); i++) {
                 if (boxes.get(i).isChecked()) selected.add(ids.get(i));
             }
             if (selected.isEmpty()) {
-                PopupUtil.show(activity, "단어장을 하나 이상 선택해주세요.");
+                Toast.makeText(activity, "단어장을 하나 이상 선택해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // 단어가 많으면 몇 초 걸린다. 두 번 눌러 중복 발송되지 않도록 막는다.
+            // 단어가 많으면 몇 초 걸린다. 두 번 눌러 중복 생성되지 않도록 막는다.
             sendBtn.setEnabled(false);
-            sendBtn.setText("보내는 중...");
+            sendBtn.setText("만드는 중...");
 
             Map<String, Object> data = new HashMap<>();
-            data.put("email", email);
             data.put("vocabularyIds", selected);
 
             FirebaseFunctions.getInstance("asia-northeast3")
-                    .getHttpsCallable("exportVocabularyToEmail")
+                    .getHttpsCallable("exportVocabularyFile")
                     .call(data)
                     .addOnSuccessListener(result -> {
                         if (activity.isFinishing()) return;
-                        PopupUtil.show(activity, email + " 으로 보냈습니다.\n메일이 안 보이면 스팸함도 확인해주세요.");
                         dialog.dismiss();
+                        Map<?, ?> body = (Map<?, ?>) result.getData();
+                        String url = body == null ? null : (String) body.get("url");
+                        if (url == null) {
+                            Toast.makeText(activity, "파일을 만들지 못했습니다.", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        showReadyDialog(activity, url,
+                                toInt(body.get("wordCount")), toInt(body.get("validHours")));
                     })
                     .addOnFailureListener(e -> {
                         if (activity.isFinishing()) return;
                         sendBtn.setEnabled(true);
-                        sendBtn.setText("보내기");
-                        PopupUtil.show(activity, "발송 실패: " + e.getMessage());
+                        sendBtn.setText("만들기");
+                        Toast.makeText(activity, "실패: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     });
         });
 
         dialog.show();
+    }
+
+    private static void showReadyDialog(Activity activity, String url, int wordCount, int validHours) {
+        new MaterialAlertDialogBuilder(activity)
+                .setTitle("엑셀 파일이 준비됐어요")
+                .setMessage("단어 " + wordCount + "개가 담겼습니다.\n"
+                        + "다운로드 링크는 " + validHours + "시간 동안 유효합니다.")
+                .setPositiveButton("다운로드", (d, w) -> openUrl(activity, url))
+                .setNeutralButton("링크 공유", (d, w) -> shareUrl(activity, url))
+                .setNegativeButton("닫기", (d, w) -> d.dismiss())
+                .show();
+    }
+
+    private static void openUrl(Activity activity, String url) {
+        try {
+            activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(activity, "링크를 열 앱이 없습니다.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private static void shareUrl(Activity activity, String url) {
+        Intent share = new Intent(Intent.ACTION_SEND);
+        share.setType("text/plain");
+        share.putExtra(Intent.EXTRA_SUBJECT, "단어장 엑셀 파일");
+        share.putExtra(Intent.EXTRA_TEXT, url);
+        activity.startActivity(Intent.createChooser(share, "링크 공유"));
+    }
+
+    private static int toInt(Object o) {
+        return (o instanceof Number) ? ((Number) o).intValue() : 0;
     }
 }

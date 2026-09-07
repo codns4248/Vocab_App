@@ -135,46 +135,62 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
+            <!-- 학습 전과 학습 중이 같은 자리를 번갈아 쓴다.
+                 두 버튼을 나란히 두면 '공부하기'가 대부분의 시간 동안
+                 회색으로 떠 있어 누를 수 있는지 매번 판단해야 한다. -->
             <LinearLayout
                 android:id="@+id/buttonContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnStudyToggle"
-                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#3b5bdb"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:text="학습시작"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    app:cornerRadius="18dp" />
+                <!-- 학습 전: 밀어서 시작 -->
+                <com.ncorti.slidetoact.SlideToActView
+                    android:id="@+id/slideStudyStart"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    app:area_margin="4dp"
+                    app:inner_color="#FFFFFF"
+                    app:outer_color="#185FA5"
+                    app:slider_locked="false"
+                    app:text="밀어서 학습 시작"
+                    app:text_size="13sp"
+                    app:bump_vibration="30" />
 
+                <!-- 학습 중: 공부하기 (시간 되면 초록으로 활성) -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStudyNow"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_weight="1"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
                     android:backgroundTint="#F0F0F4"
                     android:enabled="false"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
                     android:text="공부하기"
                     android:textColor="#A3A3A3"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"
-                    app:cornerRadius="18dp"
+                    android:visibility="gone"
+                    app:cornerRadius="22dp"
                     app:strokeWidth="0dp" />
+
+                <!-- 학습 중: 종료. 실수로 누르기 어렵도록 배경 없는 텍스트 버튼 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnStudyToggle"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="2dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minHeight="32dp"
+                    android:text="학습 종료"
+                    android:textColor="#DC2626"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <LinearLayout

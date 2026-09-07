@@ -18,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:text="선택한 단어장을 엑셀 파일로 만들어 메일로 보내드려요."
+        android:text="선택한 단어장을 엑셀 파일로 만들어 드려요."
         android:textColor="#666666"
         android:textSize="13sp" />
 
@@ -45,26 +45,6 @@
             android:orientation="vertical" />
     </ScrollView>
 
-    <!-- 받을 이메일 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="받을 이메일"
-        android:textColor="#333333"
-        android:textSize="13sp"
-        android:textStyle="bold" />
-
-    <EditText
-        android:id="@+id/exportEmailEditText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:autofillHints="emailAddress"
-        android:hint="example@email.com"
-        android:inputType="textEmailAddress"
-        android:maxLines="1"
-        android:textSize="15sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -89,7 +69,7 @@
             android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:backgroundTint="#3b5bdb"
-            android:text="보내기"
+            android:text="만들기"
             android:textColor="#FFFFFF" />
     </LinearLayout>
 </LinearLayout>

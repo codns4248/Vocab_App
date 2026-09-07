@@ -81,6 +81,7 @@ dependencies {
 
     implementation("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
     implementation("com.kakao.sdk:v2-user:2.24.0")
+    implementation("com.ncorti:slidetoact:0.11.0")
 
     implementation("androidx.core:core-splashscreen:1.0.1")
 

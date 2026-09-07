@@ -10,6 +10,9 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 
+// 단어장 엑셀을 올려둘 버킷. Firebase 콘솔에서 Storage를 켜면 생기는 기본 버킷이다.
+const STORAGE_BUCKET = "vocaapp-bf580.firebasestorage.app";
+
 const client = new CloudTasksClient();
 
 const PROJECT_ID = "vocaapp-bf580";
@@ -35,15 +38,6 @@ const POINT_PER_PHOTO = 20;
 
 // 신규 가입자에게 지급하는 포인트.
 const SIGNUP_BONUS_POINT = 100;
-
-// Resend API 키. 단어장 내보내기 메일 발송에 쓴다.
-// 설정: firebase functions:secrets:set RESEND_API_KEY
-const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
-
-// 발신 주소. Resend에서 도메인을 인증하기 전에는 onboarding@resend.dev만 쓸 수 있고,
-// 그 경우 Resend 계정에 등록된 본인 주소로만 발송된다.
-// 도메인 인증 후 noreply@본인도메인 으로 바꿔야 일반 사용자에게 보낼 수 있다.
-const MAIL_FROM = "포에버메모리 <onboarding@resend.dev>";
 
 // 카카오 콘솔의 앱 ID(숫자). 비밀값이 아니라 상수로 둔다.
 // 액세스 토큰이 "우리 앱" 것인지 대조하는 데 쓴다. 이 대조가 없으면
@@ -898,23 +892,9 @@ function isFromOurTasks(req) {
     return diff === 0;
 }
 
-const RESEND_URL = "https://api.resend.com/emails";
 const MAX_EXPORT_BOOKS = 20;
 
 const STATUS_LABELS = ["미학습", "헷갈림", "학습완료"];
-
-/**
- * 아주 느슨한 이메일 형식 검사.
- * 실제 도달 여부는 보내봐야 알 수 있으므로 명백한 오타만 걸러낸다.
- *
- * @param {string} email 검사할 주소
- * @return {boolean} 형식이 그럴듯하면 true
- */
-function looksLikeEmail(email) {
-    return typeof email === "string"
-        && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
-        && email.length <= 254;
-}
 
 /**
  * 단어장들을 하나의 엑셀 파일로 만든다. 단어장마다 시트를 하나씩 둔다.
@@ -979,10 +959,12 @@ async function buildWorkbook(books) {
     return wb.xlsx.writeBuffer();
 }
 
-exports.exportVocabularyToEmail = onCall(
+// 내보낸 파일을 보관하는 기간. 지나면 링크가 만료된다.
+const EXPORT_URL_VALID_HOURS = 24;
+
+exports.exportVocabularyFile = onCall(
     {
         region: "asia-northeast3",
-        secrets: [RESEND_API_KEY],
         memory: "512MiB",
         timeoutSeconds: 300,
     },
@@ -991,11 +973,6 @@ exports.exportVocabularyToEmail = onCall(
             throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
         }
         const uid = request.auth.uid;
-
-        const email = String(request.data?.email || "").trim();
-        if (!looksLikeEmail(email)) {
-            throw new HttpsError("invalid-argument", "이메일 주소를 확인해주세요.");
-        }
 
         // vocabularyIds를 주지 않으면 전체 단어장을 내보낸다.
         const requestedIds = Array.isArray(request.data?.vocabularyIds)
@@ -1026,13 +1003,9 @@ exports.exportVocabularyToEmail = onCall(
                 `단어장은 한 번에 ${MAX_EXPORT_BOOKS}개까지 내보낼 수 있습니다.`);
         }
 
-        // 단어를 모은다. 단어장이 여러 개일 수 있으므로 병렬로 읽는다.
         const books = await Promise.all(bookDocs.map(async (doc) => {
             const words = await doc.ref.collection("words").orderBy("timeStamp", "asc").get();
-            return {
-                title: doc.data().title,
-                words: words.docs.map((w) => w.data()),
-            };
+            return { title: doc.data().title, words: words.docs.map((w) => w.data()) };
         }));
 
         const totalWords = books.reduce((sum, b) => sum + b.words.length, 0);
@@ -1048,51 +1021,52 @@ exports.exportVocabularyToEmail = onCall(
             throw new HttpsError("internal", "파일을 만들지 못했습니다.");
         }
 
+        const bucket = admin.storage().bucket(STORAGE_BUCKET);
         const today = new Date().toISOString().slice(0, 10);
         const filename = `단어장_${today}.xlsx`;
-        const bookList = books.map((b) => `${b.title} (${b.words.length}개)`).join("<br>");
+        // 사용자별 폴더에 둔다. 경로를 알아도 서명 없이는 열 수 없다.
+        const objectPath = `exports/${uid}/${Date.now()}_${filename}`;
 
+        // 이전에 만든 파일은 지운다. 안 그러면 계속 쌓여 요금이 는다.
         try {
-            const res = await fetch(RESEND_URL, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${RESEND_API_KEY.value()}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    from: MAIL_FROM,
-                    to: [email],
-                    subject: `[포에버메모리] 단어장 내보내기 (${totalWords}개 단어)`,
-                    html: `<div style="font-family:sans-serif;line-height:1.6">
-<p>요청하신 단어장을 엑셀 파일로 보내드립니다.</p>
-<p><b>포함된 단어장</b><br>${bookList}</p>
-<p>총 <b>${totalWords}개</b>의 단어가 들어 있습니다.</p>
-<hr style="border:none;border-top:1px solid #ddd">
-<p style="color:#888;font-size:12px">본 메일은 앱에서 요청하신 경우에만 발송됩니다.</p>
-</div>`,
-                    attachments: [{
-                        filename,
-                        content: Buffer.from(buffer).toString("base64"),
-                    }],
-                }),
-            });
-
-            if (!res.ok) {
-                const body = await res.text();
-                console.error("Resend 발송 실패:", res.status, body);
-                throw new HttpsError("internal", "메일 발송에 실패했습니다.");
-            }
+            const [old] = await bucket.getFiles({ prefix: `exports/${uid}/` });
+            await Promise.all(old.map((f) => f.delete().catch(() => {})));
         } catch (error) {
-            if (error instanceof HttpsError) throw error;
-            console.error("메일 발송 중 오류:", error);
-            throw new HttpsError("internal", "메일 발송에 실패했습니다.");
+            console.warn("이전 내보내기 정리 실패(계속 진행):", error.message);
         }
 
-        console.log(`단어장 내보내기 완료: uid=${uid}, 단어장=${books.length}, 단어=${totalWords}`);
-        return { success: true, bookCount: books.length, wordCount: totalWords };
+        let url;
+        try {
+            const file = bucket.file(objectPath);
+            await file.save(Buffer.from(buffer), {
+                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                metadata: {
+                    contentDisposition:
+                        `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+                },
+            });
+
+            // 서명된 링크. 이 주소를 가진 사람만, 정해진 시간 동안만 받을 수 있다.
+            const [signed] = await file.getSignedUrl({
+                action: "read",
+                expires: Date.now() + EXPORT_URL_VALID_HOURS * 60 * 60 * 1000,
+            });
+            url = signed;
+        } catch (error) {
+            console.error("파일 업로드/서명 실패:", error);
+            throw new HttpsError("internal", "파일을 준비하지 못했습니다.");
+        }
+
+        console.log(`단어장 내보내기: uid=${uid}, 단어장=${books.length}, 단어=${totalWords}`);
+        return {
+            url,
+            filename,
+            bookCount: books.length,
+            wordCount: totalWords,
+            validHours: EXPORT_URL_VALID_HOURS,
+        };
     }
 );
-
 
 // ---------------------------------------------------------------------------
 // 엑셀에서 단어 가져오기

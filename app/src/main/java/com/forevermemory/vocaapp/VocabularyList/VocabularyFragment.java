@@ -39,6 +39,7 @@ import com.forevermemory.vocaapp.Test.TestActivity;
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookFirestore;
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookListFragment;
 import com.google.android.material.button.MaterialButton;
+import com.ncorti.slidetoact.SlideToActView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
@@ -89,8 +90,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private TextView tvWordCountStat;
     private TextView tvStudyRateStat;
     private TextView tvLastStudyStat;
-    private MaterialButton btnStudyToggle;
+    private MaterialButton btnStudyToggle;   // 학습 중일 때의 '학습 종료'
     private MaterialButton btnStudyNow;
+    private SlideToActView slideStudyStart;  // 학습 전의 '밀어서 학습 시작'
     private TextView btnSortToggle;
     private int currentSortMode = SORT_ADDED_ASC;
     private Set<Integer> activeFilters = new HashSet<>();
@@ -137,6 +139,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         tvLastStudyStat = view.findViewById(R.id.tvLastStudyStat);
         btnStudyToggle = view.findViewById(R.id.btnStudyToggle);
         btnStudyNow = view.findViewById(R.id.btnStudyNow);
+        slideStudyStart = view.findViewById(R.id.slideStudyStart);
         btnSortToggle = view.findViewById(R.id.btnSortToggle);
         btnFilterAll = view.findViewById(R.id.btnFilterAll);
         btnFilterUnlearned = view.findViewById(R.id.btnFilterUnlearned);
@@ -188,17 +191,23 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             showWordRegisterBottomSheet();
         });
 
+        // 이 버튼은 이제 학습 중에만 보이며 '학습 종료' 역할만 한다.
         btnStudyToggle.setOnClickListener(v -> {
             if (vocabularyId == null) {
                 PopupUtil.show(getContext(), "단어장을 먼저 선택해주세요.");
                 return;
             }
-            if (isStudying) {
-                showStopStudyDialog();
-            } else {
-                // 학습을 시작하면 복습 알림이 예약되므로, 이 시점에 알림 권한을 요청한다.
-                ensureNotificationPermission(this::startStudyMode);
+            showStopStudyDialog();
+        });
+
+        slideStudyStart.setOnSlideCompleteListener(view1 -> {
+            if (vocabularyId == null) {
+                PopupUtil.show(getContext(), "단어장을 먼저 선택해주세요.");
+                resetSlide();
+                return;
             }
+            // 학습을 시작하면 복습 알림이 예약되므로, 이 시점에 알림 권한을 요청한다.
+            ensureNotificationPermission(this::startStudyMode);
         });
 
         btnStudyNow.setOnClickListener(v -> {
@@ -520,46 +529,44 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     }
 
     private void updateButtonsByState() {
-        if (btnStudyToggle == null || btnStudyNow == null) return;
+        if (btnStudyToggle == null || btnStudyNow == null || slideStudyStart == null) return;
 
-        // ===== 학습 토글 버튼 =====
-        // 학습 시작 전: #3b5bdb
-        // 학습 진행 중: 빨강 솔리드 (#DC2626) — '학습 종료' 액션
-        if (isStudying) {
-            btnStudyToggle.setText("학습 종료");
-            btnStudyToggle.setTextColor(0xFFFFFFFF);
-            btnStudyToggle.setBackgroundTintList(
-                    android.content.res.ColorStateList.valueOf(0xFFDC2626));
-            btnStudyToggle.setStrokeColor(
-                    android.content.res.ColorStateList.valueOf(0xFFDC2626));
-            btnStudyToggle.setIcon(null);
-        } else {
-            btnStudyToggle.setText("학습시작");
-            btnStudyToggle.setTextColor(0xFFFFFFFF);
-            btnStudyToggle.setBackgroundTintList(
-                    android.content.res.ColorStateList.valueOf(0xFF3B5BDB));
-            btnStudyToggle.setStrokeColor(
-                    android.content.res.ColorStateList.valueOf(0xFF3B5BDB));
-            btnStudyToggle.setIcon(null);
+        // 학습 전과 학습 중이 같은 자리를 번갈아 쓴다.
+        slideStudyStart.setVisibility(isStudying ? View.GONE : View.VISIBLE);
+        btnStudyNow.setVisibility(isStudying ? View.VISIBLE : View.GONE);
+        btnStudyToggle.setVisibility(isStudying ? View.VISIBLE : View.GONE);
+
+        if (!isStudying) {
+            // 학습을 끝내고 돌아왔을 때 슬라이드가 밀린 채로 남아 있으면 안 된다.
+            resetSlide();
+            return;
         }
 
-        // ===== 공부하기 버튼 =====
-        // 활성화 (isStudying && buttonOn): 초록 솔리드 (#16A34A)
-        // 비활성화: 회색 아웃라인
-        boolean canStudyNow = isStudying && buttonOn;
+        // ===== 공부하기 =====
+        // 복습 시간이 되면(buttonOn) 초록으로 활성, 그전에는 회색
+        boolean canStudyNow = buttonOn;
         btnStudyNow.setEnabled(canStudyNow);
         if (canStudyNow) {
+            btnStudyNow.setText("공부하기");
             btnStudyNow.setTextColor(0xFFFFFFFF);
             btnStudyNow.setBackgroundTintList(
                     android.content.res.ColorStateList.valueOf(0xFF16A34A));
             btnStudyNow.setStrokeColor(
                     android.content.res.ColorStateList.valueOf(0xFF16A34A));
         } else {
+            btnStudyNow.setText("공부하기");
             btnStudyNow.setTextColor(0xFFA3A3A3);
             btnStudyNow.setBackgroundTintList(
                     android.content.res.ColorStateList.valueOf(0xFFF0F0F4));
             btnStudyNow.setStrokeColor(
                     android.content.res.ColorStateList.valueOf(0x00E5E5E5));
+        }
+    }
+
+    /** 슬라이드를 원위치로. 완료된 상태로 두면 다음에 다시 밀 수 없다. */
+    private void resetSlide() {
+        if (slideStudyStart != null) {
+            slideStudyStart.resetSlider();
         }
     }
 
@@ -841,6 +848,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
             if (count == null || count <= 0) {
                 String msg = (count == null) ? "단어장 데이터가 유효하지 않습니다." : "단어장에 단어를 추가해주세요.";
                 PopupUtil.show(getContext(), msg);
+                // 시작하지 못했으므로 슬라이드를 되돌린다.
+                // 밀린 채로 두면 다시 시도할 수 없다.
+                resetSlide();
                 return;
             }
             proceedStartStudy();
@@ -853,13 +863,19 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                 .collection("vocabularies").document(vocabularyId)
                 .get()
                 .addOnSuccessListener(doc -> {
-                    if (doc == null || !doc.exists() || !isAdded()) return;
+                    if (doc == null || !doc.exists() || !isAdded()) {
+                        resetSlide();
+                        return;
+                    }
                     String title = doc.getString("title");
                     Object stampObj = doc.get("stampCount");
                     int currentStampCount = (stampObj instanceof Number) ? ((Number) stampObj).intValue() : 0;
 
                     VocabularyBookFirestore.bringTime(currentStampCount, data -> {
-                        if (data == null || !isAdded()) return;
+                        if (data == null || !isAdded()) {
+                            resetSlide();
+                            return;
+                        }
                         int intervalMinutes = ((Number) data.get("interval")).intValue();
                         int graceMinutes = ((Number) data.get("grace")).intValue();
 
@@ -903,6 +919,12 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                                     }
                                 });
                     });
+                })
+                .addOnFailureListener(e -> {
+                    // 네트워크 실패 등으로 시작하지 못하면 슬라이드를 되돌려 다시 시도할 수 있게 한다.
+                    if (!isAdded()) return;
+                    PopupUtil.show(getContext(), "학습을 시작하지 못했습니다. 다시 시도해주세요.");
+                    resetSlide();
                 });
     }
 
