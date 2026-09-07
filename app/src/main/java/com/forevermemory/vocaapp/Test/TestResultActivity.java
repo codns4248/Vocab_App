@@ -20,7 +20,6 @@ import com.forevermemory.vocaapp.R;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class TestResultActivity extends AppCompatActivity {
 
@@ -94,8 +93,6 @@ public class TestResultActivity extends AppCompatActivity {
                                         vocabularyId,
                                         nextStamp
                                 );
-
-                                PopupUtil.show(TestResultActivity.this, "✅ 스탬프가 찍혔습니다!");
                             }
                             @Override
                             public void onFailure(Exception e) {

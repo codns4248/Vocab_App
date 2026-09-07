@@ -25,12 +25,17 @@ import androidx.fragment.app.Fragment;
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookListFragment;
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyCounterBackfill;
 import com.forevermemory.vocaapp.VocabularyList.VocabularyFragment;
+import com.forevermemory.vocaapp.Test.StudyManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.forevermemory.vocaapp.util.PopupUtil;
+
+import java.util.HashSet;
+import java.util.Set;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -45,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout[] tabs;
     private ImageView[] tabIcons;
     private TextView[] tabLabels;
+    private ListenerRegistration rollbackListener;
+    private final Set<String> visibleRollbackDialogs = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
-            checkRollbackOnEntry(user.getUid());
+            StudyManager.getInstance().updateFCMToken(user.getUid());
             VocabularyCounterBackfill.runIfNeeded(this, user.getUid());
         }
 
@@ -73,6 +80,25 @@ public class MainActivity extends AppCompatActivity {
         } else if (user != null) {
             askMarketingConsentIfNeeded();
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null) {
+            startRollbackListener(user.getUid());
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (rollbackListener != null) {
+            rollbackListener.remove();
+            rollbackListener = null;
+        }
+        super.onStop();
     }
 
     private void initCustomNav() {
@@ -207,26 +233,35 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void checkRollbackOnEntry(String uid) {
-        FirebaseFirestore.getInstance()
+    private void startRollbackListener(String uid) {
+        if (rollbackListener != null) return;
+
+        rollbackListener = FirebaseFirestore.getInstance()
                 .collection("users").document(uid)
                 .collection("vocabularies")
                 .whereEqualTo("rollbackState", true)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    if (!queryDocumentSnapshots.isEmpty()) {
-                        for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                            // 롤백된 단어장이 발견됨!
-                            String title = doc.getString("title");
-                            Long stampCountLong = doc.getLong("stampCount");
-                            int stampCount = stampCountLong != null ? stampCountLong.intValue() : 0;
-                            showRollbackDialog(title, stampCount, doc.getReference());
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e("Rollback", "롤백 상태 실시간 감지 실패", error);
+                        return;
+                    }
+                    if (snapshots == null) return;
+
+                    for (DocumentSnapshot doc : snapshots.getDocuments()) {
+                        if (!visibleRollbackDialogs.add(doc.getId())) {
+                            continue;
                         }
+
+                        String title = doc.getString("title");
+                        Long stampCountLong = doc.getLong("stampCount");
+                        int stampCount = stampCountLong != null ? stampCountLong.intValue() : 0;
+                        showRollbackDialog(title, stampCount, doc.getReference(), doc.getId());
                     }
                 });
     }
 
-    private void showRollbackDialog(String title, int stampCount, DocumentReference docRef) {
+    private void showRollbackDialog(String title, int stampCount,
+                                    DocumentReference docRef, String docId) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_rollback, null);
 
         androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -246,8 +281,17 @@ public class MainActivity extends AppCompatActivity {
 
         Button confirmBtn = dialogView.findViewById(R.id.btn_rollback_confirm);
         confirmBtn.setOnClickListener(v -> {
-            docRef.update("rollbackState", false);
-            dialog.dismiss();
+            confirmBtn.setEnabled(false);
+            docRef.update("rollbackState", false)
+                    .addOnSuccessListener(unused -> {
+                        visibleRollbackDialogs.remove(docId);
+                        dialog.dismiss();
+                    })
+                    .addOnFailureListener(error -> {
+                        confirmBtn.setEnabled(true);
+                        Log.e("Rollback", "롤백 확인 상태 저장 실패", error);
+                        PopupUtil.show(this, "확인 처리에 실패했습니다. 다시 시도해주세요.");
+                    });
         });
 
         dialog.show();

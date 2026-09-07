@@ -44,15 +44,20 @@ public class StudyManager {
                         Log.w("FCM", "토큰 가져오기 실패", task.getException());
                         return;
                     }
-                    String token = task.getResult();
-                    Map<String, Object> tokenData = new HashMap<>();
-                    tokenData.put("fcmToken", token);
-
-                    db.collection("users").document(userId)
-                            .set(tokenData, com.google.firebase.firestore.SetOptions.merge())
-                            .addOnSuccessListener(aVoid -> Log.d("FCM", "토큰 저장 성공!"))
-                            .addOnFailureListener(e -> Log.e("FCM", "토큰 저장 실패: " + e.getMessage()));
+                    saveFCMToken(userId, task.getResult());
                 });
+    }
+
+    public void saveFCMToken(String userId, String token) {
+        if (userId == null || token == null || token.trim().isEmpty()) return;
+
+        Map<String, Object> tokenData = new HashMap<>();
+        tokenData.put("fcmToken", token);
+
+        db.collection("users").document(userId)
+                .set(tokenData, com.google.firebase.firestore.SetOptions.merge())
+                .addOnSuccessListener(aVoid -> Log.d("FCM", "토큰 저장 성공!"))
+                .addOnFailureListener(e -> Log.e("FCM", "토큰 저장 실패: " + e.getMessage()));
     }
 
     // 신규 가입 시 기본 포인트를 지급합니다.

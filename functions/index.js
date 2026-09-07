@@ -1,5 +1,6 @@
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https"); // v2 필수
 const { defineSecret } = require("firebase-functions/params");
+const crypto = require("crypto");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
 const Anthropic = require("@anthropic-ai/sdk");
@@ -18,6 +19,8 @@ const client = new CloudTasksClient();
 const PROJECT_ID = "vocaapp-bf580";
 const LOCATION = "asia-northeast3";
 const QUEUE_NAME = "voca-review-queue";
+const SEND_FCM_NOTIFICATION_URL = "https://sendfcmnotification-njizfa3oqq-du.a.run.app";
+const HANDLE_ROLLBACK_URL = "https://handlerollback-njizfa3oqq-du.a.run.app";
 
 // Claude API 키는 앱이 아닌 서버(Secret Manager)에만 존재합니다.
 // 설정: firebase functions:secrets:set ANTHROPIC_API_KEY
@@ -335,6 +338,8 @@ exports.scheduleReviewNotification = onCall(
         .collection("vocabularies").doc(docId);
 
     try {
+        const taskSecret = getNormalizedTaskSecret();
+
         // [1] 기존 Task 삭제 (알림용, 롤백용 둘 다)
         const doc = await vocabRef.get();
         const oldReviewId = doc.data()?.currentTaskId;
@@ -344,27 +349,46 @@ exports.scheduleReviewNotification = onCall(
         if (oldRollbackId) await client.deleteTask({ name: oldRollbackId }).catch(() => {});
 
         // [2] 알림(Review) Task 생성
-        const reviewTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `rev_${uid}_${docId}_${Date.now()}`);
+        const reviewTaskName = client.taskPath(
+            PROJECT_ID,
+            LOCATION,
+            QUEUE_NAME,
+            createTaskId("rev")
+        );
         const reviewTask = {
             name: reviewTaskName,
             httpRequest: {
                 httpMethod: "POST",
-                url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`,
-                headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
-                body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
+                url: SEND_FCM_NOTIFICATION_URL,
+                headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: taskSecret },
+                body: Buffer.from(JSON.stringify({
+                    uid,
+                    docId,
+                    title,
+                    taskSecret,
+                })).toString("base64"),
             },
             scheduleTime: { seconds: Number(scheduledTime) },
         };
 
         // [3] 롤백(Rollback) Task 생성
-        const rollbackTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `roll_${uid}_${docId}_${Date.now()}`);
+        const rollbackTaskName = client.taskPath(
+            PROJECT_ID,
+            LOCATION,
+            QUEUE_NAME,
+            createTaskId("roll")
+        );
         const rollbackTask = {
             name: rollbackTaskName,
             httpRequest: {
                 httpMethod: "POST",
-                url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/handleRollback`, // 롤백 처리 함수 URL
-                headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
-                body: Buffer.from(JSON.stringify({ uid, docId })).toString("base64"),
+                url: HANDLE_ROLLBACK_URL,
+                headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: taskSecret },
+                body: Buffer.from(JSON.stringify({
+                    uid,
+                    docId,
+                    taskSecret,
+                })).toString("base64"),
             },
             scheduleTime: { seconds: Number(rollbackTime) },
         };
@@ -461,16 +485,21 @@ exports.sendFcmNotification = onRequest(
         }));  // ← 여기 추가
 
                 // [3] FCM 메시지 구성
+        const notificationTitle = "복습 시간이 되었습니다! ✍️";
+        const notificationBody = `'${String(title || "단어장")}'을 복습할 시간입니다.`;
+
         const message = {
             notification: {
-                title: "복습 시간이 되었습니다! ✍️",
-                body: `'${String(title || "단어장")}'을 복습할 시간입니다.`
+                title: notificationTitle,
+                body: notificationBody
             },
             data: {
             // null이나 undefined가 들어가지 않도록 확실하게 처리
             docId: (docId || "").toString(), 
             type: "REVIEW_NOTIFICATION",
-            uid: (uid || "").toString()
+            uid: (uid || "").toString(),
+            title: notificationTitle,
+            message: notificationBody
             },
             // 토큰도 확실하게 문자열임을 보장
             token: String((await admin.firestore().collection("users").doc(uid).get()).data()?.fcmToken || "")
@@ -503,6 +532,8 @@ exports.handleRollback = onRequest(
         return res.status(403).send("Forbidden");
     }
     try {
+        const taskSecret = getNormalizedTaskSecret();
+
         // [1] 데이터 파싱 및 기본 검증
         let payload = req.body;
         if (typeof payload === 'string') payload = JSON.parse(payload);
@@ -569,8 +600,18 @@ exports.handleRollback = onRequest(
 
         // [5] 새로운 Cloud Tasks 생성 (다음 알림 및 다음 롤백 예약)
         const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
-        const revTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `rev_${uid}_${docId}_${Date.now()}`);
-        const rollTaskName = client.taskPath(PROJECT_ID, LOCATION, QUEUE_NAME, `roll_${uid}_${docId}_${Date.now()}`);
+        const revTaskName = client.taskPath(
+            PROJECT_ID,
+            LOCATION,
+            QUEUE_NAME,
+            createTaskId("rev")
+        );
+        const rollTaskName = client.taskPath(
+            PROJECT_ID,
+            LOCATION,
+            QUEUE_NAME,
+            createTaskId("roll")
+        );
 
         const [revRes] = await client.createTask({
             parent,
@@ -578,9 +619,14 @@ exports.handleRollback = onRequest(
                 name: revTaskName,
                 httpRequest: {
                     httpMethod: "POST",
-                    url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/sendFcmNotification`,
-                    headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
-                    body: Buffer.from(JSON.stringify({ uid, docId, title })).toString("base64"),
+                    url: SEND_FCM_NOTIFICATION_URL,
+                    headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: taskSecret },
+                    body: Buffer.from(JSON.stringify({
+                        uid,
+                        docId,
+                        title,
+                        taskSecret,
+                    })).toString("base64"),
                 },
                 scheduleTime: { seconds: nextScheduledTime },
             }
@@ -592,9 +638,13 @@ exports.handleRollback = onRequest(
                 name: rollTaskName,
                 httpRequest: {
                     httpMethod: "POST",
-                    url: `https://${LOCATION}-${PROJECT_ID}.cloudfunctions.net/handleRollback`,
-                    headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: TASK_SECRET.value() },
-                    body: Buffer.from(JSON.stringify({ uid, docId })).toString("base64"),
+                    url: HANDLE_ROLLBACK_URL,
+                    headers: { "Content-Type": "application/json", [TASK_SECRET_HEADER]: taskSecret },
+                    body: Buffer.from(JSON.stringify({
+                        uid,
+                        docId,
+                        taskSecret,
+                    })).toString("base64"),
                 },
                 scheduleTime: { seconds: nextRollbackTime },
             }
@@ -881,8 +931,10 @@ const TASK_SECRET_HEADER = "x-task-secret";
  * @return {boolean} 우리 Cloud Tasks가 보낸 것이면 true
  */
 function isFromOurTasks(req) {
-    const sent = req.get(TASK_SECRET_HEADER);
-    const expected = TASK_SECRET.value();
+    const sent = normalizeTaskSecret(
+        req.get(TASK_SECRET_HEADER) || getTaskSecretFromBody(req)
+    );
+    const expected = getNormalizedTaskSecret();
     if (!sent || !expected || sent.length !== expected.length) return false;
     // 길이가 같을 때만 비교한다. 타이밍 공격을 줄이기 위해 조기 반환하지 않는다.
     let diff = 0;
@@ -890,6 +942,54 @@ function isFromOurTasks(req) {
         diff |= sent.charCodeAt(i) ^ expected.charCodeAt(i);
     }
     return diff === 0;
+}
+
+/**
+ * Secret Manager에 값 입력 시 붙을 수 있는 마지막 줄바꿈을 제거한다.
+ * HTTP 헤더는 줄바꿈을 보존하지 않으므로 생성/검증 양쪽에서 같은 값으로 맞춘다.
+ *
+ * @return {string} 정규화된 Task Secret
+ */
+function getNormalizedTaskSecret() {
+    return normalizeTaskSecret(TASK_SECRET.value());
+}
+
+/**
+ * @param {unknown} value Secret 값
+ * @return {string} 앞뒤 공백과 줄바꿈이 제거된 값
+ */
+function normalizeTaskSecret(value) {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * 로그인 공급자 UID에는 ':' 같은 Cloud Tasks 금지 문자가 포함될 수 있다.
+ * 실제 uid/docId는 payload에 두고 Task ID는 안전한 UUID로 생성한다.
+ *
+ * @param {string} prefix Task 종류
+ * @return {string} Cloud Tasks 규칙에 맞는 Task ID
+ */
+function createTaskId(prefix) {
+    return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+/**
+ * 일부 HTTP 경로에서 커스텀 헤더가 보존되지 않는 경우를 대비해
+ * Cloud Tasks payload 안의 같은 비밀값도 인증에 사용한다.
+ *
+ * @param {object} req Express 요청
+ * @return {string|null} taskSecret 값
+ */
+function getTaskSecretFromBody(req) {
+    try {
+        let payload = req.body;
+        if (typeof payload === "string") payload = JSON.parse(payload);
+        if (Buffer.isBuffer(payload)) payload = JSON.parse(payload.toString());
+        const secret = payload?.taskSecret;
+        return typeof secret === "string" ? secret : null;
+    } catch (error) {
+        return null;
+    }
 }
 
 const MAX_EXPORT_BOOKS = 20;
