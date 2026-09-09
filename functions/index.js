@@ -889,6 +889,25 @@ exports.deleteAccount = onCall(
             await unlinkKakaoUser(tokenInfo.id, KAKAO_REST_API_KEY.value());
         }
 
+        // [0] 탈퇴 사유 수집 (통계용, 선택값). 실패해도 탈퇴는 계속 진행한다.
+        const withdrawReasons = Array.isArray(request.data?.withdrawReasons)
+            ? request.data.withdrawReasons
+                .filter((r) => typeof r === "string")
+                .slice(0, 10)
+            : [];
+        if (withdrawReasons.length > 0) {
+            try {
+                await admin.firestore().collection("withdrawReasons").add({
+                    uid,
+                    isKakao,
+                    reasons: withdrawReasons,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            } catch (error) {
+                console.warn("탈퇴 사유 기록 실패(탈퇴는 계속):", error.message);
+            }
+        }
+
         // [1] Firestore 데이터 삭제 (하위 컬렉션까지)
         try {
             const db = admin.firestore();

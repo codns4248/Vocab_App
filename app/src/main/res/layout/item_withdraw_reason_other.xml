@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 탈퇴 이유 설문의 "기타" 줄. 다른 줄(item_withdraw_reason.xml)과 달리
+     선택하면 같은 박스 안에서 사유 입력창(otherInput)이 펼쳐진다.
+     선택 여부는 바깥 컨테이너(otherRow)의 android:selected 로 토글한다. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/otherRow"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/withdraw_reason_row_bg"
+    android:orientation="vertical">
+
+    <!-- 헤더(체크 + 라벨)만 클릭 영역. 입력창을 눌러도 토글되지 않도록 분리한다. -->
+    <LinearLayout
+        android:id="@+id/otherHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:duplicateParentState="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="14dp">
+
+        <FrameLayout
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:background="@drawable/withdraw_reason_check_bg"
+            android:duplicateParentState="true">
+
+            <ImageView
+                android:id="@+id/reasonCheck"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center"
+                android:contentDescription="선택됨"
+                android:visibility="gone"
+                app:srcCompat="@drawable/ic_check_small"
+                app:tint="#FFFFFF" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/reasonLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:text="기타"
+            android:textColor="#3A3B3F"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/otherInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/withdraw_reason_other_input_bg"
+        android:gravity="top"
+        android:hint="어떤 점이 아쉬웠는지 알려주세요 (선택)"
+        android:inputType="textMultiLine|textCapSentences"
+        android:maxLength="200"
+        android:maxLines="4"
+        android:minLines="2"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp"
+        android:textColor="#1F2024"
+        android:textColorHint="#A5A5AA"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+</LinearLayout>

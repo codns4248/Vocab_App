@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 학습 종료(초기화) 확인 팝업. dialog_logout 과 동일한 스타일:
+     round_background / 24dp padding / 56dp 아이콘 / 20sp 제목 / 14sp 본문 / weight 1 버튼 2개. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/round_background"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <ImageView
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:contentDescription="경고"
+        android:src="@drawable/ic_warning"
+        android:tint="#F0A020" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="학습을 종료할까요?"
+        android:textColor="#222222"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:text="지금까지의 학습 횟수와 마지막 학습 시간이 초기화되고, 예약된 복습 알림이 취소돼요."
+        android:textColor="#666666"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_stop_study_cancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="취소"
+            android:textColor="#444444"
+            android:backgroundTint="#F0F0F4" />
+
+        <Button
+            android:id="@+id/btn_stop_study_confirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="종료"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#3b5bdb" />
+    </LinearLayout>
+</LinearLayout>
