@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 탈퇴 이유 설문의 한 줄. row 전체가 클릭 영역이고, 선택 여부는
+     android:selected 로 토글한다(배경/체크 인디케이터가 state_selected 로 반응). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/reasonRow"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/withdraw_reason_row_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="14dp">
+
+    <FrameLayout
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:background="@drawable/withdraw_reason_check_bg"
+        android:duplicateParentState="true">
+
+        <ImageView
+            android:id="@+id/reasonCheck"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_gravity="center"
+            android:contentDescription="선택됨"
+            android:visibility="gone"
+            app:srcCompat="@drawable/ic_check_small"
+            app:tint="#FFFFFF" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/reasonLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:textColor="#3A3B3F"
+        android:textSize="15sp" />
+
+</LinearLayout>

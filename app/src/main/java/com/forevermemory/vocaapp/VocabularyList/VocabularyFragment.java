@@ -904,7 +904,8 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                                         String msg = String.format(Locale.KOREA,
                                                 "단계 %d 학습 시작! %d분 뒤 알림이 옵니다.",
                                                 (currentStampCount + 1), intervalMinutes);
-                                        PopupUtil.show(getContext(), msg);
+                                        // 학습 시작 안내는 확인이 필요 없는 정보라 팝업 대신 스낵바로 보여준다.
+                                        Snackbar.make(recyclerView, msg, Snackbar.LENGTH_LONG).show();
                                         StudyManager.getInstance().scheduleNotification(
                                                 vocabularyId, title,
                                                 reviewTime.getTime() / 1000,
@@ -929,21 +930,39 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     }
 
     private void showStopStudyDialog() {
-        new AlertDialog.Builder(requireContext())
-                .setTitle("학습 초기화 경고")
-                .setMessage("학습 모드를 끄면 단어를 추가할 수 있지만, 지금까지의 학습 횟수와 마지막 학습 시간이 모두 초기화됩니다. 정말 끄시겠습니까?")
-                .setPositiveButton("확인", (dialog, which) -> {
-                    StudyManager.getInstance().stopStudying(uid, vocabularyId);
-                    FirebaseFirestore.getInstance()
-                            .collection("users").document(uid)
-                            .collection("vocabularies").document(vocabularyId)
-                            .update("buttonOn", false);
-                    if (isAdded()) {
-                        PopupUtil.show(getContext(), "학습 모드가 해제되고 예약된 알림이 취소되었습니다.");
-                    }
-                })
-                .setNegativeButton("취소", null)
-                .show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_stop_study, null);
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        dialogView.findViewById(R.id.btn_stop_study_cancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btn_stop_study_confirm).setOnClickListener(v -> {
+            dialog.dismiss();
+            StudyManager.getInstance().stopStudying(uid, vocabularyId);
+            FirebaseFirestore.getInstance()
+                    .collection("users").document(uid)
+                    .collection("vocabularies").document(vocabularyId)
+                    .update("buttonOn", false);
+            if (isAdded()) {
+                // 확인이 필요 없는 안내라 팝업 대신 스낵바로 보여준다.
+                Snackbar.make(recyclerView,
+                        "학습 모드가 해제되고 예약된 알림이 취소되었습니다.",
+                        Snackbar.LENGTH_LONG).show();
+            }
+        });
+
+        dialog.show();
+
+        // 기본 AlertDialog 창이 다소 넓어서 하얀 박스를 살짝 좁힌다. (dialog_logout 과 동일)
+        if (dialog.getWindow() != null) {
+            int width = Math.round(getResources().getDisplayMetrics().widthPixels * 0.82f);
+            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
 
     @Override

@@ -23,6 +23,7 @@ import com.google.firebase.functions.FirebaseFunctions;
 import com.kakao.sdk.auth.model.OAuthToken;
 import com.kakao.sdk.user.UserApiClient;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,6 +35,7 @@ public class SettingFirebase {
     private final Context context;
     private final FirebaseAuth auth;
     private final OnUnregisterListener listener; // 콜백 리스너 추가
+    private String[] withdrawReasons = new String[0]; // 탈퇴 이유 설문 결과(통계용, 선택값)
 
     // 1. 성공/실패 처리를 위한 인터페이스 정의
     public interface OnUnregisterListener {
@@ -53,7 +55,13 @@ public class SettingFirebase {
         return user != null && user.getUid() != null && user.getUid().startsWith("kakao:");
     }
 
-    public void performUnregister() {
+    /**
+     * @param reasons 탈퇴 이유 설문에서 고른 항목들. 통계 용도로 서버에 함께 넘긴다.
+     *                null 이면 빈 배열로 취급한다.
+     */
+    public void performUnregister(String[] reasons) {
+        this.withdrawReasons = (reasons != null) ? reasons : new String[0];
+
         FirebaseUser user = auth.getCurrentUser();
 
         if (user == null) {
@@ -149,6 +157,9 @@ public class SettingFirebase {
         Map<String, Object> data = new HashMap<>();
         if (kakaoAccessToken != null) {
             data.put("kakaoAccessToken", kakaoAccessToken);
+        }
+        if (withdrawReasons.length > 0) {
+            data.put("withdrawReasons", Arrays.asList(withdrawReasons));
         }
 
         FirebaseFunctions.getInstance("asia-northeast3")

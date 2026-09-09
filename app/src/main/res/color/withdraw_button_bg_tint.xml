@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 탈퇴하기 버튼 배경. 이유를 하나도 안 고르면 비활성(회색). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="#26262B" android:state_enabled="true" />
+    <item android:color="#EDEDEF" />
+</selector>

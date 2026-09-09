@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 로그아웃 확인 팝업. 앱의 다른 확인 팝업(dialog_marketing_consent 등)과 같은 스타일:
+     round_background / 28dp padding / 56dp 아이콘 / 20sp 제목 / 14sp 본문 / weight 1 버튼 2개. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/round_background"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <ImageView
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:contentDescription="로그아웃"
+        android:src="@drawable/ic_logout"
+        android:tint="#3b5bdb" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="로그아웃 할까요?"
+        android:textColor="#222222"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:text="다시 로그인하면 이어서 학습할 수 있어요."
+        android:textColor="#666666"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_logout_cancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="취소"
+            android:textColor="#444444"
+            android:backgroundTint="#F0F0F4" />
+
+        <Button
+            android:id="@+id/btn_logout_confirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="로그아웃"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#3b5bdb" />
+    </LinearLayout>
+</LinearLayout>

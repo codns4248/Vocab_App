@@ -115,11 +115,22 @@ public class SettingFragment extends Fragment {
                 excelPickerLauncher.launch(ImportVocabularyHelper.mimeTypes()));
         logoutLinear.setOnClickListener(v -> showLogoutDialog());
 
-        // "회원탈퇴" 를 누르면 바로 탈퇴 확인으로 가지 않고 방지용 바텀시트를 먼저 띄운다.
+        // "회원탈퇴" 는 3단계다.
+        //  1) unregisterLinear 클릭 → 이탈 방지 바텀시트(AccountRetentionBottomSheet)
+        //  2) "그래도 탈퇴할게요" → 탈퇴 이유 설문 바텀시트(AccountWithdrawReasonBottomSheet)
+        //  3) 이유 1개 이상 선택 후 "탈퇴하기" → proceedWithdrawal() 로 실제 탈퇴 진행
         getChildFragmentManager().setFragmentResultListener(
                 AccountRetentionBottomSheet.REQUEST_KEY, this, (requestKey, bundle) -> {
                     if (bundle.getBoolean(AccountRetentionBottomSheet.RESULT_PROCEED, false)) {
-                        showUnregisterDialog();
+                        new AccountWithdrawReasonBottomSheet()
+                                .show(getChildFragmentManager(), "WithdrawReasonTag");
+                    }
+                });
+        getChildFragmentManager().setFragmentResultListener(
+                AccountWithdrawReasonBottomSheet.REQUEST_KEY, this, (requestKey, bundle) -> {
+                    if (bundle.getBoolean(AccountWithdrawReasonBottomSheet.RESULT_PROCEED, false)) {
+                        String[] reasons = bundle.getStringArray(AccountWithdrawReasonBottomSheet.RESULT_REASONS);
+                        proceedWithdrawal(reasons != null ? reasons : new String[0]);
                     }
                 });
         unregisterLinear.setOnClickListener(v ->
@@ -129,46 +140,50 @@ public class SettingFragment extends Fragment {
     }
 
     private void showLogoutDialog() {
-        new AlertDialog.Builder(requireContext())
-                .setTitle("로그아웃")
-                .setMessage("로그아웃 하시겠습니까?")
-                .setPositiveButton("로그아웃", (dialog, which) -> {
-                    mAuth.signOut();
-                    goToLogin();
-                })
-                .setNegativeButton("취소", (dialog, which) -> dialog.dismiss())
-                .show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_logout, null);
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        dialogView.findViewById(R.id.btn_logout_cancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btn_logout_confirm).setOnClickListener(v -> {
+            dialog.dismiss();
+            mAuth.signOut();
+            goToLogin();
+        });
+
+        dialog.show();
+
+        // 기본 AlertDialog 창이 다소 넓어서 하얀 박스를 살짝 좁힌다.
+        if (dialog.getWindow() != null) {
+            int width = Math.round(getResources().getDisplayMetrics().widthPixels * 0.82f);
+            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
 
-    private void showUnregisterDialog() {
-        // 재인증 방식이 제공자마다 달라서 안내 문구도 나눈다.
-        boolean isKakao = SettingFirebase.isKakaoAccount(mAuth.getCurrentUser());
-        String reauthNotice = isKakao
-                ? "\n탈퇴를 위해 카카오 로그인을 다시 진행해야 합니다.\n탈퇴 시 카카오 계정과의 연결도 해제됩니다."
-                : "\n탈퇴를 위해 구글 로그인을 다시 진행해야 합니다.";
+    // 탈퇴 이유 설문(AccountWithdrawReasonBottomSheet)에서 "탈퇴하기"를 누른 뒤 실제 탈퇴를 진행한다.
+    // 재인증 안내는 설문 바텀시트의 배지가 이미 보여줬으므로 여기서 다시 확인창을 띄우지 않는다.
+    private void proceedWithdrawal(String[] reasons) {
+        SettingFirebase settingFirebase = new SettingFirebase(requireContext(),
+                new SettingFirebase.OnUnregisterListener() {
+                    @Override
+                    public void onSuccess() {
+                        if (isAdded()) goToLogin();
+                    }
 
-        new AlertDialog.Builder(requireContext())
-                .setTitle("회원 탈퇴")
-                .setMessage("정말로 탈퇴하시겠습니까?\n탈퇴 시 작성하신 단어장과 학습 기록이 모두 삭제되며 복구할 수 없습니다." + reauthNotice)
-                .setPositiveButton("탈퇴", (dialog, which) -> {
-                    SettingFirebase settingFirebase = new SettingFirebase(requireContext(),
-                            new SettingFirebase.OnUnregisterListener() {
-                                @Override
-                                public void onSuccess() {
-                                    if (isAdded()) goToLogin();
-                                }
-
-                                @Override
-                                public void onFailure(String errorMsg) {
-                                    if (isAdded()) {
-                                        PopupUtil.show(getContext(), "탈퇴 실패: " + errorMsg);
-                                    }
-                                }
-                            });
-                    settingFirebase.performUnregister();
-                })
-                .setNegativeButton("취소", (dialog, which) -> dialog.dismiss())
-                .show();
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        if (isAdded()) {
+                            PopupUtil.show(getContext(), "탈퇴 실패: " + errorMsg);
+                        }
+                    }
+                });
+        settingFirebase.performUnregister(reasons);
     }
 
     private void goToLogin() {
