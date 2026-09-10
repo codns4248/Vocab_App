@@ -563,6 +563,21 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         }
     }
 
+    /**
+     * 하단 탭 위에 스낵바를 띄운다.
+     * 앵커를 지정하지 않으면 탭바를 그대로 덮어서 표시되는 동안 탭을 누를 수 없다.
+     */
+    private Snackbar makeSnackbar(String message) {
+        Snackbar snackbar = Snackbar.make(recyclerView, message, Snackbar.LENGTH_LONG);
+        if (getActivity() != null) {
+            View bottomNav = getActivity().findViewById(R.id.bottom_nav_container);
+            if (bottomNav != null) {
+                snackbar.setAnchorView(bottomNav);
+            }
+        }
+        return snackbar;
+    }
+
     /** 슬라이드를 원위치로. 완료된 상태로 두면 다음에 다시 밀 수 없다. */
     private void resetSlide() {
         if (slideStudyStart != null) {
@@ -710,9 +725,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
 
             VocabularyFirestore.deleteWord(uid, vocabularyId, wordIdToDelete, deletedWord.studyStatus, () -> {}, null);
 
-            Snackbar.make(recyclerView,
-                            "'" + deletedWord.word + "' 삭제됨",
-                            Snackbar.LENGTH_LONG)
+            makeSnackbar("'" + deletedWord.word + "' 삭제됨")
                     .setAction("실행 취소", v -> {
                         adapter.addItem(deletedPosition, deletedWord);
 
@@ -877,23 +890,13 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                             return;
                         }
                         int intervalMinutes = ((Number) data.get("interval")).intValue();
-                        int graceMinutes = ((Number) data.get("grace")).intValue();
-
-                        Calendar now = Calendar.getInstance();
-                        Calendar reviewCal = (Calendar) now.clone();
-                        reviewCal.add(Calendar.MINUTE, intervalMinutes);
-                        Date reviewTime = reviewCal.getTime();
-
-                        Calendar rollbackCal = (Calendar) now.clone();
-                        rollbackCal.add(Calendar.MINUTE, intervalMinutes + graceMinutes);
-                        Date rollbackTime = rollbackCal.getTime();
 
                         Map<String, Object> updates = new HashMap<>();
                         updates.put("isStudying", true);
                         updates.put("buttonOn", false);
-                        updates.put("nextReviewDate", reviewTime);
+                        updates.put("nextReviewDate", null);
                         updates.put("stampCount", currentStampCount);
-                        updates.put("rollbackTime", rollbackTime);
+                        updates.put("rollbackTime", null);
                         updates.put("rollbackState", false);
 
                         VocabularyBookFirestore.updateVocabularyBook(uid, vocabularyId, updates,
@@ -904,12 +907,13 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                                         String msg = String.format(Locale.KOREA,
                                                 "단계 %d 학습 시작! %d분 뒤 알림이 옵니다.",
                                                 (currentStampCount + 1), intervalMinutes);
-                                        // 학습 시작 안내는 확인이 필요 없는 정보라 팝업 대신 스낵바로 보여준다.
-                                        Snackbar.make(recyclerView, msg, Snackbar.LENGTH_LONG).show();
+                                        // 성공 안내는 확인을 누를 필요가 없으니 스낵바로 흘려보낸다.
+                                        // 팝업이면 학습을 시작할 때마다 한 번씩 눌러 닫아야 한다.
+                                        if (recyclerView != null) {
+                                            makeSnackbar(msg).show();
+                                        }
                                         StudyManager.getInstance().scheduleNotification(
-                                                vocabularyId, title,
-                                                reviewTime.getTime() / 1000,
-                                                rollbackTime.getTime() / 1000);
+                                                vocabularyId, title);
                                     }
 
                                     @Override
@@ -948,11 +952,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     .collection("users").document(uid)
                     .collection("vocabularies").document(vocabularyId)
                     .update("buttonOn", false);
-            if (isAdded()) {
+            if (isAdded() && recyclerView != null) {
                 // 확인이 필요 없는 안내라 팝업 대신 스낵바로 보여준다.
-                Snackbar.make(recyclerView,
-                        "학습 모드가 해제되고 예약된 알림이 취소되었습니다.",
-                        Snackbar.LENGTH_LONG).show();
+                makeSnackbar("학습 모드가 해제되고 예약된 알림이 취소되었습니다.").show();
             }
         });
 

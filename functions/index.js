@@ -1,5 +1,7 @@
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https"); // v2 필수
 const { defineSecret } = require("firebase-functions/params");
+const { checkReviewTask } = require("./reviewTaskGuard");
+const { createReviewSchedule } = require("./reviewSchedule");
 const crypto = require("crypto");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
@@ -329,19 +331,37 @@ exports.scheduleReviewNotification = onCall(
     if (!auth) {
         throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     }
-    // Android에서 넘겨준 scheduledTime과 rollbackTime을 받습니다.
-    const { docId, title, scheduledTime, rollbackTime } = data;
+    // 기기 시계가 느려도 과거 예약이 되지 않도록 시간은 서버에서 계산한다.
+    const { docId, title } = data;
+    if (typeof docId !== "string" || !docId || docId.includes("/")) {
+        throw new HttpsError("invalid-argument", "단어장 ID가 필요합니다.");
+    }
     const uid = auth.uid;
 
     const vocabRef = admin.firestore()
         .collection("users").doc(uid)
         .collection("vocabularies").doc(docId);
 
+    const createdTaskNames = [];
     try {
         const taskSecret = getNormalizedTaskSecret();
 
-        // [1] 기존 Task 삭제 (알림용, 롤백용 둘 다)
         const doc = await vocabRef.get();
+        if (!doc.exists || doc.data().isStudying !== true) {
+            throw new HttpsError("failed-precondition", "학습 중인 단어장이 아닙니다.");
+        }
+        const settingsDoc = await admin.firestore()
+            .collection("reviewAndRollbackTimeSetting")
+            .doc("reviewAndRollbackTimeSetting").get();
+        let schedule;
+        try {
+            schedule = createReviewSchedule(doc.data().stampCount ?? 0, settingsDoc.data());
+        } catch (error) {
+            throw new HttpsError("failed-precondition", "학습 단계와 복습 시간 설정을 확인해주세요.");
+        }
+        const { scheduledTime, rollbackTime } = schedule;
+
+        // [1] 기존 Task 삭제 (알림용, 롤백용 둘 다)
         const oldReviewId = doc.data()?.currentTaskId;
         const oldRollbackId = doc.data()?.currentRollbackTaskId;
         
@@ -395,18 +415,36 @@ exports.scheduleReviewNotification = onCall(
 
         const parent = client.queuePath(PROJECT_ID, LOCATION, QUEUE_NAME);
         const [revRes] = await client.createTask({ parent, task: reviewTask });
+        createdTaskNames.push(revRes.name);
         const [rollRes] = await client.createTask({ parent, task: rollbackTask });
+        createdTaskNames.push(rollRes.name);
 
-        // [4] DB 업데이트 (두 Task ID 모두 저장)
-        await vocabRef.update({
-            currentTaskId: revRes.name,
-            currentRollbackTaskId: rollRes.name,
-            rollbackState: false
+        // 예약 중 학습 종료/재시작이 발생했다면 이전 요청으로 덮어쓰지 않는다.
+        await admin.firestore().runTransaction(async (transaction) => {
+            const latest = await transaction.get(vocabRef);
+            if (!latest.exists || !latest.updateTime.isEqual(doc.updateTime)) {
+                throw new HttpsError("aborted", "학습 상태가 변경되었습니다. 다시 시도해주세요.");
+            }
+            transaction.update(vocabRef, {
+                currentTaskId: revRes.name,
+                currentRollbackTaskId: rollRes.name,
+                nextReviewDate: admin.firestore.Timestamp.fromMillis(scheduledTime * 1000),
+                rollbackTime: admin.firestore.Timestamp.fromMillis(rollbackTime * 1000),
+                buttonOn: false,
+                rollbackState: false
+            });
         });
 
-        return { success: true };
+        console.log("Review tasks scheduled:", { docId, ...schedule });
+        return { success: true, scheduledTime, rollbackTime };
     } catch (error) {
+        for (const name of createdTaskNames) {
+            await client.deleteTask({ name }).catch((cleanupError) => {
+                console.error("Task cleanup failed:", name, cleanupError.code);
+            });
+        }
         console.error("Task 예약 에러:", error);
+        if (error instanceof HttpsError) throw error;
         throw new Error(error.message);
     }
 });
@@ -460,21 +498,23 @@ exports.sendFcmNotification = onRequest(
             .collection("users").doc(uid)
             .collection("vocabularies").doc(docId);
 
-        const vocabSnap = await vocabRef.get();
-        const vocabData = vocabSnap.data();
-
-        // 학습 모드가 꺼져 있다면 중단
-        if (!vocabData || vocabData.isStudying === false) {
-            console.log(`[알림 중단] UID: ${uid}, DocID: ${docId} - 학습 모드 비활성화 상태입니다.`);
-            return res.status(200).send("Studying disabled");
-        }
-        // --- 여기까지 추가 ---
-
-        // [2] Firestore 업데이트 및 FCM 발송 로직 계속...
-        await vocabRef.update({
-            buttonOn: true,
-            lastNotificationSent: admin.firestore.FieldValue.serverTimestamp()
+        const taskName = req.get("X-CloudTasks-TaskName");
+        const taskStatus = await admin.firestore().runTransaction(async (transaction) => {
+            const snapshot = await transaction.get(vocabRef);
+            const status = checkReviewTask(snapshot.data(), taskName, "review");
+            if (status === "ready") {
+                transaction.update(vocabRef, {
+                    buttonOn: true,
+                    lastNotificationSent: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            return status;
         });
+        if (taskStatus !== "ready") {
+            console.log("Review task skipped:", taskStatus);
+            // 초 단위 예약으로 생기는 조기 호출은 재시도하고, 지난 예약은 종료한다.
+            return res.status(taskStatus === "early" ? 503 : 200).send(taskStatus);
+        }
 
         
         // [3] FCM 메시지 구성
@@ -557,6 +597,13 @@ exports.handleRollback = onRequest(
         }
         
         const vocabData = vocabSnap.data();
+
+        const taskName = req.get("X-CloudTasks-TaskName");
+        const taskStatus = checkReviewTask(vocabData, taskName, "rollback");
+        if (taskStatus !== "ready") {
+            console.log("Rollback task skipped:", taskStatus);
+            return res.status(taskStatus === "early" ? 503 : 200).send(taskStatus);
+        }
 
         // ★ 핵심 방어 로직: 사용자가 스위치를 껐다면 롤백 절차를 진행하지 않음
         if (vocabData.isStudying === false) {
@@ -651,13 +698,17 @@ exports.handleRollback = onRequest(
         });
 
         // [6] DB 업데이트 (롤백 상태 반영 및 새 Task ID 저장)
-        await vocabRef.update({
+        await admin.firestore().runTransaction(async (transaction) => {
+            const latest = await transaction.get(vocabRef);
+            if (checkReviewTask(latest.data(), taskName, "rollback") !== "ready") return;
+            transaction.update(vocabRef, {
             rollbackState: true,     // 롤백됨을 표시
             buttonOn: false,         // 학습하기 버튼은 숨김 (알림이 올 때까지)
             currentTaskId: revRes.name,
             currentRollbackTaskId: rollRes.name,
             nextReviewDate: admin.firestore.Timestamp.fromMillis(nextScheduledTime * 1000),
             rollbackTime: admin.firestore.Timestamp.fromMillis(nextRollbackTime * 1000)
+            });
         });
 
         console.log(`[롤백 완료] 문서: ${docId}, 다음 스케줄 예약됨.`);

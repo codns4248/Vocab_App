@@ -17,6 +17,9 @@ public class TestFirestore {
         updates.put("stampCount", com.google.firebase.firestore.FieldValue.increment(1));
         updates.put("lastStudiedAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
         updates.put("buttonOn", false);
+        updates.put("nextReviewDate", null);
+        updates.put("rollbackTime", null);
+        updates.put("rollbackState", false);
 
         db.collection("users").document(uid)
                 .collection("vocabularies").document(vocabId)

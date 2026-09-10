@@ -10,7 +10,6 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.functions.FirebaseFunctions;
 
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -78,6 +77,10 @@ public class StudyManager {
         Map<String, Object> updates = new HashMap<>();
         updates.put("lastStudiedAt", new Timestamp(new Date()));
         updates.put("stampCount", nextStamp);
+        updates.put("buttonOn", false);
+        updates.put("rollbackState", false);
+        updates.put("nextReviewDate", null);
+        updates.put("rollbackTime", null);
 
         TestFirestore.getStampCount(userId, vocabId, new TestFirestore.StampCountCallback() {
             @Override
@@ -103,31 +106,12 @@ public class StudyManager {
 
                         // DB에서 가져온 분(minute) 단위 값 (없을 경우를 대비해 기본값 설정)
                         int intervalMinutes = configData.get("interval") != null ? ((Long) configData.get("interval")).intValue() : 10;
-                        int graceMinutes = configData.get("grace") != null ? ((Long) configData.get("grace")).intValue() : 5;
 
-                        // 2. 알림 시간 계산 (현재 시간 + interval)
-                        Calendar cal = Calendar.getInstance();
-                        cal.add(Calendar.MINUTE, intervalMinutes);
-                        Date nextReviewDate = cal.getTime();
-
-                        // 3. 롤백 시간 계산 (알림 시간 + grace)
-                        Calendar rollCal = Calendar.getInstance();
-                        rollCal.setTime(nextReviewDate);
-                        rollCal.add(Calendar.MINUTE, graceMinutes);
-                        Date rollbackDate = rollCal.getTime();
-
-                        // 4. DB 업데이트 맵 구성
+                        // 예약 시간이 확정되기 전에는 이전 Task가 상태를 바꾸지 못하게 한다.
                         updates.put("isStudying", true);
-                        updates.put("nextReviewDate", new Timestamp(nextReviewDate));
-                        updates.put("rollbackTime", new Timestamp(rollbackDate));
-                        updates.put("rollbackState", false); // 새로 시작하거나 다음 단계로 갈 때 초기화
 
                         vocabRef.update(updates).addOnSuccessListener(aVoid -> {
-                            long scheduledTimeSeconds = nextReviewDate.getTime() / 1000;
-                            long rollbackTimeSeconds = rollbackDate.getTime() / 1000;
-
-                            // 5. 서버에 알림 및 롤백 예약 (인자 4개 전달)
-                            scheduleNotification(vocabId, "단어장 복습 시간입니다!", scheduledTimeSeconds, rollbackTimeSeconds);
+                            scheduleNotification(vocabId, "단어장 복습 시간입니다!");
 
                             String timeInfo = intervalMinutes + "분";
                             if (context != null) {
@@ -154,11 +138,14 @@ public class StudyManager {
         Map<String, Object> updates = new HashMap<>();
         updates.put("isStudying", false);
         updates.put("stampCount", 0);
+        updates.put("buttonOn", false);
+        updates.put("rollbackState", false);
+        updates.put("rollbackTime", FieldValue.delete());
         updates.put("nextReviewDate", FieldValue.delete());
 
         vocabRef.update(updates).addOnSuccessListener(aVoid -> {
             Map<String, Object> funcData = new HashMap<>();
-            funcData.put("vocabId", vocabId);
+            funcData.put("docId", vocabId);
 
             // 직접 getInstance를 호출하지 않고 클래스 멤버 mFunctions 사용 가능
             mFunctions.getHttpsCallable("cancelReviewNotification")
@@ -169,12 +156,10 @@ public class StudyManager {
             Log.d("StudyManager", "학습 초기화 성공");
         });
     }
-    public void scheduleNotification(String vocabId, String title, long scheduledTimeSeconds, long rollbackTimeSeconds) {
+    public void scheduleNotification(String vocabId, String title) {
         Map<String, Object> funcData = new HashMap<>();
         funcData.put("docId", vocabId);
-        funcData.put("scheduledTime", String.valueOf(scheduledTimeSeconds));
         funcData.put("title", title);
-        funcData.put("rollbackTime", rollbackTimeSeconds);
 
         mFunctions.getHttpsCallable("scheduleReviewNotification")
                 .call(funcData)
