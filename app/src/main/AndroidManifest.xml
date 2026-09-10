@@ -91,6 +91,12 @@
         <activity android:name=".Settting.NoticeDetailActivity"
             android:exported="false"/>
 
+        <activity android:name=".Settting.ForgettingCurveStoryActivity"
+            android:exported="false"/>
+
+        <activity android:name=".Onboarding.TutorialActivity"
+            android:exported="false"/>
+
 
     </application>
 

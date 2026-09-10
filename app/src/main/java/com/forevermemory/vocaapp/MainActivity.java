@@ -1,11 +1,13 @@
 package com.forevermemory.vocaapp;
 
+import com.forevermemory.vocaapp.Onboarding.TutorialActivity;
 import com.forevermemory.vocaapp.QuizAndGame.QuizAndGameFragment;
 import com.forevermemory.vocaapp.Settting.MarketingPushPrefs;
 import com.forevermemory.vocaapp.Settting.SettingFragment;
 
 import android.animation.ValueAnimator;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
 import android.widget.Button;
@@ -17,6 +19,8 @@ import android.util.Log;
 import android.os.Bundle;
 import android.view.View;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.core.widget.ImageViewCompat;
@@ -53,6 +57,17 @@ public class MainActivity extends AppCompatActivity {
     private ListenerRegistration rollbackListener;
     private final Set<String> visibleRollbackDialogs = new HashSet<>();
 
+    // 신규 가입 시 웰컴(튜토리얼) 화면을 먼저 띄우고, 그 화면을 실제로 닫았을 때만
+    // 포인트 지급 팝업을 이어서 띄운다.
+    // RESULT_OK 는 TutorialActivity 가 떠서 닫힐 때만 준다. 화면이 뜨기 전 시스템이
+    // 곧바로 돌려주는 RESULT_CANCELED 에는 반응하지 않는다(팝업이 먼저 뜨던 원인).
+    private final ActivityResultLauncher<Intent> welcomeTutorialLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    showWelcomePointDialog(this::askMarketingConsentIfNeeded);
+                }
+            });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
@@ -72,11 +87,12 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.fragment_container, new VocabularyFragment())
                 .commit();
 
-        // 첫 진입에는 마케팅 수신 동의만 묻는다.
+        // 신규 가입: 웰컴(튜토리얼) 화면을 먼저 보여주고, 그 화면을 닫으면
+        //           포인트 지급 팝업 → 마케팅 수신 동의 순으로 이어진다.
+        // 기존 유저: 마케팅 수신 동의만 (아직 안 물어봤다면) 묻는다.
         // 복습 알림 권한은 알림을 실제로 예약하는 '학습시작' 시점에 요청한다.
-        // 신규 가입자는 환영 팝업이 먼저 뜨므로, 그게 닫힌 다음에 물어본다.
-        if (getIntent().getBooleanExtra("isNewUser", false)) {
-            showWelcomePointDialog(this::askMarketingConsentIfNeeded);
+        if (savedInstanceState == null && getIntent().getBooleanExtra("isNewUser", false)) {
+            welcomeTutorialLauncher.launch(new Intent(this, TutorialActivity.class));
         } else if (user != null) {
             askMarketingConsentIfNeeded();
         }
