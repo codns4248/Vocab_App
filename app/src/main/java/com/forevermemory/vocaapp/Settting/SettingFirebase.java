@@ -1,6 +1,8 @@
 package com.forevermemory.vocaapp.Settting;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.credentials.ClearCredentialStateRequest;
@@ -37,6 +39,12 @@ public class SettingFirebase {
     private final OnUnregisterListener listener; // 콜백 리스너 추가
     private String[] withdrawReasons = new String[0]; // 탈퇴 이유 설문 결과(통계용, 선택값)
 
+    // CredentialManager 콜백(getCredentialAsync·clearCredentialStateAsync)은 executor로
+    // Runnable::run 을 넘겨서 시스템의 Binder 스레드에서 그대로 실행된다. 리스너 쪽에서
+    // 화면 전환(startActivity)·Toast 를 하므로 반드시 메인 스레드로 올려서 호출한다.
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean notified = false; // 성공/실패는 한 번만 통지한다.
+
     // 1. 성공/실패 처리를 위한 인터페이스 정의
     public interface OnUnregisterListener {
         void onSuccess();
@@ -48,6 +56,22 @@ public class SettingFirebase {
         this.context = context;
         this.auth = FirebaseAuth.getInstance();
         this.listener = listener;
+    }
+
+    private void notifySuccess() {
+        mainHandler.post(() -> {
+            if (notified || listener == null) return;
+            notified = true;
+            listener.onSuccess();
+        });
+    }
+
+    private void notifyFailure(String errorMsg) {
+        mainHandler.post(() -> {
+            if (notified || listener == null) return;
+            notified = true;
+            listener.onFailure(errorMsg);
+        });
     }
 
     /** 카카오로 만든 계정인지. 커스텀 토큰 uid를 kakao:{회원번호} 형태로 발급한다. */
@@ -65,7 +89,7 @@ public class SettingFirebase {
         FirebaseUser user = auth.getCurrentUser();
 
         if (user == null) {
-            if (listener != null) listener.onFailure("로그인된 사용자가 없습니다.");
+            notifyFailure("로그인된 사용자가 없습니다.");
             return;
         }
 
@@ -107,21 +131,21 @@ public class SettingFirebase {
                                     if (reauthTask.isSuccessful()) {
                                         callDeleteAccount(null, credentialManager);
                                     } else {
-                                        if (listener != null) listener.onFailure("재인증에 실패했습니다.");
+                                        notifyFailure("재인증에 실패했습니다.");
                                     }
                                 });
                             } catch (Exception e) {
-                                if (listener != null) listener.onFailure("토큰 처리 중 오류가 발생했습니다.");
+                                notifyFailure("토큰 처리 중 오류가 발생했습니다.");
                             }
                         } else {
                             // 구글 자격 증명이 아니면 여기서 끝나버려 아무 반응이 없었다.
-                            if (listener != null) listener.onFailure("재인증에 실패했습니다.");
+                            notifyFailure("재인증에 실패했습니다.");
                         }
                     }
 
                     @Override
                     public void onError(@NonNull GetCredentialException e) {
-                        if (listener != null) listener.onFailure("인증 오류: " + e.getMessage());
+                        notifyFailure("인증 오류: " + e.getMessage());
                     }
                 });
     }
@@ -130,7 +154,7 @@ public class SettingFirebase {
     private void reauthenticateWithKakaoThenDelete() {
         Function2<OAuthToken, Throwable, Unit> callback = (token, error) -> {
             if (error != null || token == null) {
-                if (listener != null) listener.onFailure("카카오 재인증에 실패했습니다.");
+                notifyFailure("카카오 재인증에 실패했습니다.");
                 return Unit.INSTANCE;
             }
             callDeleteAccount(token.getAccessToken(), null);
@@ -169,28 +193,28 @@ public class SettingFirebase {
                     // 서버가 계정을 지웠으므로 로컬 세션도 정리한다.
                     auth.signOut();
 
-                    if (credentialManager == null) {
-                        if (listener != null) listener.onSuccess();
-                        return;
-                    }
-                    credentialManager.clearCredentialStateAsync(new ClearCredentialStateRequest(), null, Runnable::run,
-                            new CredentialManagerCallback<Void, ClearCredentialException>() {
-                                @Override
-                                public void onResult(Void result) {
-                                    if (listener != null) listener.onSuccess();
-                                }
+                    // 구글 자격 증명 정리는 실패하거나 콜백이 아예 안 와도 탈퇴에는 영향이 없다.
+                    // 예전 코드는 이 콜백 안에서 onSuccess() 를 호출했는데, executor 가
+                    // Runnable::run 이라 Binder 스레드에서 실행돼 화면 전환이 되지 않았다.
+                    // 이제는 정리 여부와 무관하게 아래에서 곧바로 성공을 통지한다(best-effort).
+                    if (credentialManager != null) {
+                        credentialManager.clearCredentialStateAsync(new ClearCredentialStateRequest(), null, Runnable::run,
+                                new CredentialManagerCallback<Void, ClearCredentialException>() {
+                                    @Override
+                                    public void onResult(Void result) { }
 
-                                @Override
-                                public void onError(@NonNull ClearCredentialException e) {
-                                    // 계정은 이미 지워졌으니 탈퇴 자체는 성공으로 본다.
-                                    Log.w("SettingFirebase", "자격 증명 정리 실패: " + e.getMessage());
-                                    if (listener != null) listener.onSuccess();
-                                }
-                            });
+                                    @Override
+                                    public void onError(@NonNull ClearCredentialException e) {
+                                        Log.w("SettingFirebase", "자격 증명 정리 실패: " + e.getMessage());
+                                    }
+                                });
+                    }
+
+                    notifySuccess();
                 })
                 .addOnFailureListener(e -> {
                     Log.e("SettingFirebase", "탈퇴 실패", e);
-                    if (listener != null) listener.onFailure(e.getMessage());
+                    notifyFailure(e.getMessage());
                 });
     }
 }

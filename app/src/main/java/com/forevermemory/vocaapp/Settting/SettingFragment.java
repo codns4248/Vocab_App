@@ -1,5 +1,6 @@
 package com.forevermemory.vocaapp.Settting;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -29,6 +30,10 @@ public class SettingFragment extends Fragment {
 
     private FirebaseAuth mAuth; // 파이어베이스 관리자
 
+    // 탈퇴 성공 콜백은 이 화면이 사라진 뒤에 올 수도 있어, 그때도 로그인 화면으로
+    // 넘어갈 수 있도록 앱 컨텍스트를 들고 있는다.
+    private Context appContext;
+
     // 엑셀 파일 선택기. Fragment 생성 시점에 등록해야 하므로 필드로 둔다.
     private final ActivityResultLauncher<String[]> excelPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
@@ -45,6 +50,8 @@ public class SettingFragment extends Fragment {
         // 화면 가져옴
         View view = inflater.inflate(R.layout.fragment_profile, container,false);
 
+        appContext = inflater.getContext().getApplicationContext();
+
         // 파이어베이스 준비
         mAuth = FirebaseAuth.getInstance();
 
@@ -54,6 +61,7 @@ public class SettingFragment extends Fragment {
         LinearLayout checkNoticeLinear = view.findViewById(R.id.checkNoticeLinear);
         LinearLayout sendCommentLinear = view.findViewById(R.id.sendCommentLinear);
         LinearLayout checkPolicyLinear = view.findViewById(R.id.checkPolicyLinear);
+        LinearLayout forgettingCurveStoryLinear = view.findViewById(R.id.forgettingCurveStoryLinear);
         MaterialSwitch switchMarketingPush = view.findViewById(R.id.switchMarketingPush);
         LinearLayout exportVocabularyLinear = view.findViewById(R.id.exportVocabularyLinear);
         LinearLayout importVocabularyLinear = view.findViewById(R.id.importVocabularyLinear);
@@ -109,6 +117,9 @@ public class SettingFragment extends Fragment {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(notionUrl));
             startActivity(intent);
         });
+
+        forgettingCurveStoryLinear.setOnClickListener(v ->
+                startActivity(new Intent(getActivity(), ForgettingCurveStoryActivity.class)));
 
         exportVocabularyLinear.setOnClickListener(v -> ExportVocabularyDialog.show(requireActivity()));
         importVocabularyLinear.setOnClickListener(v ->
@@ -169,11 +180,14 @@ public class SettingFragment extends Fragment {
     // 탈퇴 이유 설문(AccountWithdrawReasonBottomSheet)에서 "탈퇴하기"를 누른 뒤 실제 탈퇴를 진행한다.
     // 재인증 안내는 설문 바텀시트의 배지가 이미 보여줬으므로 여기서 다시 확인창을 띄우지 않는다.
     private void proceedWithdrawal(String[] reasons) {
+        // 애플리케이션 컨텍스트로 넘긴다. 탈퇴는 성공하면 이 화면이 사라지므로,
+        // 콜백 시점에 Fragment 가 이미 detach 됐더라도 로그인 화면으로 넘어가야 한다.
         SettingFirebase settingFirebase = new SettingFirebase(requireContext(),
                 new SettingFirebase.OnUnregisterListener() {
                     @Override
                     public void onSuccess() {
-                        if (isAdded()) goToLogin();
+                        // SettingFirebase 가 메인 스레드로 올려서 호출해준다.
+                        goToLogin();
                     }
 
                     @Override
@@ -187,8 +201,13 @@ public class SettingFragment extends Fragment {
     }
 
     private void goToLogin() {
-        Intent intent = new Intent(getActivity(), LoginActivity.class);
+        Context context = appContext != null ? appContext : getContext();
+        if (context == null) return;
+
+        Intent intent = new Intent(context, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
+        context.startActivity(intent);
+
+        if (getActivity() != null) getActivity().finish();
     }
 }

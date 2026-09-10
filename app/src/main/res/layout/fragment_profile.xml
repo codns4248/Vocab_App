@@ -260,6 +260,34 @@
                 android:textStyle="bold" />
 
             <LinearLayout
+                android:id="@+id/forgettingCurveStoryLinear"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="25dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    app:srcCompat="@drawable/book_nav_icon" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="5dp"
+                    android:layout_weight="1"
+                    android:text="망각곡선 이야기" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:srcCompat="@drawable/next_icon" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/checkNoticeLinear"
                 android:layout_width="match_parent"
                 android:layout_height="30dp"
