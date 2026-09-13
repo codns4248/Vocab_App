@@ -10,8 +10,6 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -33,14 +31,6 @@ public class SettingFragment extends Fragment {
     // 탈퇴 성공 콜백은 이 화면이 사라진 뒤에 올 수도 있어, 그때도 로그인 화면으로
     // 넘어갈 수 있도록 앱 컨텍스트를 들고 있는다.
     private Context appContext;
-
-    // 엑셀 파일 선택기. Fragment 생성 시점에 등록해야 하므로 필드로 둔다.
-    private final ActivityResultLauncher<String[]> excelPickerLauncher =
-            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
-                if (uri != null && isAdded()) {
-                    ImportVocabularyHelper.handlePickedFile(requireActivity(), uri);
-                }
-            });
 
     @Nullable
     @Override
@@ -123,7 +113,7 @@ public class SettingFragment extends Fragment {
 
         exportVocabularyLinear.setOnClickListener(v -> ExportVocabularyDialog.show(requireActivity()));
         importVocabularyLinear.setOnClickListener(v ->
-                excelPickerLauncher.launch(ImportVocabularyHelper.mimeTypes()));
+                startActivity(new Intent(getActivity(), ImportVocabularyGuideActivity.class)));
         logoutLinear.setOnClickListener(v -> showLogoutDialog());
 
         // "회원탈퇴" 는 3단계다.
