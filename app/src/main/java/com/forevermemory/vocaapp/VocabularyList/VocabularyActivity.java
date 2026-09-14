@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.forevermemory.vocaapp.R;
 import com.forevermemory.vocaapp.util.PopupUtil;
+import com.forevermemory.vocaapp.util.SnackbarUtil;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -400,7 +401,7 @@ public class VocabularyActivity extends AppCompatActivity implements TextToSpeec
         wordData.put("timeStamp", FieldValue.serverTimestamp());
 
         VocabularyFirestore.addWord(uid, vocabularyId, wordData, () -> {
-            PopupUtil.show(this, "단어가 등록되었습니다.");
+            SnackbarUtil.show(this, "단어가 등록되었습니다.");
         }, () -> {
             PopupUtil.show(this, "등록 실패");
         });

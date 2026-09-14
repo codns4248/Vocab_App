@@ -34,6 +34,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.forevermemory.vocaapp.Camera.CameraActivity;
 import com.forevermemory.vocaapp.R;
+import com.forevermemory.vocaapp.util.SnackbarUtil;
 import com.forevermemory.vocaapp.Test.StudyManager;
 import com.forevermemory.vocaapp.Test.TestActivity;
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookFirestore;
@@ -798,7 +799,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     VocabularyFirestore.addWord(uid, vocabularyId, wordData,
                             () -> {
                                 if (!isAdded()) return;
-                                PopupUtil.show(getContext(), "단어가 등록되었습니다.");
+                                SnackbarUtil.show(getContext(), "단어가 등록되었습니다.");
                                 wordEditText.setText("");
                                 meanEditText.setText("");
                                 pronunciationEditText.setText("");
