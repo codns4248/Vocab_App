@@ -1,6 +1,7 @@
 package com.forevermemory.vocaapp;
 
 import com.forevermemory.vocaapp.Onboarding.TutorialActivity;
+import com.forevermemory.vocaapp.Onboarding.WelcomeBannerPrefs;
 import com.forevermemory.vocaapp.QuizAndGame.QuizAndGameFragment;
 import com.forevermemory.vocaapp.Settting.MarketingPushPrefs;
 import com.forevermemory.vocaapp.Settting.SettingFragment;
@@ -57,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private ListenerRegistration rollbackListener;
     private final Set<String> visibleRollbackDialogs = new HashSet<>();
 
-    // 신규 가입 시 웰컴(튜토리얼) 화면을 먼저 띄우고, 그 화면을 실제로 닫았을 때만
+    // 웰컴 배너를 탭해서 튜토리얼 화면을 열고, 그 화면을 실제로 닫았을 때만
     // 포인트 지급 팝업을 이어서 띄운다.
     // RESULT_OK 는 TutorialActivity 가 떠서 닫힐 때만 준다. 화면이 뜨기 전 시스템이
     // 곧바로 돌려주는 RESULT_CANCELED 에는 반응하지 않는다(팝업이 먼저 뜨던 원인).
@@ -87,12 +88,14 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.fragment_container, new VocabularyFragment())
                 .commit();
 
-        // 신규 가입: 웰컴(튜토리얼) 화면을 먼저 보여주고, 그 화면을 닫으면
-        //           포인트 지급 팝업 → 마케팅 수신 동의 순으로 이어진다.
-        // 기존 유저: 마케팅 수신 동의만 (아직 안 물어봤다면) 묻는다.
+        // 신규 가입: 웰컴 배너를 먼저 보여준다. 배너를 탭해서 튜토리얼을 보고 닫으면
+        //           포인트 지급 팝업 → 마케팅 수신 동의 순으로 이어지고,
+        //           닫기 버튼으로 배너만 닫으면 마케팅 수신 동의로 바로 넘어간다.
+        // 기존 유저(또는 배너를 이미 본 유저): 마케팅 수신 동의만 (아직 안 물어봤다면) 묻는다.
         // 복습 알림 권한은 알림을 실제로 예약하는 '학습시작' 시점에 요청한다.
-        if (savedInstanceState == null && getIntent().getBooleanExtra("isNewUser", false)) {
-            welcomeTutorialLauncher.launch(new Intent(this, TutorialActivity.class));
+        if (savedInstanceState == null && getIntent().getBooleanExtra("isNewUser", false)
+                && !WelcomeBannerPrefs.hasSeenBanner(this)) {
+            showWelcomeBanner();
         } else if (user != null) {
             askMarketingConsentIfNeeded();
         }
@@ -199,6 +202,25 @@ public class MainActivity extends AppCompatActivity {
         int color = selected ? COLOR_ICON_SELECTED : COLOR_ICON_UNSELECTED;
         ImageViewCompat.setImageTintList(tabIcons[index], ColorStateList.valueOf(color));
         tabLabels[index].setTextColor(color);
+    }
+
+    // 최초 로그인 시에만 뜨는 웰컴 배너. 탭하면 튜토리얼로 이동하고, 닫기 버튼을 누르면
+    // 배너만 사라진다. 어느 쪽이든 한 번 처리되면 다시는 뜨지 않도록 기기에 표시해둔다.
+    private void showWelcomeBanner() {
+        View banner = findViewById(R.id.welcomeBanner);
+        banner.setVisibility(View.VISIBLE);
+
+        banner.setOnClickListener(v -> {
+            WelcomeBannerPrefs.markBannerSeen(this);
+            banner.setVisibility(View.GONE);
+            welcomeTutorialLauncher.launch(new Intent(this, TutorialActivity.class));
+        });
+
+        findViewById(R.id.welcomeBannerClose).setOnClickListener(v -> {
+            WelcomeBannerPrefs.markBannerSeen(this);
+            banner.setVisibility(View.GONE);
+            askMarketingConsentIfNeeded();
+        });
     }
 
     private void showWelcomePointDialog(Runnable onDismissed) {

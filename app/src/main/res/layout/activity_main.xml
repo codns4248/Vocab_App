@@ -136,4 +136,52 @@
 
         </LinearLayout>
     </LinearLayout>
+
+    <!-- 최초 로그인 시에만 노출되는 웰컴 배너. 탭하면 망각곡선 튜토리얼로 이동하고,
+         닫기 버튼을 누르면 배너만 사라진다. -->
+    <LinearLayout
+        android:id="@+id/welcomeBanner"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/welcome_banner_ripple"
+        android:clickable="true"
+        android:elevation="6dp"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/welcomeBannerText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="과학적으로 증명된 복습 타이밍으로,\n오래 기억하는 단어장"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/welcomeBannerClose"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:contentDescription="배너 닫기"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_close_small" />
+
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
