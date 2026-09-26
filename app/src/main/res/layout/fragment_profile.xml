@@ -324,14 +324,12 @@
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:id="@+id/imageView10"
                     android:layout_width="25dp"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     app:srcCompat="@drawable/email" />
 
                 <TextView
-                    android:id="@+id/textView15"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
@@ -340,7 +338,6 @@
                     android:text="의견 남기기" />
 
                 <ImageView
-                    android:id="@+id/imageView11"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:srcCompat="@drawable/next_icon" />
@@ -355,14 +352,12 @@
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:id="@+id/imageView10"
                     android:layout_width="25dp"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     app:srcCompat="@drawable/term" />
 
                 <TextView
-                    android:id="@+id/textView15"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
@@ -371,7 +366,6 @@
                     android:text="약관 및 정책" />
 
                 <ImageView
-                    android:id="@+id/imageView11"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:srcCompat="@drawable/next_icon" />

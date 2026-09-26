@@ -117,6 +117,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
     private Date lastStudiedAt = null;
     private View normalContent;
     private View emptyStateLayout;
+    private View wordAddOverlay;
 
     private VocabularyListAdapter adapter;
 
@@ -154,6 +155,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         fabOption2Label = view.findViewById(R.id.fab_option2_label);
         normalContent = view.findViewById(R.id.normalContent);
         emptyStateLayout = view.findViewById(R.id.emptyStateLayout);
+        wordAddOverlay = view.findViewById(R.id.wordAddOverlay);
 
         view.findViewById(R.id.btnGoToBookList).setOnClickListener(v -> openBookList());
 
@@ -252,6 +254,7 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         }
         normalContent = null;
         emptyStateLayout = null;
+        wordAddOverlay = null;
         adapter = null;
         vocabularyId = null;
         isStudying = false;
@@ -444,7 +447,9 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         emptyStateLayout.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
         View root = getView();
         if (root != null) {
-            root.findViewById(R.id.wordAddOverlay).setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+            if (wordAddOverlay != null) {
+                wordAddOverlay.setVisibility(isEmpty || isStudying ? View.GONE : View.VISIBLE);
+            }
             root.findViewById(R.id.studyHeaderDetails).setVisibility(isEmpty ? View.GONE : View.VISIBLE);
             if (isEmpty) {
                 com.google.android.material.appbar.AppBarLayout appBar = root.findViewById(R.id.vocabularyAppBar);
@@ -545,6 +550,10 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         slideStudyStart.setVisibility(isStudying ? View.GONE : View.VISIBLE);
         btnStudyNow.setVisibility(isStudying ? View.VISIBLE : View.GONE);
         btnStudyToggle.setVisibility(isStudying ? View.VISIBLE : View.GONE);
+        if (wordAddOverlay != null) {
+            if (isStudying && isFabOpen) closeFabMenu();
+            wordAddOverlay.setVisibility(isStudying ? View.GONE : View.VISIBLE);
+        }
 
         if (!isStudying) {
             // 학습을 끝내고 돌아왔을 때 슬라이드가 밀린 채로 남아 있으면 안 된다.
