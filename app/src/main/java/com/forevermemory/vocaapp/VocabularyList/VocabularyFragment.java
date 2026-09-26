@@ -442,6 +442,15 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
         if (normalContent == null || emptyStateLayout == null) return;
         normalContent.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
         emptyStateLayout.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        View root = getView();
+        if (root != null) {
+            root.findViewById(R.id.wordAddOverlay).setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+            root.findViewById(R.id.studyHeaderDetails).setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+            if (isEmpty) {
+                com.google.android.material.appbar.AppBarLayout appBar = root.findViewById(R.id.vocabularyAppBar);
+                appBar.setExpanded(true, false);
+            }
+        }
         if (tvCurrentBookTitle != null) {
             tvCurrentBookTitle.setText(isEmpty ? "단어장 없음" : "");
         }

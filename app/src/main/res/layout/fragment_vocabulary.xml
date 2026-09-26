@@ -1,50 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFFFFF"
     android:fitsSystemWindows="true">
 
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/vocabularyAppBar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:paddingStart="20dp"
-        android:paddingTop="24dp"
-        android:paddingEnd="20dp">
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        app:elevation="0dp">
 
-        <!-- ===== 헤더: 항상 표시 ===== -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/headerContainer"
+        <com.google.android.material.appbar.CollapsingToolbarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:paddingBottom="14dp">
+            app:titleEnabled="false"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed|enterAlways">
 
-            <TextView
-                android:id="@+id/tvCurrentBookTitle"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:id="@+id/studyHeaderDetails"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="단어장 이름"
-                android:textColor="#111111"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toStartOf="@id/headerNextIcon"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
+                android:layout_marginTop="56dp"
+                android:orientation="vertical"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="14dp">
             <LinearLayout
                 android:id="@+id/statContainer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvCurrentBookTitle">
+                android:orientation="horizontal">
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -115,37 +104,21 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <ImageView
-                android:id="@+id/headerNextIcon"
-                android:layout_width="44dp"
-                android:layout_height="42dp"
-                android:contentDescription="단어장 변경"
-                android:src="@drawable/right_arrow_icon"
-                app:layout_constraintBottom_toBottomOf="@id/statContainer"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/tvCurrentBookTitle"
-                app:tint="#3b5bdb" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- ===== 일반 콘텐츠: 단어장 있을 때 ===== -->
-        <LinearLayout
-            android:id="@+id/normalContent"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <!-- 학습 전과 학습 중이 같은 자리를 번갈아 쓴다.
-                 두 버튼을 나란히 두면 '공부하기'가 대부분의 시간 동안
-                 회색으로 떠 있어 누를 수 있는지 매번 판단해야 한다. -->
             <LinearLayout
                 android:id="@+id/buttonContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="20dp"
                 android:orientation="vertical">
 
                 <!-- 학습 전: 밀어서 시작 -->
+                <LinearLayout
+                    android:id="@+id/studyStartContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
                 <com.ncorti.slidetoact.SlideToActView
                     android:id="@+id/slideStudyStart"
                     android:layout_width="match_parent"
@@ -157,6 +130,8 @@
                     app:text="밀어서 학습 시작"
                     app:text_size="13sp"
                     app:bump_vibration="30" />
+
+                </LinearLayout>
 
                 <!-- 학습 중: 공부하기 (시간 되면 초록으로 활성) -->
                 <com.google.android.material.button.MaterialButton
@@ -193,6 +168,61 @@
                     android:visibility="gone" />
             </LinearLayout>
 
+
+            </LinearLayout>
+
+            <androidx.appcompat.widget.Toolbar
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:background="#FFFFFF"
+                app:contentInsetStart="0dp"
+                app:contentInsetEnd="0dp"
+                app:layout_collapseMode="pin">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/headerContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:background="?attr/selectableItemBackground">
+                    <TextView
+                        android:id="@+id/tvCurrentBookTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:text="단어장 이름"
+                        android:textColor="#111111"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/headerNextIcon"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+                    <ImageView
+                        android:id="@+id/headerNextIcon"
+                        android:layout_width="44dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="단어장 변경"
+                        android:src="@drawable/right_arrow_icon"
+                        app:tint="#3b5bdb"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.appcompat.widget.Toolbar>
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <LinearLayout
+        android:id="@+id/normalContent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -287,6 +317,54 @@
                     android:clipToPadding="false"
                     android:paddingBottom="88dp" />
 
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+
+        <!-- ===== 빈 상태: 단어장 없을 때 ===== -->
+        <LinearLayout
+            android:id="@+id/emptyStateLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="단어장이 없어요"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="아래 버튼을 눌러 단어장을 추가해 보세요"
+                android:textSize="14sp"
+                android:textColor="#737373"
+                android:gravity="center"
+                android:layout_marginBottom="32dp" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btnGoToBookList"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:backgroundTint="#3b5bdb"
+                app:fabSize="normal"
+                app:srcCompat="@android:drawable/ic_input_add" />
+
+        </LinearLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/wordAddOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
                 <!-- 옵션1 라벨: AI 카메라 -->
                 <TextView
                     android:id="@+id/fab_option1_label"
@@ -367,48 +445,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:srcCompat="@android:drawable/ic_input_add" />
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
 
-        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- ===== 빈 상태: 단어장 없을 때 ===== -->
-        <LinearLayout
-            android:id="@+id/emptyStateLayout"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="단어장이 없어요"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="#1A1A1A"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="아래 버튼을 눌러 단어장을 추가해 보세요"
-                android:textSize="14sp"
-                android:textColor="#737373"
-                android:gravity="center"
-                android:layout_marginBottom="32dp" />
-
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/btnGoToBookList"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:backgroundTint="#3b5bdb"
-                app:fabSize="normal"
-                app:srcCompat="@android:drawable/ic_input_add" />
-
-        </LinearLayout>
-
-    </LinearLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
