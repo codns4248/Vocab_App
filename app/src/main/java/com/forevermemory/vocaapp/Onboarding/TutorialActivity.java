@@ -12,11 +12,11 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.forevermemory.vocaapp.R;
 
 /**
- * 최초 로그인 시 웰컴 배너를 탭하면 열리는 온보딩 튜토리얼.
+ * 신규 가입 직후 메인화면에서 바로 열리는 온보딩 튜토리얼.
  *
  * 스와이프형 4페이지 + 하단 점 인디케이터 + "다음"/"건너뛰기" 구성이며,
  * 마지막 페이지에서는 버튼이 "시작하기"로 바뀌고 누르면 화면을 닫는다.
- * 재진입 경로는 없으므로 별도 플래그 없이 배너 쪽에서만 진입을 통제한다.
+ * 재진입 경로는 없으며, 진입 여부는 {@link WelcomeTutorialPrefs} 로 메인화면에서 통제한다.
  */
 public class TutorialActivity extends AppCompatActivity {
 

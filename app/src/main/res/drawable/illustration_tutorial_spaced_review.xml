@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 튜토리얼 3페이지: 간격 반복. 복습(초록)할 때마다 곡선이 다시 올라가 끝에서 별(장기기억)에 닿는다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="280dp"
+    android:viewportWidth="320"
+    android:viewportHeight="280">
+
+    <path
+        android:fillColor="#EEF1FF"
+        android:pathData="M40,0 H280 A40,40 0 0 1 320,40 V240 A40,40 0 0 1 280,280 H40 A40,40 0 0 1 0,240 V40 A40,40 0 0 1 40,0 Z" />
+
+    <group
+        android:pivotX="237"
+        android:pivotY="49"
+        android:rotation="12">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M228,38 H246 A6,6 0 0 1 252,44 V54 A6,6 0 0 1 246,60 H228 A6,6 0 0 1 222,54 V44 A6,6 0 0 1 228,38 Z"
+            android:strokeColor="#C7CEFB"
+            android:strokeWidth="2" />
+    </group>
+
+    <group
+        android:pivotX="69"
+        android:pivotY="207"
+        android:rotation="-10">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M60,196 H78 A6,6 0 0 1 84,202 V212 A6,6 0 0 1 78,218 H60 A6,6 0 0 1 54,212 V202 A6,6 0 0 1 60,196 Z"
+            android:strokeColor="#C7CEFB"
+            android:strokeWidth="2" />
+    </group>
+
+    <!-- 점선 기준선 (VectorDrawable 은 dasharray 를 지원하지 않아 4 그리고 6 간격 선분으로 그린다) -->
+    <path
+        android:pathData="M34,224 H38 M44,224 H48 M54,224 H58 M64,224 H68 M74,224 H78 M84,224 H88 M94,224 H98 M104,224 H108 M114,224 H118 M124,224 H128 M134,224 H138 M144,224 H148 M154,224 H158 M164,224 H168 M174,224 H178 M184,224 H188 M194,224 H198 M204,224 H208 M214,224 H218 M224,224 H228 M234,224 H238 M244,224 H248 M254,224 H258 M264,224 H268 M274,224 H278 M284,224 H286"
+        android:strokeColor="#C9CEE0"
+        android:strokeWidth="2" />
+
+    <path
+        android:pathData="M40,70 C70,116 96,158 112,178 C124,158 132,98 144,86 C168,100 182,132 192,150 C202,132 210,88 222,76 C246,72 266,70 284,70"
+        android:strokeColor="#4453E4"
+        android:strokeLineCap="round"
+        android:strokeWidth="7" />
+
+    <path
+        android:fillColor="#4453E4"
+        android:pathData="M33,70 A7,7 0 1 1 47,70 A7,7 0 1 1 33,70 Z" />
+
+    <!-- 잊기 직전 지점 -->
+    <path
+        android:fillColor="#FF9466"
+        android:pathData="M106,178 A6,6 0 1 1 118,178 A6,6 0 1 1 106,178 Z" />
+    <path
+        android:fillColor="#FF9466"
+        android:pathData="M187,150 A5,5 0 1 1 197,150 A5,5 0 1 1 187,150 Z" />
+
+    <!-- 복습 지점 -->
+    <path
+        android:fillAlpha="0.22"
+        android:fillColor="#22C55E"
+        android:pathData="M126,86 A18,18 0 1 1 162,86 A18,18 0 1 1 126,86 Z" />
+    <path
+        android:fillColor="#22C55E"
+        android:pathData="M135,86 A9,9 0 1 1 153,86 A9,9 0 1 1 135,86 Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+    <path
+        android:fillAlpha="0.22"
+        android:fillColor="#22C55E"
+        android:pathData="M204,76 A18,18 0 1 1 240,76 A18,18 0 1 1 204,76 Z" />
+    <path
+        android:fillColor="#22C55E"
+        android:pathData="M213,76 A9,9 0 1 1 231,76 A9,9 0 1 1 213,76 Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+
+    <!-- 장기기억 별 -->
+    <path
+        android:fillAlpha="0.18"
+        android:fillColor="#FFB800"
+        android:pathData="M264,70 A20,20 0 1 1 304,70 A20,20 0 1 1 264,70 Z" />
+    <path
+        android:fillColor="#FFB800"
+        android:pathData="M284,57 L287.23,65.55 L296.36,65.98 L289.23,71.70 L291.64,80.52 L284,75.5 L276.36,80.52 L278.77,71.70 L271.64,65.98 L280.77,65.55 Z" />
+</vector>

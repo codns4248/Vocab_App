@@ -1,7 +1,7 @@
 package com.forevermemory.vocaapp;
 
 import com.forevermemory.vocaapp.Onboarding.TutorialActivity;
-import com.forevermemory.vocaapp.Onboarding.WelcomeBannerPrefs;
+import com.forevermemory.vocaapp.Onboarding.WelcomeTutorialPrefs;
 import com.forevermemory.vocaapp.QuizAndGame.QuizAndGameFragment;
 import com.forevermemory.vocaapp.Settting.MarketingPushPrefs;
 import com.forevermemory.vocaapp.Settting.SettingFragment;
@@ -58,12 +58,29 @@ public class MainActivity extends AppCompatActivity {
     private ListenerRegistration rollbackListener;
     private final Set<String> visibleRollbackDialogs = new HashSet<>();
 
-    // 웰컴 배너를 탭해서 튜토리얼 화면을 열고, 그 화면을 실제로 닫았을 때만
+    // 튜토리얼을 띄운 뒤 그 결과를 아직 받지 못한 상태.
+    // 튜토리얼 화면에서 회전하는 등으로 이 화면이 다시 만들어져도 유지해서, 그때 마케팅 동의를
+    // 먼저 묻지 않게 한다(결과가 오면 포인트 팝업 → 마케팅 동의 순으로 이어진다).
+    private static final String STATE_AWAITING_TUTORIAL = "awaitingWelcomeTutorial";
+    private boolean awaitingWelcomeTutorial = false;
+
+    // 포인트 지급 팝업이 떠 있는 상태. 팝업이 떠 있는 채로 회전 등으로 이 화면이 다시 만들어지면
+    // 팝업이 사라지므로, 이 값을 이어받아 새 화면에서 팝업을 다시 띄운다.
+    private static final String STATE_SHOWING_WELCOME_POINT = "showingWelcomePoint";
+    private boolean showingWelcomePoint = false;
+    private androidx.appcompat.app.AlertDialog welcomePointDialog;
+
+    // 마케팅 수신 동의 팝업이 이미 떠 있으면 중복으로 띄우지 않는다.
+    private androidx.appcompat.app.AlertDialog marketingConsentDialog;
+
+    // 신규 가입 직후 튜토리얼 화면을 열고, 그 화면을 실제로 닫았을 때만
     // 포인트 지급 팝업을 이어서 띄운다.
     // RESULT_OK 는 TutorialActivity 가 떠서 닫힐 때만 준다. 화면이 뜨기 전 시스템이
     // 곧바로 돌려주는 RESULT_CANCELED 에는 반응하지 않는다(팝업이 먼저 뜨던 원인).
+    // 이 경우 마케팅 동의는 아직 묻지 않은 상태로 남아 다음 실행 때 묻게 된다.
     private final ActivityResultLauncher<Intent> welcomeTutorialLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                awaitingWelcomeTutorial = false;
                 if (result.getResultCode() == RESULT_OK) {
                     showWelcomePointDialog(this::askMarketingConsentIfNeeded);
                 }
@@ -88,17 +105,44 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.fragment_container, new VocabularyFragment())
                 .commit();
 
-        // 신규 가입: 웰컴 배너를 먼저 보여준다. 배너를 탭해서 튜토리얼을 보고 닫으면
-        //           포인트 지급 팝업 → 마케팅 수신 동의 순으로 이어지고,
-        //           닫기 버튼으로 배너만 닫으면 마케팅 수신 동의로 바로 넘어간다.
-        // 기존 유저(또는 배너를 이미 본 유저): 마케팅 수신 동의만 (아직 안 물어봤다면) 묻는다.
+        // 신규 가입: 튜토리얼을 바로 띄운다. 튜토리얼을 닫으면
+        //           포인트 지급 팝업 → 마케팅 수신 동의 순으로 이어진다.
+        //           띄우는 즉시 표시를 해제해서, 화면이 다시 만들어져도 중복으로 뜨지 않는다.
+        // 기존 유저: 마케팅 수신 동의만 (아직 안 물어봤다면) 묻는다.
         // 복습 알림 권한은 알림을 실제로 예약하는 '학습시작' 시점에 요청한다.
-        if (savedInstanceState == null && getIntent().getBooleanExtra("isNewUser", false)
-                && !WelcomeBannerPrefs.hasSeenBanner(this)) {
-            showWelcomeBanner();
-        } else if (user != null) {
+        if (savedInstanceState != null) {
+            awaitingWelcomeTutorial = savedInstanceState.getBoolean(STATE_AWAITING_TUTORIAL, false);
+            showingWelcomePoint = savedInstanceState.getBoolean(STATE_SHOWING_WELCOME_POINT, false);
+        }
+
+        if (WelcomeTutorialPrefs.isPending(this)) {
+            WelcomeTutorialPrefs.setPending(this, false);
+            awaitingWelcomeTutorial = true;
+            welcomeTutorialLauncher.launch(new Intent(this, TutorialActivity.class));
+        } else if (showingWelcomePoint) {
+            showWelcomePointDialog(this::askMarketingConsentIfNeeded);
+        } else if (user != null && !awaitingWelcomeTutorial) {
             askMarketingConsentIfNeeded();
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(STATE_AWAITING_TUTORIAL, awaitingWelcomeTutorial);
+        outState.putBoolean(STATE_SHOWING_WELCOME_POINT, showingWelcomePoint);
+    }
+
+    @Override
+    protected void onDestroy() {
+        // 화면이 다시 만들어질 때 떠 있던 포인트 팝업을 정리한다. 닫힘 콜백(마케팅 동의)이
+        // 사라지는 화면에서 불리지 않도록 리스너를 먼저 떼고, 팝업은 새 화면에서 다시 띄운다.
+        if (welcomePointDialog != null) {
+            welcomePointDialog.setOnDismissListener(null);
+            welcomePointDialog.dismiss();
+            welcomePointDialog = null;
+        }
+        super.onDestroy();
     }
 
     @Override
@@ -204,25 +248,6 @@ public class MainActivity extends AppCompatActivity {
         tabLabels[index].setTextColor(color);
     }
 
-    // 최초 로그인 시에만 뜨는 웰컴 배너. 탭하면 튜토리얼로 이동하고, 닫기 버튼을 누르면
-    // 배너만 사라진다. 어느 쪽이든 한 번 처리되면 다시는 뜨지 않도록 기기에 표시해둔다.
-    private void showWelcomeBanner() {
-        View banner = findViewById(R.id.welcomeBanner);
-        banner.setVisibility(View.VISIBLE);
-
-        banner.setOnClickListener(v -> {
-            WelcomeBannerPrefs.markBannerSeen(this);
-            banner.setVisibility(View.GONE);
-            welcomeTutorialLauncher.launch(new Intent(this, TutorialActivity.class));
-        });
-
-        findViewById(R.id.welcomeBannerClose).setOnClickListener(v -> {
-            WelcomeBannerPrefs.markBannerSeen(this);
-            banner.setVisibility(View.GONE);
-            askMarketingConsentIfNeeded();
-        });
-    }
-
     private void showWelcomePointDialog(Runnable onDismissed) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_welcome_point, null);
 
@@ -230,6 +255,8 @@ public class MainActivity extends AppCompatActivity {
                 .setView(dialogView)
                 .setCancelable(false)
                 .create();
+        welcomePointDialog = dialog;
+        showingWelcomePoint = true;
 
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
@@ -237,6 +264,8 @@ public class MainActivity extends AppCompatActivity {
 
         dialogView.findViewById(R.id.welcomeConfirmBtn).setOnClickListener(v -> dialog.dismiss());
         dialog.setOnDismissListener(d -> {
+            welcomePointDialog = null;
+            showingWelcomePoint = false;
             if (onDismissed != null) onDismissed.run();
         });
         dialog.show();
@@ -245,6 +274,7 @@ public class MainActivity extends AppCompatActivity {
     // 마케팅 수신 동의를 한 번만 묻는다. 광고성 정보라 기본값은 '받지 않음'이다.
     private void askMarketingConsentIfNeeded() {
         if (MarketingPushPrefs.hasAsked(this)) return;
+        if (marketingConsentDialog != null && marketingConsentDialog.isShowing()) return;
 
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_marketing_consent, null);
 
@@ -252,6 +282,7 @@ public class MainActivity extends AppCompatActivity {
                 .setView(dialogView)
                 .setCancelable(false)
                 .create();
+        marketingConsentDialog = dialog;
 
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);

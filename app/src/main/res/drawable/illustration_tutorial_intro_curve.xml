@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 튜토리얼 1페이지: 학습 직후부터 떨어지는 기억 곡선 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="280dp"
+    android:viewportWidth="320"
+    android:viewportHeight="280">
+
+    <path
+        android:fillColor="#EEF1FF"
+        android:pathData="M40,0 H280 A40,40 0 0 1 320,40 V240 A40,40 0 0 1 280,280 H40 A40,40 0 0 1 0,240 V40 A40,40 0 0 1 40,0 Z" />
+
+    <group
+        android:pivotX="237"
+        android:pivotY="49"
+        android:rotation="12">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M228,38 H246 A6,6 0 0 1 252,44 V54 A6,6 0 0 1 246,60 H228 A6,6 0 0 1 222,54 V44 A6,6 0 0 1 228,38 Z"
+            android:strokeColor="#C7CEFB"
+            android:strokeWidth="2" />
+    </group>
+
+    <group
+        android:pivotX="69"
+        android:pivotY="207"
+        android:rotation="-10">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M60,196 H78 A6,6 0 0 1 84,202 V212 A6,6 0 0 1 78,218 H60 A6,6 0 0 1 54,212 V202 A6,6 0 0 1 60,196 Z"
+            android:strokeColor="#C7CEFB"
+            android:strokeWidth="2" />
+    </group>
+
+    <!-- 축 -->
+    <path
+        android:pathData="M52,50 V230 H286"
+        android:strokeColor="#C9CEE0"
+        android:strokeWidth="2" />
+
+    <path
+        android:pathData="M62,62 C100,118 150,180 270,214"
+        android:strokeColor="#4453E4"
+        android:strokeLineCap="round"
+        android:strokeWidth="7" />
+
+    <path
+        android:fillColor="#4453E4"
+        android:pathData="M55,62 A7,7 0 1 1 69,62 A7,7 0 1 1 55,62 Z" />
+    <path
+        android:fillColor="#4453E4"
+        android:pathData="M263,214 A7,7 0 1 1 277,214 A7,7 0 1 1 263,214 Z" />
+</vector>

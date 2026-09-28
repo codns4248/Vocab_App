@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 튜토리얼 2페이지: 망각곡선, 끝점(잊기 직전)을 주황으로 강조 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="280dp"
+    android:viewportWidth="320"
+    android:viewportHeight="280">
+
+    <path
+        android:fillColor="#EEF1FF"
+        android:pathData="M40,0 H280 A40,40 0 0 1 320,40 V240 A40,40 0 0 1 280,280 H40 A40,40 0 0 1 0,240 V40 A40,40 0 0 1 40,0 Z" />
+
+    <group
+        android:pivotX="237"
+        android:pivotY="49"
+        android:rotation="12">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M228,38 H246 A6,6 0 0 1 252,44 V54 A6,6 0 0 1 246,60 H228 A6,6 0 0 1 222,54 V44 A6,6 0 0 1 228,38 Z"
+            android:strokeColor="#C7CEFB"
+            android:strokeWidth="2" />
+    </group>
+
+    <group
+        android:pivotX="69"
+        android:pivotY="207"
+        android:rotation="-10">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M60,196 H78 A6,6 0 0 1 84,202 V212 A6,6 0 0 1 78,218 H60 A6,6 0 0 1 54,212 V202 A6,6 0 0 1 60,196 Z"
+            android:strokeColor="#C7CEFB"
+            android:strokeWidth="2" />
+    </group>
+
+    <!-- 점선 기준선 (VectorDrawable 은 dasharray 를 지원하지 않아 4 그리고 6 간격 선분으로 그린다) -->
+    <path
+        android:pathData="M34,224 H38 M44,224 H48 M54,224 H58 M64,224 H68 M74,224 H78 M84,224 H88 M94,224 H98 M104,224 H108 M114,224 H118 M124,224 H128 M134,224 H138 M144,224 H148 M154,224 H158 M164,224 H168 M174,224 H178 M184,224 H188 M194,224 H198 M204,224 H208 M214,224 H218 M224,224 H228 M234,224 H238 M244,224 H248 M254,224 H258 M264,224 H268 M274,224 H278 M284,224 H286"
+        android:strokeColor="#C9CEE0"
+        android:strokeWidth="2" />
+
+    <path
+        android:pathData="M50,64 C92,134 150,188 268,202"
+        android:strokeColor="#4453E4"
+        android:strokeLineCap="round"
+        android:strokeWidth="7" />
+
+    <path
+        android:fillColor="#4453E4"
+        android:pathData="M43,64 A7,7 0 1 1 57,64 A7,7 0 1 1 43,64 Z" />
+
+    <path
+        android:fillAlpha="0.22"
+        android:fillColor="#FF9466"
+        android:pathData="M250,202 A18,18 0 1 1 286,202 A18,18 0 1 1 250,202 Z" />
+    <path
+        android:fillColor="#FF9466"
+        android:pathData="M259,202 A9,9 0 1 1 277,202 A9,9 0 1 1 259,202 Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+</vector>

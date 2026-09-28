@@ -296,15 +296,19 @@ public class VocabularyFragment extends Fragment implements TextToSpeech.OnInitL
                     .limit(1)
                     .get()
                     .addOnSuccessListener(snapshot -> {
+                        if (!isAdded()) return;
                         if (snapshot != null && !snapshot.isEmpty()) {
                             String firstId = snapshot.getDocuments().get(0).getId();
                             saveCurrentVocabularyId(requireContext(), firstId);
                             attachBookListener(firstId);
                         } else {
-                            if (!isAdded()) return;
+                            // 조회가 끝났을 때 화면이 이미 뒤로 가 있을 수 있다(신규 가입 직후 튜토리얼이
+                            // 위에 떠 있는 경우 등). 이때 commit() 은 상태 저장 이후라 크래시가 나므로
+                            // commitAllowingStateLoss() 를 쓴다. 화면이 복원되면 이 조회를 다시 해서
+                            // 같은 전환을 하므로 상태가 유실돼도 문제없다.
                             getParentFragmentManager().beginTransaction()
                                     .replace(R.id.fragment_container, new VocabularyBookListFragment())
-                                    .commit();
+                                    .commitAllowingStateLoss();
                         }
                     });
         }
