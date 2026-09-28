@@ -1,0 +1,16 @@
+<svg viewBox="0 0 320 280" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="320" height="280" rx="40" fill="#EEF1FF"></rect>
+<rect x="222" y="38" width="30" height="22" rx="6" fill="#FFFFFF" stroke="#C7CEFB" stroke-width="2" transform="rotate(12 237 49)"></rect>
+<rect x="54" y="196" width="30" height="22" rx="6" fill="#FFFFFF" stroke="#C7CEFB" stroke-width="2" transform="rotate(-10 69 207)"></rect>
+<line x1="34" y1="224" x2="286" y2="224" stroke="#C9CEE0" stroke-width="2" stroke-dasharray="4 6"></line>
+<path d="M40,70 C70,116 96,158 112,178 C124,158 132,98 144,86 C168,100 182,132 192,150 C202,132 210,88 222,76 C246,72 266,70 284,70" fill="none" stroke="#4453E4" stroke-width="7" stroke-linecap="round"></path>
+<circle cx="40" cy="70" r="7" fill="#4453E4"></circle>
+<circle cx="112" cy="178" r="6" fill="#FF9466"></circle>
+<circle cx="144" cy="86" r="18" fill="#22C55E" opacity="0.22"></circle>
+<circle cx="144" cy="86" r="9" fill="#22C55E" stroke="#FFFFFF" stroke-width="2.5"></circle>
+<circle cx="192" cy="150" r="5" fill="#FF9466"></circle>
+<circle cx="222" cy="76" r="18" fill="#22C55E" opacity="0.22"></circle>
+<circle cx="222" cy="76" r="9" fill="#22C55E" stroke="#FFFFFF" stroke-width="2.5"></circle>
+<circle cx="284" cy="70" r="20" fill="#FFB800" opacity="0.18"></circle>
+<path d="M284,57 L287.23,65.55 L296.36,65.98 L289.23,71.70 L291.64,80.52 L284,75.5 L276.36,80.52 L278.77,71.70 L271.64,65.98 L280.77,65.55 Z" fill="#FFB800"></path>
+</svg>

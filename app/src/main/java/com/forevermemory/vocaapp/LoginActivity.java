@@ -35,6 +35,7 @@ import kotlin.jvm.functions.Function2;
 // 안드로이드 구버전 호환성을 위해 추가
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import com.forevermemory.vocaapp.Onboarding.WelcomeTutorialPrefs;
 import com.forevermemory.vocaapp.util.PopupUtil;
 
 public class LoginActivity extends AppCompatActivity {
@@ -257,10 +258,10 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
-    // 메인 화면으로 이동 (신규 유저면 환영 팝업을 띄우도록 플래그 전달)
+    // 메인 화면으로 이동 (신규 유저면 메인 화면이 튜토리얼부터 띄우도록 표시해둔다)
     private void goToMain(boolean isNewUser) {
+        WelcomeTutorialPrefs.setPending(this, isNewUser);
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        intent.putExtra("isNewUser", isNewUser);
         startActivity(intent);
         finish();
     }

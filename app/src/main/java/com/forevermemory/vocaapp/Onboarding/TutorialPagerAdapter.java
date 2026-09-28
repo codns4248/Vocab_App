@@ -3,6 +3,7 @@ package com.forevermemory.vocaapp.Onboarding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -11,7 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.forevermemory.vocaapp.R;
 
 /**
- * 웰컴 배너에서 진입하는 3페이지 튜토리얼 캐러셀 어댑터.
+ * 신규 가입 직후 뜨는 3페이지 튜토리얼 캐러셀 어댑터.
  * 정적 콘텐츠라 페이지 문구는 여기 상수로 들고 있는다.
  */
 class TutorialPagerAdapter extends RecyclerView.Adapter<TutorialPagerAdapter.PageViewHolder> {
@@ -28,6 +29,12 @@ class TutorialPagerAdapter extends RecyclerView.Adapter<TutorialPagerAdapter.Pag
             "이제 외운 단어, 진짜로 오래 기억날 거예요!",
     };
 
+    static final int[] ILLUSTRATIONS = {
+            R.drawable.illustration_tutorial_intro_curve,
+            R.drawable.illustration_tutorial_forgetting_curve,
+            R.drawable.illustration_tutorial_spaced_review,
+    };
+
     static int pageCount() {
         return TITLES.length;
     }
@@ -42,6 +49,7 @@ class TutorialPagerAdapter extends RecyclerView.Adapter<TutorialPagerAdapter.Pag
 
     @Override
     public void onBindViewHolder(@NonNull PageViewHolder holder, int position) {
+        holder.illustration.setImageResource(ILLUSTRATIONS[position]);
         holder.title.setText(TITLES[position]);
         holder.body.setText(BODIES[position]);
     }
@@ -52,11 +60,13 @@ class TutorialPagerAdapter extends RecyclerView.Adapter<TutorialPagerAdapter.Pag
     }
 
     static class PageViewHolder extends RecyclerView.ViewHolder {
+        final ImageView illustration;
         final TextView title;
         final TextView body;
 
         PageViewHolder(@NonNull View itemView) {
             super(itemView);
+            illustration = itemView.findViewById(R.id.ivTutorialIllustration);
             title = itemView.findViewById(R.id.tvTutorialTitle);
             body = itemView.findViewById(R.id.tvTutorialBody);
         }
