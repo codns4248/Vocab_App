@@ -37,7 +37,7 @@
                 android:id="@+id/tvHeaderSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="총 4개 · 학습 중 1개"
+                tools:text="총 4개 · 학습 중 1개"
                 android:textSize="12sp"
                 android:textColor="#737373"
                 android:layout_marginTop="2dp" />
@@ -85,30 +85,30 @@
                 android:id="@+id/emptyStateLayout"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:orientation="vertical"
                 android:gravity="center"
+                android:orientation="vertical"
                 android:visibility="gone"
-                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
+                app:layout_constraintTop_toTopOf="parent">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:text="단어장이 없어요"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
                     android:textColor="#1A1A1A"
-                    android:layout_marginBottom="8dp" />
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:gravity="center"
                     android:text="아래 + 버튼을 눌러 단어장을 추가해 보세요"
-                    android:textSize="14sp"
                     android:textColor="#737373"
-                    android:gravity="center" />
+                    android:textSize="14sp" />
 
             </LinearLayout>
 
@@ -117,6 +117,7 @@
                 android:id="@+id/scrollContainer"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
+                android:visibility="gone"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -136,6 +137,7 @@
                         android:id="@+id/currentStudySection"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:visibility="gone"
                         android:orientation="vertical"
                         android:layout_marginBottom="18dp">
 
@@ -165,6 +167,7 @@
                         android:id="@+id/otherBooksSection"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:visibility="gone"
                         android:orientation="vertical">
 
                         <!-- 기타 단어장 라벨 -->

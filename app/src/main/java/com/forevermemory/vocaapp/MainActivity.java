@@ -29,6 +29,7 @@ import androidx.fragment.app.Fragment;
 
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyBookListFragment;
 import com.forevermemory.vocaapp.VocabularyBookList.VocabularyCounterBackfill;
+import com.forevermemory.vocaapp.VocabularyList.VocabularyEntryFragment;
 import com.forevermemory.vocaapp.VocabularyList.VocabularyFragment;
 import com.forevermemory.vocaapp.Test.StudyManager;
 import com.google.firebase.auth.FirebaseAuth;
@@ -38,6 +39,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.forevermemory.vocaapp.util.PopupUtil;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -52,6 +54,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int ANIM_DURATION_MS = 175;
 
     private int selectedTabIndex = 0;
+    private static final String STATE_SELECTED_TAB = "selectedTab";
+    private static final String STATE_VOCABULARY_LIST = "vocabularyListVisible";
+    private boolean returnToVocabularyList;
     private LinearLayout[] tabs;
     private ImageView[] tabIcons;
     private TextView[] tabLabels;
@@ -99,11 +104,17 @@ public class MainActivity extends AppCompatActivity {
             VocabularyCounterBackfill.runIfNeeded(this, user.getUid());
         }
 
+        if (savedInstanceState != null) {
+            selectedTabIndex = savedInstanceState.getInt(STATE_SELECTED_TAB, 0);
+            returnToVocabularyList = savedInstanceState.getBoolean(STATE_VOCABULARY_LIST, false);
+        }
         initCustomNav();
 
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, new VocabularyFragment())
-                .commit();
+        if (savedInstanceState == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, new VocabularyEntryFragment())
+                    .commit();
+        }
 
         // 신규 가입: 튜토리얼을 바로 띄운다. 튜토리얼을 닫으면
         //           포인트 지급 팝업 → 마케팅 수신 동의 순으로 이어진다.
@@ -131,6 +142,9 @@ public class MainActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
         outState.putBoolean(STATE_AWAITING_TUTORIAL, awaitingWelcomeTutorial);
         outState.putBoolean(STATE_SHOWING_WELCOME_POINT, showingWelcomePoint);
+        outState.putInt(STATE_SELECTED_TAB, selectedTabIndex);
+        rememberVocabularyDestination();
+        outState.putBoolean(STATE_VOCABULARY_LIST, returnToVocabularyList);
     }
 
     @Override
@@ -189,10 +203,10 @@ public class MainActivity extends AppCompatActivity {
             tab.setBackground(bg);
         }
 
-        // 첫 탭 즉시 선택 상태로 초기화 (애니메이션 없이)
-        applyTabColorImmediate(0, true);
-        applyTabColorImmediate(1, false);
-        applyTabColorImmediate(2, false);
+        // 복원된 탭을 애니메이션 없이 선택한다.
+        applyTabColorImmediate(0, selectedTabIndex == 0);
+        applyTabColorImmediate(1, selectedTabIndex == 1);
+        applyTabColorImmediate(2, selectedTabIndex == 2);
 
         for (int i = 0; i < tabs.length; i++) {
             final int index = i;
@@ -203,18 +217,35 @@ public class MainActivity extends AppCompatActivity {
     private void onTabSelected(int index) {
         if (index == selectedTabIndex) return;
 
+        rememberVocabularyDestination();
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (current instanceof VocabularyEntryFragment) {
+            ((VocabularyEntryFragment) current).cancelPendingNavigation();
+        }
+
         animateTabTransition(selectedTabIndex, false);
         animateTabTransition(index, true);
         selectedTabIndex = index;
 
         Fragment fragment;
-        if (index == 0)      fragment = new VocabularyFragment();
+        if (index == 0)      fragment = returnToVocabularyList
+                ? new VocabularyBookListFragment() : new VocabularyEntryFragment();
         else if (index == 1) fragment = new QuizAndGameFragment();
         else                 fragment = new SettingFragment();
 
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, fragment)
                 .commit();
+    }
+
+    private void rememberVocabularyDestination() {
+        if (selectedTabIndex != 0) return;
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (current instanceof VocabularyBookListFragment) {
+            returnToVocabularyList = true;
+        } else if (current instanceof VocabularyFragment) {
+            returnToVocabularyList = false;
+        }
     }
 
     private void animateTabTransition(int index, boolean selecting) {
@@ -291,12 +322,15 @@ public class MainActivity extends AppCompatActivity {
         dialogView.findViewById(R.id.btn_marketing_allow).setOnClickListener(v -> {
             MarketingPushPrefs.setEnabled(this, true);
             dialog.dismiss();
-            PopupUtil.show(this, "마케팅 정보 수신에 동의했습니다.");
+            Snackbar.make(findViewById(R.id.main), "마케팅 정보 수신에 동의했습니다.", Snackbar.LENGTH_SHORT)
+                    .setAnchorView(R.id.bottom_nav_container).show();
         });
 
         dialogView.findViewById(R.id.btn_marketing_deny).setOnClickListener(v -> {
             MarketingPushPrefs.setEnabled(this, false);
             dialog.dismiss();
+            Snackbar.make(findViewById(R.id.main), "마케팅 정보 수신을 거부했습니다.", Snackbar.LENGTH_SHORT)
+                    .setAnchorView(R.id.bottom_nav_container).show();
         });
 
         dialog.show();

@@ -13,6 +13,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -23,6 +24,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.forevermemory.vocaapp.util.PopupUtil;
+import com.google.android.material.snackbar.Snackbar;
 
 public class SettingFragment extends Fragment {
 
@@ -31,6 +33,7 @@ public class SettingFragment extends Fragment {
     // 탈퇴 성공 콜백은 이 화면이 사라진 뒤에 올 수도 있어, 그때도 로그인 화면으로
     // 넘어갈 수 있도록 앱 컨텍스트를 들고 있는다.
     private Context appContext;
+    private WithdrawalViewModel withdrawalViewModel;
 
     @Nullable
     @Override
@@ -88,7 +91,10 @@ public class SettingFragment extends Fragment {
         switchMarketingPush.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) return;   // setChecked로 인한 호출은 무시
             MarketingPushPrefs.setEnabled(requireContext(), isChecked);
-            PopupUtil.show(getContext(), isChecked ? "마케팅 정보 수신에 동의했습니다." : "마케팅 정보 수신을 해제했습니다.");
+            Snackbar.make(requireActivity().findViewById(R.id.main),
+                            isChecked ? "마케팅 정보 수신에 동의했습니다." : "마케팅 정보 수신을 거부했습니다.",
+                            Snackbar.LENGTH_SHORT)
+                    .setAnchorView(R.id.bottom_nav_container).show();
         });
 
         checkNoticeLinear.setOnClickListener(v -> {
@@ -140,6 +146,20 @@ public class SettingFragment extends Fragment {
         return view;
     }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        withdrawalViewModel = new ViewModelProvider(requireActivity()).get(WithdrawalViewModel.class);
+        withdrawalViewModel.getStatus().observe(getViewLifecycleOwner(), status -> {
+            if (status == WithdrawalViewModel.Status.SUCCESS) {
+                goToLogin();
+            } else if (status == WithdrawalViewModel.Status.ERROR) {
+                PopupUtil.show(getContext(), "탈퇴 실패: " + withdrawalViewModel.getErrorMessage());
+                withdrawalViewModel.clearError();
+            }
+        });
+    }
+
     private void showLogoutDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_logout, null);
 
@@ -170,24 +190,7 @@ public class SettingFragment extends Fragment {
     // 탈퇴 이유 설문(AccountWithdrawReasonBottomSheet)에서 "탈퇴하기"를 누른 뒤 실제 탈퇴를 진행한다.
     // 재인증 안내는 설문 바텀시트의 배지가 이미 보여줬으므로 여기서 다시 확인창을 띄우지 않는다.
     private void proceedWithdrawal(String[] reasons) {
-        // 애플리케이션 컨텍스트로 넘긴다. 탈퇴는 성공하면 이 화면이 사라지므로,
-        // 콜백 시점에 Fragment 가 이미 detach 됐더라도 로그인 화면으로 넘어가야 한다.
-        SettingFirebase settingFirebase = new SettingFirebase(requireContext(),
-                new SettingFirebase.OnUnregisterListener() {
-                    @Override
-                    public void onSuccess() {
-                        // SettingFirebase 가 메인 스레드로 올려서 호출해준다.
-                        goToLogin();
-                    }
-
-                    @Override
-                    public void onFailure(String errorMsg) {
-                        if (isAdded()) {
-                            PopupUtil.show(getContext(), "탈퇴 실패: " + errorMsg);
-                        }
-                    }
-                });
-        settingFirebase.performUnregister(reasons);
+        withdrawalViewModel.start(requireActivity(), reasons);
     }
 
     private void goToLogin() {
