@@ -2,6 +2,7 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { defineSecret } = require("firebase-functions/params");
 const { checkReviewTask } = require("./reviewTaskGuard");
 const { createReviewSchedule } = require("./reviewSchedule");
+const { createAccountLinks } = require("./accountLinks");
 const crypto = require("crypto");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
@@ -28,10 +29,6 @@ const HANDLE_ROLLBACK_URL = "https://handlerollback-njizfa3oqq-du.a.run.app";
 // 설정: firebase functions:secrets:set ANTHROPIC_API_KEY
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
-// 카카오 REST API 키. 회원 탈퇴 시 카카오 연결 해제(관리자 API)에 쓴다.
-// 설정: firebase functions:secrets:set KAKAO_REST_API_KEY
-const KAKAO_REST_API_KEY = defineSecret("KAKAO_REST_API_KEY");
-
 // Cloud Tasks가 우리 HTTP 함수를 부를 때 함께 보내는 공유 비밀.
 // sendFcmNotification / handleRollback 은 공개 주소라 이 값이 없으면 누구나
 // 남에게 푸시를 보내거나 학습 진도를 되돌릴 수 있다.
@@ -48,6 +45,12 @@ const SIGNUP_BONUS_POINT = 100;
 // 액세스 토큰이 "우리 앱" 것인지 대조하는 데 쓴다. 이 대조가 없으면
 // 공격자가 자기 카카오 앱에서 받은 토큰으로 우리 서비스에 로그인할 수 있다.
 const KAKAO_APP_ID = 1553470;
+const accountLinks = createAccountLinks(admin, KAKAO_APP_ID);
+
+exports.getAccountLinks = onCall({ region: "asia-northeast3" }, (request) => accountLinks.status(request));
+exports.linkKakaoAccount = onCall({ region: "asia-northeast3" }, (request) => accountLinks.linkKakao(request));
+exports.reauthenticateKakaoAccount = onCall({ region: "asia-northeast3" },
+    (request) => accountLinks.reauthenticateKakao(request));
 
 const AI_MODEL = "claude-haiku-4-5";
 const MAX_IMAGES = 5; // 갤러리 선택 상한(PickMultipleVisualMedia)과 동일
@@ -735,7 +738,6 @@ exports.handleRollback = onRequest(
 // 카카오 서버에 물어봐서 신원을 확인한다.
 // ---------------------------------------------------------------------------
 
-const KAKAO_TOKEN_INFO_URL = "https://kapi.kakao.com/v1/user/access_token_info";
 const KAKAO_USER_ME_URL = "https://kapi.kakao.com/v2/user/me";
 
 exports.kakaoCustomToken = onCall(
@@ -746,42 +748,8 @@ exports.kakaoCustomToken = onCall(
     async (request) => {
         // 로그인 전이라 request.auth는 비어 있다. 인증은 카카오 토큰으로 한다.
         const accessToken = request.data?.accessToken;
-        if (typeof accessToken !== "string" || accessToken.trim() === "") {
-            throw new HttpsError("invalid-argument", "카카오 액세스 토큰이 필요합니다.");
-        }
-
-        if (!KAKAO_APP_ID) {
-            console.error("KAKAO_APP_ID가 설정되지 않았습니다. index.js 상단 상수를 채워야 합니다.");
-            throw new HttpsError("failed-precondition", "서버 설정이 완료되지 않았습니다.");
-        }
-
-        // [1] 토큰 검증: 누구의 토큰인지 + 어느 앱의 토큰인지
-        let tokenInfo;
-        try {
-            const res = await fetch(KAKAO_TOKEN_INFO_URL, {
-                headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            if (!res.ok) {
-                console.warn("카카오 토큰 검증 실패:", res.status, await res.text());
-                throw new HttpsError("unauthenticated", "카카오 로그인 정보가 유효하지 않습니다.");
-            }
-            tokenInfo = await res.json();
-        } catch (error) {
-            if (error instanceof HttpsError) throw error;
-            console.error("카카오 토큰 검증 중 오류:", error);
-            throw new HttpsError("internal", "카카오 인증에 실패했습니다.");
-        }
-
-        // 다른 앱에서 발급된 토큰을 막는다. 이 대조가 이 함수의 핵심 방어선이다.
-        if (Number(tokenInfo.app_id) !== Number(KAKAO_APP_ID)) {
-            console.warn(`다른 앱의 토큰 거부: app_id=${tokenInfo.app_id}`);
-            throw new HttpsError("permission-denied", "허용되지 않은 로그인 요청입니다.");
-        }
-
-        const kakaoId = tokenInfo.id;
-        if (kakaoId === undefined || kakaoId === null) {
-            throw new HttpsError("internal", "카카오 사용자 정보를 읽지 못했습니다.");
-        }
+        const kakaoId = await accountLinks.verifyKakao(accessToken);
+        const uid = await accountLinks.resolveLogin(kakaoId);
 
         // [2] 프로필 조회. 실패해도 로그인은 진행한다(동의 안 한 항목일 수 있다).
         let nickname = null;
@@ -799,13 +767,15 @@ exports.kakaoCustomToken = onCall(
             console.warn("카카오 프로필 조회 실패(로그인은 계속):", error.message);
         }
 
-        // [3] Firebase 유저 생성 또는 갱신
-        const uid = `kakao:${kakaoId}`;
+        // Existing linked accounts keep their Google profile and email.
         let isNewUser = false;
         try {
             await admin.auth().getUser(uid);
         } catch (error) {
             if (error.code === "auth/user-not-found") {
+                if (uid !== `kakao:${kakaoId}`) {
+                    throw new HttpsError("failed-precondition", "연결된 계정을 찾을 수 없습니다.");
+                }
                 isNewUser = true;
             } else {
                 console.error("Firebase 유저 조회 실패:", error);
@@ -821,8 +791,6 @@ exports.kakaoCustomToken = onCall(
         try {
             if (isNewUser) {
                 await admin.auth().createUser({ uid, ...profileFields });
-            } else if (Object.keys(profileFields).length > 0) {
-                await admin.auth().updateUser(uid, profileFields);
             }
         } catch (error) {
             // 이메일 중복(auth/email-already-exists)은 흔하다. 이메일 없이 다시 시도한다.
@@ -831,9 +799,9 @@ exports.kakaoCustomToken = onCall(
                 delete profileFields.email;
                 if (isNewUser) {
                     await admin.auth().createUser({ uid, ...profileFields });
-                } else if (Object.keys(profileFields).length > 0) {
-                    await admin.auth().updateUser(uid, profileFields);
                 }
+            } else if (error.code === "auth/uid-already-exists") {
+                isNewUser = false;
             } else {
                 console.error("Firebase 유저 생성/갱신 실패:", error);
                 throw new HttpsError("internal", "로그인 처리에 실패했습니다.");
@@ -843,6 +811,7 @@ exports.kakaoCustomToken = onCall(
         // [4] 커스텀 토큰 발급
         let customToken;
         try {
+            await accountLinks.getKakaoId(uid);
             customToken = await admin.auth().createCustomToken(uid, { provider: "kakao" });
         } catch (error) {
             console.error("커스텀 토큰 발급 실패:", error);
@@ -873,19 +842,17 @@ const KAKAO_UNLINK_URL = "https://kapi.kakao.com/v1/user/unlink";
  * 카카오 사용자 연결을 해제한다. 실패해도 탈퇴 자체는 진행한다.
  * (이미 연결이 끊겼거나 카카오 장애일 수 있는데, 그것 때문에 탈퇴를 막으면 안 된다)
  *
- * @param {string} kakaoId 카카오 회원번호
- * @param {string} restApiKey 카카오 REST API 키
+ * @param {string} accessToken 본인 확인을 마친 카카오 액세스 토큰
  * @return {Promise<void>} 완료 프라미스
  */
-async function unlinkKakaoUser(kakaoId, restApiKey) {
+async function unlinkKakaoUser(accessToken) {
     try {
         const res = await fetch(KAKAO_UNLINK_URL, {
             method: "POST",
             headers: {
-                Authorization: `KakaoAK ${restApiKey}`,
+                Authorization: `Bearer ${accessToken}`,
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            body: `target_id_type=user_id&target_id=${encodeURIComponent(kakaoId)}`,
         });
         if (!res.ok) {
             console.warn("카카오 연결 해제 실패(탈퇴는 계속):", res.status, await res.text());
@@ -898,7 +865,6 @@ async function unlinkKakaoUser(kakaoId, restApiKey) {
 exports.deleteAccount = onCall(
     {
         region: "asia-northeast3",
-        secrets: [KAKAO_REST_API_KEY],
         timeoutSeconds: 300,
     },
     async (request) => {
@@ -907,7 +873,8 @@ exports.deleteAccount = onCall(
         }
 
         const uid = request.auth.uid;
-        const isKakao = uid.startsWith("kakao:");
+        const kakaoId = await accountLinks.getKakaoId(uid, true);
+        const isKakao = Boolean(kakaoId);
 
         // 카카오 계정은 Firebase 재인증을 할 수 없다(커스텀 토큰이라 reauthenticate 불가).
         // 대신 방금 받은 카카오 액세스 토큰을 요구해서, 계정 주인이 맞는지 확인한다.
@@ -917,28 +884,17 @@ exports.deleteAccount = onCall(
                 throw new HttpsError("failed-precondition", "카카오 재인증이 필요합니다.");
             }
 
-            let tokenInfo;
-            try {
-                const res = await fetch(KAKAO_TOKEN_INFO_URL, {
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                });
-                if (!res.ok) {
-                    throw new HttpsError("unauthenticated", "카카오 재인증에 실패했습니다.");
-                }
-                tokenInfo = await res.json();
-            } catch (error) {
-                if (error instanceof HttpsError) throw error;
-                throw new HttpsError("internal", "카카오 재인증에 실패했습니다.");
-            }
+            const verifiedId = await accountLinks.verifyKakao(accessToken);
 
             // 남의 토큰으로 다른 계정을 지우지 못하도록 uid와 대조한다.
-            if (`kakao:${tokenInfo.id}` !== uid) {
-                console.warn(`탈퇴 요청 uid 불일치: ${uid} vs kakao:${tokenInfo.id}`);
+            if (verifiedId !== kakaoId) {
                 throw new HttpsError("permission-denied", "본인 계정만 탈퇴할 수 있습니다.");
             }
 
-            await unlinkKakaoUser(tokenInfo.id, KAKAO_REST_API_KEY.value());
+        } else {
+            accountLinks.requireRecentGoogle(request);
         }
+        await accountLinks.beginDeletion(uid, kakaoId);
 
         // [0] 탈퇴 사유 수집 (통계용, 선택값). 실패해도 탈퇴는 계속 진행한다.
         const withdrawReasons = Array.isArray(request.data?.withdrawReasons)
@@ -978,6 +934,8 @@ exports.deleteAccount = onCall(
             }
         }
 
+        if (isKakao) await unlinkKakaoUser(request.data.kakaoAccessToken);
+        await accountLinks.finishDeletion(uid, kakaoId);
         console.log(`회원 탈퇴 완료: ${uid} (카카오=${isKakao})`);
         return { success: true };
     }

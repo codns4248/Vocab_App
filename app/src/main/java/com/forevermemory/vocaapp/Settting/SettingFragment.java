@@ -121,6 +121,8 @@ public class SettingFragment extends Fragment {
         importVocabularyLinear.setOnClickListener(v ->
                 startActivity(new Intent(getActivity(), ImportVocabularyGuideActivity.class)));
         logoutLinear.setOnClickListener(v -> showLogoutDialog());
+        view.findViewById(R.id.accountLinkEntry).setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), AccountLinkActivity.class)));
 
         // "회원탈퇴" 는 3단계다.
         //  1) unregisterLinear 클릭 → 이탈 방지 바텀시트(AccountRetentionBottomSheet)

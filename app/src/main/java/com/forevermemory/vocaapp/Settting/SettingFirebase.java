@@ -93,15 +93,15 @@ public class SettingFirebase {
             return;
         }
 
-        if (isKakaoAccount(user)) {
-            // 카카오는 Firebase 재인증(reauthenticate)이 불가능하다. 커스텀 토큰이라
-            // 재인증에 쓸 AuthCredential이 없다. 대신 카카오 로그인을 다시 시켜
-            // 그 액세스 토큰을 서버가 검증하게 한다.
-            reauthenticateWithKakaoThenDelete();
-            return;
-        }
-
-        performGoogleUnregister(user);
+        FirebaseFunctions.getInstance("asia-northeast3").getHttpsCallable("getAccountLinks").call()
+                .addOnSuccessListener(result -> {
+                    Map<?, ?> links = (Map<?, ?>) result.getData();
+                    if (Boolean.TRUE.equals(links.get("kakao"))) {
+                        reauthenticateWithKakaoThenDelete();
+                    } else {
+                        performGoogleUnregister(user);
+                    }
+                }).addOnFailureListener(error -> notifyFailure("연결 계정을 확인하지 못했습니다. 다시 시도해주세요."));
     }
 
     private void performGoogleUnregister(FirebaseUser user) {
@@ -129,7 +129,9 @@ public class SettingFirebase {
 
                                 user.reauthenticate(authCredential).addOnCompleteListener(reauthTask -> {
                                     if (reauthTask.isSuccessful()) {
-                                        callDeleteAccount(null, credentialManager);
+                                        user.getIdToken(true)
+                                                .addOnSuccessListener(token -> callDeleteAccount(null, credentialManager))
+                                                .addOnFailureListener(error -> notifyFailure("인증 갱신에 실패했습니다."));
                                     } else {
                                         notifyFailure("재인증에 실패했습니다.");
                                     }

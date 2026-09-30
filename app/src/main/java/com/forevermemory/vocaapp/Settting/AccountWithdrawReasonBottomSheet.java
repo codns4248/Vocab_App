@@ -19,7 +19,6 @@ import androidx.annotation.Nullable;
 import com.forevermemory.vocaapp.R;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.button.MaterialButton;
-import com.google.firebase.auth.FirebaseAuth;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -209,15 +208,9 @@ public class AccountWithdrawReasonBottomSheet extends BottomSheetDialogFragment 
         return out.toArray(new String[0]);
     }
 
-    /**
-     * 재인증 방식이 제공자마다 달라 안내 배지 문구를 나눈다.
-     * (기존 SettingFragment.showUnregisterDialog() 의 분기 문구를 이식)
-     */
+    /** 탈퇴 시 연결된 계정을 기준으로 재인증한다. */
     private void bindReauthNotice(@NonNull View view) {
         TextView notice = view.findViewById(R.id.tvReauthNotice);
-        boolean isKakao = SettingFirebase.isKakaoAccount(FirebaseAuth.getInstance().getCurrentUser());
-        notice.setText(isKakao
-                ? "탈퇴를 위해 카카오 로그인을 다시 진행해야 해요. 탈퇴 시 카카오 계정과의 연결도 해제됩니다."
-                : "탈퇴를 위해 구글 로그인을 다시 진행해야 해요.");
+        notice.setText("탈퇴를 위해 연결된 계정으로 다시 인증해야 해요. 카카오가 연결되어 있으면 카카오로 인증하며, 탈퇴 시 연결도 해제됩니다.");
     }
 }

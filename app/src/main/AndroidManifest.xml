@@ -88,6 +88,9 @@
         <activity android:name=".Settting.NoticeActivity"
             android:exported="false"/>
 
+        <activity android:name=".Settting.AccountLinkActivity"
+            android:exported="false"/>
+
         <activity android:name=".Settting.NoticeDetailActivity"
             android:exported="false"/>
 
