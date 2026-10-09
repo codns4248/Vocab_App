@@ -109,7 +109,7 @@ public class SettingFragment extends Fragment {
         });
 
         checkPolicyLinear.setOnClickListener(v -> {
-            String notionUrl = "https://ajar-saturnalia-176.notion.site/Voca-App-Privacy-Policy-Terms-Conditions-KOR-335c76a94e95808ab816d27f73c51e8c";
+            String notionUrl = "https://amenable-recorder-2b8.notion.site/LOOP_Privacy-Policy-Terms-Conditions-KOR-5372a5b9fec7829fba6a81536bfc0ec0";
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(notionUrl));
             startActivity(intent);
         });
