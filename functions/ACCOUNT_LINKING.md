@@ -12,6 +12,13 @@ Deploy the server functions before installing the updated app:
 firebase deploy --only functions:getAccountLinks,functions:linkKakaoAccount,functions:reauthenticateKakaoAccount,functions:kakaoCustomToken,functions:deleteAccount
 ```
 
+Deploy Firestore rules as well because they block late client writes while an
+account deletion is running:
+
+```sh
+firebase deploy --only firestore:rules
+```
+
 No deployment is performed by the implementation task. Rebuild the Android app.
 The existing administrator account does not need to be deleted or migrated.
 

@@ -17,6 +17,11 @@ import com.google.firebase.messaging.RemoteMessage;
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
+        // OneSignal 등 다른 푸시는 복습 알림으로 표시하지 않는다.
+        if (!"REVIEW_NOTIFICATION".equals(remoteMessage.getData().get("type"))) {
+            return;
+        }
+
         String title = "복습 알림";
         String message = "단어를 복습할 시간입니다.";
 

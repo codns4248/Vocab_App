@@ -934,6 +934,16 @@ exports.deleteAccount = onCall(
             }
         }
 
+        // 탈퇴 요청 직전 이미 전송된 클라이언트 쓰기가 첫 삭제와 겹쳤을 수 있다.
+        // 인증 계정을 제거한 뒤 같은 경로를 다시 비워 orphan 하위 문서까지 정리한다.
+        try {
+            const db = admin.firestore();
+            await db.recursiveDelete(db.collection("users").doc(uid));
+        } catch (error) {
+            console.error("사용자 잔여 데이터 삭제 실패:", error);
+            throw new HttpsError("internal", "잔여 데이터 삭제에 실패했습니다.");
+        }
+
         if (isKakao) await unlinkKakaoUser(request.data.kakaoAccessToken);
         await accountLinks.finishDeletion(uid, kakaoId);
         console.log(`회원 탈퇴 완료: ${uid} (카카오=${isKakao})`);

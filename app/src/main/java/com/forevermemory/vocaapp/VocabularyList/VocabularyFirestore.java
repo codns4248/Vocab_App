@@ -62,6 +62,7 @@ public class VocabularyFirestore {
                     if (onSuccess != null) onSuccess.run();
                 })
                 .addOnFailureListener(e -> {
+                    Log.e("VocabularyFirestore", "단어 추가 배치 실패", e);
                     if (onFailure != null) onFailure.run();
                 });
     }

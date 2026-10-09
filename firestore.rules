@@ -7,6 +7,13 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // 회원탈퇴가 시작되면 서버가 accountLinks/{uid}.deleting 을 true로 둔다.
+    // 삭제 작업과 동시에 도착한 앱 쓰기가 하위 컬렉션을 다시 만들지 못하게 한다.
+    function isNotDeleting(userId) {
+      return !exists(/databases/$(database)/documents/accountLinks/$(userId))
+             || get(/databases/$(database)/documents/accountLinks/$(userId)).data.get('deleting', false) != true;
+    }
+
     // 이번 쓰기가 특정 필드를 건드리는지
     function touches(field) {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny([field]);
@@ -19,16 +26,19 @@ service cloud.firestore {
       // 지급은 initializeUser, 차감은 extractWordsFromImages 가 하고
       // Admin SDK 는 보안 규칙을 우회하므로 서버 동작에는 영향이 없다.
       allow create: if isOwner(userId)
+                    && isNotDeleting(userId)
                     && !request.resource.data.keys().hasAny(['point']);
-      allow update: if isOwner(userId) && !touches('point');
+      allow update: if isOwner(userId) && isNotDeleting(userId) && !touches('point');
       allow delete: if false;   // 탈퇴는 deleteAccount 함수가 처리
 
       // 단어장과 단어는 본인 것만
       match /vocabularies/{vocabularyId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isNotDeleting(userId);
 
         match /words/{wordId} {
-          allow read, write: if isOwner(userId);
+          allow read: if isOwner(userId);
+          allow write: if isOwner(userId) && isNotDeleting(userId);
         }
       }
     }

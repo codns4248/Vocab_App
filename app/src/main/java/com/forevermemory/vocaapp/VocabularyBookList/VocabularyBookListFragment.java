@@ -337,6 +337,7 @@ public class VocabularyBookListFragment extends Fragment {
 
             @Override
             public void onFailure(Exception e) {
+                Log.e("VocabularyBook", "단어장 등록 실패", e);
                 PopupUtil.show(getContext(), "등록 실패");
             }
         });

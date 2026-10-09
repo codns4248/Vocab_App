@@ -79,7 +79,8 @@ test("Google-origin linked account deletion verifies Kakao and cleans the mappin
     await exported.deleteAccount({ auth: { uid: "google-user" }, data: { kakaoAccessToken: "proof" } });
     assert.deepEqual(events, [
         ["lock", "google-user", "42"], ["delete-data", "google-user"],
-        ["delete-auth", "google-user"], ["unlink", "Bearer proof"], ["cleanup", "google-user", "42"],
+        ["delete-auth", "google-user"], ["delete-data", "google-user"],
+        ["unlink", "Bearer proof"], ["cleanup", "google-user", "42"],
     ]);
 });
 
